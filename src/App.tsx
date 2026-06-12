@@ -159,8 +159,21 @@ const clampNumber = (value: number, min: number, max: number) => Math.min(Math.m
 const formatTemperature = (value: number) => `${Math.round(value)}°C`
 
 const extractTemperatureRange = (description: string) => {
-  const temperatures = [...description.matchAll(/-?\d+(?:\.\d+)?\s*(?:°\s*)?c\b/gi)].map((match) =>
-    Number.parseFloat(match[0]),
+  const temperatures: number[] = []
+  let textWithoutRanges = description
+
+  textWithoutRanges = textWithoutRanges.replace(
+    /(^|[^\d.])(-?\d+(?:\.\d+)?)\s*(?:°\s*)?(?:c\b)?\s*(?:-|–|—|to)\s*(-?\d+(?:\.\d+)?)\s*(?:°\s*)?c\b/gi,
+    (match, prefix: string, low: string, high: string) => {
+      temperatures.push(Number.parseFloat(low), Number.parseFloat(high))
+      return prefix.padEnd(match.length, ' ')
+    },
+  )
+
+  temperatures.push(
+    ...[...textWithoutRanges.matchAll(/(^|[^\d.])(-?\d+(?:\.\d+)?)\s*(?:°\s*)?c\b/gi)].map((match) =>
+      Number.parseFloat(match[2]),
+    ),
   )
 
   if (!temperatures.length) return null
@@ -398,20 +411,12 @@ const callLlm = async (settings: LlmSettings, query: string): Promise<Review> =>
 }
 
 const ScouterMark = ({ className = '' }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 180 190" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <g transform="rotate(-6 90 85)">
-      <path d="M136 44C126 20 70 24 58 50C48 72 76 82 98 86C136 94 146 122 116 144C94 160 54 152 46 128" stroke="#9FD7A8" strokeWidth="5.6" strokeLinecap="round" />
-      <path d="M140 58C130 34 74 38 62 64C52 86 80 96 102 100C140 108 150 136 120 158C98 174 58 166 50 142" stroke="#4F8F66" strokeWidth="5" strokeLinecap="round" strokeDasharray="7 8" />
-      <path d="M144 72C134 48 78 52 66 78C56 100 84 110 106 114C144 122 154 150 124 172C102 188 62 180 54 156" stroke="#1F4D36" strokeWidth="5.6" strokeLinecap="round" />
+  <svg className={className} viewBox="0 0 74 74" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <g transform="rotate(-6 37 37)">
+      <path className="brand-mark-road brand-mark-road-light" d="M57 13C52 4 28 6 24 17C20 27 32 30 42 32C58 36 62 48 50 58C40 66 24 62 20 51" />
+      <path className="brand-mark-road brand-mark-road-mid" d="M58 21C53 12 31 14 26 25C23 34 35 38 44 40C60 44 64 55 51 65C42 72 27 68 22 58" />
+      <path className="brand-mark-road brand-mark-road-dark" d="M59 29C54 20 34 22 29 32C26 41 38 45 47 47C61 51 64 61 52 69C44 74 31 72 25 65" />
     </g>
-  </svg>
-)
-
-const WordmarkMotif = () => (
-  <svg className="wordmark-motif" viewBox="0 0 220 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <path d="M4 8C42 1 61 17 99 10C136 3 157 19 216 9" stroke="#9FD7A8" strokeWidth="2.5" strokeLinecap="round" />
-    <path d="M4 14C42 7 61 23 99 16C136 9 157 25 216 15" stroke="#4F8F66" strokeWidth="2.3" strokeLinecap="round" strokeDasharray="5 7" />
-    <path d="M4 20C42 13 61 29 99 22C136 15 157 31 216 21" stroke="#1F4D36" strokeWidth="2.5" strokeLinecap="round" />
   </svg>
 )
 
@@ -680,10 +685,15 @@ function App() {
         <div className="brand-lockup">
           <ScouterMark className="brand-mark" />
           <div className="brand-copy">
-            <div className="brand-wordmark" aria-label="Scouter">
-              <WordmarkMotif />
-              <h1>SCOUTER</h1>
-            </div>
+            <h1 className="brand-wordmark" aria-label="Scouter">
+              <span className="brand-letter brand-letter-s" aria-hidden="true">S</span>
+              <span className="brand-letter" aria-hidden="true">C</span>
+              <span className="brand-letter" aria-hidden="true">O</span>
+              <span className="brand-letter" aria-hidden="true">U</span>
+              <span className="brand-letter" aria-hidden="true">T</span>
+              <span className="brand-letter" aria-hidden="true">E</span>
+              <span className="brand-letter brand-letter-r" aria-hidden="true">R</span>
+            </h1>
           </div>
         </div>
         <button

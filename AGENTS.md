@@ -23,6 +23,7 @@ Key deployment settings:
 - `vite.config.ts` uses `base: './'`
 - `npm run deploy` publishes `dist/` to `gh-pages`
 - `predeploy` runs build first
+- After pushing source changes to GitHub, run `npm run deploy` so the GitHub Pages site updates.
 
 ## 🎨 Product + UX Intent
 

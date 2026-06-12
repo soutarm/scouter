@@ -21,13 +21,43 @@
 .brand-lockup {
   align-items: center;
   display: flex;
-  gap: 14px;
+  --brand-forest: #1f4d36;
+  --brand-sage: #4f8f66;
+  --brand-mint: #9fd7a8;
+  --brand-lockup-size: clamp(2.35rem, 5.4vw, 5rem);
+  gap: calc(var(--brand-lockup-size) * 0.14);
 }
 
 .brand-mark {
   flex: 0 0 auto;
-  height: 78px;
-  width: 74px;
+  height: calc(var(--brand-lockup-size) * 0.72);
+  transform: translateY(calc(var(--brand-lockup-size) * -0.005));
+  width: calc(var(--brand-lockup-size) * 0.72);
+}
+
+.brand-mark-road {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.brand-mark-road-light {
+  opacity: 0.68;
+  stroke: var(--brand-mint);
+  stroke-width: 3.4;
+}
+
+.brand-mark-road-mid {
+  opacity: 0.88;
+  stroke: var(--brand-sage);
+  stroke-dasharray: 4.2 5.2;
+  stroke-width: 3.1;
+}
+
+.brand-mark-road-dark {
+  stroke: var(--brand-forest);
+  stroke-width: 3.4;
 }
 
 .brand-copy {
@@ -36,13 +66,18 @@
 }
 
 .brand-wordmark {
-  display: inline-grid;
-  position: relative;
-}
-
-.brand-wordmark h1 {
-  position: relative;
-  z-index: 1;
+  align-items: center;
+  color: var(--brand-forest);
+  display: inline-flex;
+  font-family: 'Avenir Next', 'Century Gothic', Futura, 'Trebuchet MS', sans-serif;
+  font-size: var(--brand-lockup-size);
+  font-weight: 950;
+  gap: 0.075em;
+  letter-spacing: 0;
+  line-height: 0.72;
+  margin-bottom: 0;
+  text-transform: uppercase;
+  text-rendering: geometricPrecision;
 }
 
 .eyebrow {
@@ -61,28 +96,37 @@ p {
   margin-top: 0;
 }
 
-h1 {
-  color: #14251a;
-  font-family: 'Avenir Next', 'Century Gothic', Futura, 'Trebuchet MS', sans-serif;
-  font-size: clamp(2.35rem, 5.4vw, 5rem);
-  font-weight: 900;
-  letter-spacing: 0.18em;
-  line-height: 0.86;
-  margin-bottom: 0;
-  text-transform: uppercase;
+.brand-letter {
+  display: inline-block;
+  letter-spacing: 0;
+  line-height: 0.72;
+  paint-order: stroke fill;
+  transform: scaleX(0.98);
+  -webkit-text-stroke: 0.012em currentColor;
 }
 
-.wordmark-motif {
-  display: block;
-  height: 28px;
-  left: 50%;
-  opacity: 0.82;
-  pointer-events: none;
+.brand-letter-s {
+  border-radius: 999px;
+  transform: translateY(-0.012em) rotate(-1.5deg) scaleX(0.98);
+}
+
+.brand-letter-r {
+  position: relative;
+  transform: rotate(0.75deg) scaleX(0.99);
+}
+
+.brand-letter-r::after {
+  background: currentColor;
+  border-radius: 999px;
+  bottom: 0.02em;
+  content: '';
+  height: 0.055em;
+  opacity: 0.9;
   position: absolute;
-  top: 53%;
-  transform: translate(-50%, -50%);
-  width: min(280px, 108%);
-  z-index: 0;
+  right: -0.025em;
+  transform: rotate(-28deg);
+  transform-origin: right center;
+  width: 0.24em;
 }
 
 h2 {
