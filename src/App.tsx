@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { jsPDF } from 'jspdf'
 import './App.css'
 
@@ -32,6 +32,8 @@ type Review = {
   generatedAt: string
   summary: string
   notFoundReason?: string
+  suggestedSuburb?: string
+  suggestedState?: string
   marketNarrative: string
   marketRows: MarketRow[]
   climate: {
@@ -52,7 +54,7 @@ type Review = {
 const STORAGE_KEY = 'scouter.llm-settings'
 const RECENT_SEARCHES_KEY = 'scouter.recent-searches'
 const REQUEST_TIMEOUT_MS = 60_000
-const MAX_RECENT_SEARCHES = 6
+const MAX_RECENT_SEARCHES = 12
 
 const defaultSettings: LlmSettings = {
   provider: 'azure',
@@ -66,17 +68,7 @@ const defaultSettings: LlmSettings = {
 }
 
 const australianStates = ['ACT', 'NSW', 'NT', 'QLD', 'SA', 'TAS', 'VIC', 'WA'] as const
-
-const examples = [
-  'Sydney, NSW',
-  'Melbourne, VIC',
-  'Brisbane, QLD',
-  'Perth, WA',
-  'Adelaide, SA',
-  'Hobart, TAS',
-  'Darwin, NT',
-  'Canberra, ACT',
-]
+type AustralianState = (typeof australianStates)[number]
 
 const splitLocation = (value: string) => {
   const trimmed = value.trim()
@@ -85,7 +77,58 @@ const splitLocation = (value: string) => {
 
   return {
     place: (match[1] ?? '').trim(),
-    state: (match[2] ?? '').toUpperCase() as (typeof australianStates)[number],
+    state: (match[2] ?? '').toUpperCase() as AustralianState,
+  }
+}
+
+const isAustralianState = (value: string | null | undefined): value is AustralianState =>
+  australianStates.includes((value ?? '').toUpperCase() as AustralianState)
+
+const readSearchFromQueryString = () => {
+  const params = new URLSearchParams(window.location.search)
+  const rawSearch = (params.get('search') ?? '').trim()
+  const rawState = params.get('state')
+  if (!rawSearch) return null
+
+  const parsed = splitLocation(rawSearch)
+  return {
+    place: parsed.place,
+    state: isAustralianState(rawState) ? rawState.toUpperCase() as AustralianState : parsed.state,
+  }
+}
+
+const writeSearchToQueryString = (place: string, state: AustralianState) => {
+  const params = new URLSearchParams(window.location.search)
+  params.set('search', place)
+  params.set('state', state)
+
+  window.history.replaceState(
+    null,
+    '',
+    `${window.location.pathname}?${params.toString()}${window.location.hash}`,
+  )
+}
+
+const toSearchHref = (search: string, fallbackState: AustralianState) => {
+  const parsed = splitLocation(search)
+  const state = parsed.state ?? fallbackState
+  const params = new URLSearchParams(window.location.search)
+  params.set('search', parsed.place)
+  params.set('state', state)
+
+  return `${window.location.pathname}?${params.toString()}${window.location.hash}`
+}
+
+const getSuggestedLocation = (review: Review | null) => {
+  const suggestedSuburb = review?.suggestedSuburb?.trim()
+  const suggestedState = review?.suggestedState?.trim().toUpperCase()
+
+  if (!suggestedSuburb || !isAustralianState(suggestedState)) return null
+
+  return {
+    place: suggestedSuburb,
+    state: suggestedState,
+    label: `${suggestedSuburb}, ${suggestedState}`,
   }
 }
 
@@ -147,7 +190,9 @@ const loadRecentSearches = () => {
   try {
     const raw = window.localStorage.getItem(RECENT_SEARCHES_KEY)
     const parsed = raw ? (JSON.parse(raw) as unknown) : []
-    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : []
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === 'string').slice(0, MAX_RECENT_SEARCHES)
+      : []
   } catch {
     return []
   }
@@ -165,11 +210,37 @@ const stripJsonFence = (value: string) =>
     .replace(/```$/i, '')
     .trim()
 
+const parseReferenceLink = (reference: string) => {
+  const trimmed = reference.trim()
+  const markdownLink = trimmed.match(/\[([^\]]+)]\((https?:\/\/[^)\s]+)\)/i)
+
+  if (markdownLink) {
+    return {
+      label: markdownLink[1].trim(),
+      url: markdownLink[2].trim(),
+    }
+  }
+
+  const urlMatch = trimmed.match(/https?:\/\/[^\s)\]]+/i)
+
+  if (!urlMatch) {
+    return { label: trimmed, url: '' }
+  }
+
+  const url = urlMatch[0].replace(/[.,;:]+$/, '')
+  const label = trimmed.replace(urlMatch[0], '').replace(/[\s,;:-]+$/, '').trim()
+
+  return {
+    label: label || url,
+    url,
+  }
+}
+
 const buildPrompt = (query: string) => `You are an Australian suburb research analyst.
 
 Create a concise but useful suburb review for: ${query}.
 
-If you cannot confidently identify the Australian location, return "exists": false, use the requested place/state in "suburb" and "state", explain the issue in "summary" and "notFoundReason", and return empty or brief placeholder values for the remaining fields.
+If you cannot confidently identify the Australian location, return "exists": false, use the requested place/state in "suburb" and "state", explain the issue in "summary" and "notFoundReason", and return empty or brief placeholder values for the remaining fields. If there is a likely intended Australian suburb or town, include it in "suggestedSuburb" and include its Australian state or territory abbreviation in "suggestedState". For example, if the request is "Warragul, TAS", explain that it appears to correspond to Warragul, VIC, and set "suggestedSuburb": "Warragul" and "suggestedState": "VIC".
 
 Return JSON only. Do not include markdown fences. Use current 2026 context where possible. Use AUD for money. Do not use em dashes.
 
@@ -181,6 +252,8 @@ JSON shape:
   "generatedAt": "ISO timestamp",
   "summary": "Top-level practical assessment in 2-4 sentences.",
   "notFoundReason": "Only present when exists is false.",
+  "suggestedSuburb": "Likely intended suburb or town. Only present when exists is false and a likely correction exists.",
+  "suggestedState": "Likely intended Australian state or territory abbreviation. Only present when exists is false and a likely correction exists.",
   "marketNarrative": "Short market conditions paragraph.",
   "marketRows": [
     { "propertyType": "Houses", "medianPrice": "AUD $...", "twelveMonthGrowth": "+...%", "medianWeeklyRent": "AUD $...", "grossYield": "...%" },
@@ -198,7 +271,7 @@ JSON shape:
     "demographic": "Dominant resident profiles and census-style context."
   },
   "caveats": ["Any uncertainty, unavailable fresh data, or source limitation."],
-  "references": ["Named data source, publication, or public agency used or recommended for verification."]
+  "references": ["Named data source, publication, or public agency used or recommended for verification, including a URL when available."]
 }`
 
 const extractAzureResponseText = (payload: {
@@ -370,7 +443,7 @@ const ThermometerRange = ({ label, description }: { label: string; description: 
 
 function App() {
   const [query, setQuery] = useState('')
-  const [selectedState, setSelectedState] = useState<(typeof australianStates)[number]>('VIC')
+  const [selectedState, setSelectedState] = useState<AustralianState>('VIC')
   const [settings, setSettings] = useState<LlmSettings>(() => loadSettings())
   const [recentSearches, setRecentSearches] = useState<string[]>(() => loadRecentSearches())
   const [showSettings, setShowSettings] = useState(false)
@@ -384,6 +457,7 @@ function App() {
   const [saveStatus, setSaveStatus] = useState('Loaded from this browser')
   const [fallbackPrompt, setFallbackPrompt] = useState('')
   const [showReferences, setShowReferences] = useState(false)
+  const autoSearchStartedRef = useRef(false)
 
   const providerReady = useMemo(() => {
     if (settings.provider === 'azure') {
@@ -392,18 +466,19 @@ function App() {
     return Boolean(settings.openAiApiKey && settings.openAiModel)
   }, [settings])
 
-  const quickSearches = useMemo(() => {
+  const recentSearchPills = useMemo(() => {
     const seen = new Set<string>()
-    return [...recentSearches, ...examples].filter((search) => {
+    return recentSearches.filter((search) => {
       const key = search.trim().toLowerCase()
       if (!key || seen.has(key)) return false
       seen.add(key)
       return true
-    })
+    }).slice(0, MAX_RECENT_SEARCHES)
   }, [recentSearches])
 
   const composedQuery = query.trim() ? `${query.trim()}, ${selectedState}` : ''
   const locationNotFound = review?.exists === false
+  const suggestedLocation = getSuggestedLocation(review)
 
   const updateSettings = (next: LlmSettings) => {
     setSettings(next)
@@ -411,7 +486,7 @@ function App() {
     setSaveStatus(`Saved ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`)
   }
 
-  const rememberSearch = (search: string) => {
+  const rememberSearch = useCallback((search: string) => {
     const normalized = search.trim()
     if (!normalized) return
 
@@ -423,13 +498,62 @@ function App() {
       saveRecentSearches(next)
       return next
     })
-  }
+  }, [])
 
-  const applySearch = (search: string) => {
-    const parsed = splitLocation(search)
-    setQuery(parsed.place)
-    if (parsed.state) setSelectedState(parsed.state)
-  }
+  const runSearch = useCallback(
+    async (place: string, state: AustralianState, options: { updateQueryString?: boolean } = {}) => {
+      const trimmedPlace = place.trim()
+      const trimmedQuery = trimmedPlace ? `${trimmedPlace}, ${state}` : ''
+      if (!trimmedQuery) return
+
+      setQuery(trimmedPlace)
+      setSelectedState(state)
+
+      if (options.updateQueryString !== false) {
+        writeSearchToQueryString(trimmedPlace, state)
+      }
+
+      if (!providerReady) {
+        setShowSettings(true)
+        setError('Add LLM settings before running a review.')
+        return
+      }
+
+      setIsLoading(true)
+      setError('')
+      setFallbackPrompt('')
+      setShowReferences(false)
+      setReview(null)
+      setActiveTab('property')
+      setHasSearched(true)
+      setIsSearchOpen(false)
+      try {
+        const result = await callLlm(settings, trimmedQuery)
+        const nextReview = { ...result, generatedAt: result.generatedAt || new Date().toISOString() }
+        setReview(nextReview)
+        if (nextReview.exists !== false) {
+          rememberSearch(trimmedQuery)
+        }
+      } catch (caught) {
+        setError(friendlyRequestError(caught))
+        setFallbackPrompt(buildPrompt(trimmedQuery))
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [providerReady, rememberSearch, settings],
+  )
+
+  useEffect(() => {
+    if (autoSearchStartedRef.current) return
+
+    const initialSearch = readSearchFromQueryString()
+    if (!initialSearch?.place) return
+
+    const initialState = initialSearch.state ?? selectedState
+    autoSearchStartedRef.current = true
+    void runSearch(initialSearch.place, initialState)
+  }, [runSearch, selectedState])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -438,33 +562,7 @@ function App() {
     const state = parsedQuery.state ?? selectedState
     const trimmedQuery = place ? `${place}, ${state}` : ''
     if (!trimmedQuery) return
-
-    if (!providerReady) {
-      setShowSettings(true)
-      setError('Add LLM settings before running a review.')
-      return
-    }
-
-    setIsLoading(true)
-    setError('')
-    setFallbackPrompt('')
-    setShowReferences(false)
-    setReview(null)
-    setActiveTab('property')
-    setQuery(place)
-    setSelectedState(state)
-    rememberSearch(trimmedQuery)
-    setHasSearched(true)
-    setIsSearchOpen(false)
-    try {
-      const result = await callLlm(settings, trimmedQuery)
-      setReview({ ...result, generatedAt: result.generatedAt || new Date().toISOString() })
-    } catch (caught) {
-      setError(friendlyRequestError(caught))
-      setFallbackPrompt(buildPrompt(trimmedQuery))
-    } finally {
-      setIsLoading(false)
-    }
+    await runSearch(place, state)
   }
 
   const copyPrompt = async () => {
@@ -561,8 +659,18 @@ function App() {
             </div>
           </div>
         </div>
-        <button className="ghost-button" type="button" onClick={() => setShowSettings((open) => !open)}>
-          LLM settings
+        <button
+          className="settings-button"
+          type="button"
+          onClick={() => setShowSettings((open) => !open)}
+          aria-label="LLM settings"
+          aria-expanded={showSettings}
+          title="LLM settings"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+            <path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.6 7.6 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.5A7.6 7.6 0 0 0 7 6.5l-2.4-1-2 3.5 2 1.5A8.9 8.9 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.6 7.6 0 0 0 2.6 1.5l.4 2.5h4l.4-2.5a7.6 7.6 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5Z" />
+            <circle cx="12" cy="12" r="3.2" />
+          </svg>
         </button>
       </header>
 
@@ -670,16 +778,13 @@ function App() {
             <div className="hero-copy">
               <span className="pill">Property, climate, crime, logistics</span>
               <h2>Scout a location before you make your move.</h2>
-              <p>
-                Enter a suburb and state, run the review, then scan the summary or jump through each section.
-              </p>
+              <p>Enter a location and state and let us scout it out.</p>
             </div>
             <form className="search-card" onSubmit={handleSubmit}>
               <label htmlFor="suburb-query">Suburb search</label>
               <div className="search-row">
                 <input
                   id="suburb-query"
-                  list="suburb-examples"
                   placeholder="e.g. Heidelberg"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
@@ -688,7 +793,7 @@ function App() {
                 <select
                   aria-label="State or territory"
                   value={selectedState}
-                  onChange={(event) => setSelectedState(event.target.value as (typeof australianStates)[number])}
+                  onChange={(event) => setSelectedState(event.target.value as AustralianState)}
                   disabled={isLoading}
                 >
                   {australianStates.map((state) => (
@@ -698,21 +803,27 @@ function App() {
                   ))}
                 </select>
                 <button type="submit" disabled={isLoading || !query.trim()}>
-                  {isLoading ? 'Reviewing...' : 'Scout'}
+                  {isLoading ? <span className="button-spinner" aria-label="Scouting" /> : 'Scout'}
                 </button>
               </div>
-              <datalist id="suburb-examples">
-                {quickSearches.map((search) => (
-                  <option key={search} value={search} />
-                ))}
-              </datalist>
-              <div className="example-row">
-                {quickSearches.map((search) => (
-                  <button key={search} type="button" onClick={() => applySearch(search)}>
-                    {search}
-                  </button>
-                ))}
-              </div>
+              {recentSearchPills.length > 0 && (
+                <div className="example-row" aria-label="Recent searches">
+                  {recentSearchPills.map((search) => (
+                    <a
+                      key={search}
+                      href={toSearchHref(search, selectedState)}
+                      onClick={(event) => {
+                        event.preventDefault()
+                        const parsed = splitLocation(search)
+                        if (!parsed.place) return
+                        void runSearch(parsed.place, parsed.state ?? selectedState)
+                      }}
+                    >
+                      {search}
+                    </a>
+                  ))}
+                </div>
+              )}
             </form>
           </>
         )}
@@ -767,7 +878,18 @@ function App() {
               {review.references?.length ? (
                 <ol>
                   {review.references.map((reference) => (
-                    <li key={reference}>{reference}</li>
+                    <li key={reference}>
+                      {(() => {
+                        const parsed = parseReferenceLink(reference)
+                        return parsed.url ? (
+                          <a href={parsed.url} target="_blank" rel="noreferrer">
+                            {parsed.label}
+                          </a>
+                        ) : (
+                          parsed.label
+                        )
+                      })()}
+                    </li>
                   ))}
                 </ol>
               ) : (
@@ -800,8 +922,19 @@ function App() {
                   <p className="eyebrow">Location not found</p>
                   <h2>We could not scout this location.</h2>
                   <p>{review.notFoundReason || review.summary}</p>
-                  <button type="button" className="primary-lite" onClick={() => setIsSearchOpen(true)}>
-                    Try another search
+                  <button
+                    type="button"
+                    className="primary-lite"
+                    onClick={() => {
+                      if (suggestedLocation) {
+                        void runSearch(suggestedLocation.place, suggestedLocation.state)
+                        return
+                      }
+
+                      setIsSearchOpen(true)
+                    }}
+                  >
+                    {suggestedLocation ? `Try ${suggestedLocation.label}` : 'Try another search'}
                   </button>
                 </div>
               </section>
@@ -952,7 +1085,7 @@ function App() {
       {!review && !isLoading && (
         <section className="empty-state">
           <div>
-            <h2>Designed for fast suburb decisions.</h2>
+            <h2>Make a smarter move with a clearer view.</h2>
           </div>
         </section>
       )}
