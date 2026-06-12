@@ -15,7 +15,7 @@ type LlmSettings = {
   openAiApiKey: string
 }
 
-type ReviewSectionKey = 'property' | 'climate' | 'crime' | 'infrastructure'
+type ReviewSectionKey = 'property' | 'climate' | 'crime' | 'infrastructure' | 'map'
 
 type MarketRow = {
   propertyType: string
@@ -26,10 +26,12 @@ type MarketRow = {
 }
 
 type Review = {
+  exists?: boolean
   suburb: string
   state: string
   generatedAt: string
   summary: string
+  notFoundReason?: string
   marketNarrative: string
   marketRows: MarketRow[]
   climate: {
@@ -44,10 +46,13 @@ type Review = {
     demographic: string
   }
   caveats: string[]
+  references?: string[]
 }
 
 const STORAGE_KEY = 'scouter.llm-settings'
+const RECENT_SEARCHES_KEY = 'scouter.recent-searches'
 const REQUEST_TIMEOUT_MS = 60_000
+const MAX_RECENT_SEARCHES = 6
 
 const defaultSettings: LlmSettings = {
   provider: 'azure',
@@ -60,13 +65,69 @@ const defaultSettings: LlmSettings = {
   openAiApiKey: '',
 }
 
-const examples = ['Heidelberg, VIC', 'Rosanna, VIC', 'Ivanhoe, VIC', 'Eaglemont, VIC']
+const australianStates = ['ACT', 'NSW', 'NT', 'QLD', 'SA', 'TAS', 'VIC', 'WA'] as const
+
+const examples = [
+  'Sydney, NSW',
+  'Melbourne, VIC',
+  'Brisbane, QLD',
+  'Perth, WA',
+  'Adelaide, SA',
+  'Hobart, TAS',
+  'Darwin, NT',
+  'Canberra, ACT',
+]
+
+const splitLocation = (value: string) => {
+  const trimmed = value.trim()
+  const match = trimmed.match(/^(.*?),\s*(ACT|NSW|NT|QLD|SA|TAS|VIC|WA)$/i)
+  if (!match) return { place: trimmed, state: undefined }
+
+  return {
+    place: (match[1] ?? '').trim(),
+    state: (match[2] ?? '').toUpperCase() as (typeof australianStates)[number],
+  }
+}
+
+const toMapQuery = (review: Review) => `${review.suburb}, ${review.state}, Australia`
+
+const toGoogleMapsEmbedUrl = (review: Review) =>
+  `https://www.google.com/maps?q=${encodeURIComponent(toMapQuery(review))}&output=embed`
+
+const toGoogleMapsUrl = (review: Review) =>
+  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(toMapQuery(review))}`
+
+const CLIMATE_SCALE_MIN = -10
+const CLIMATE_SCALE_MAX = 50
+
+const clampNumber = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max)
+
+const formatTemperature = (value: number) => `${Math.round(value)}°C`
+
+const extractTemperatureRange = (description: string) => {
+  const temperatures = [...description.matchAll(/-?\d+(?:\.\d+)?\s*(?:°\s*)?c\b/gi)].map((match) =>
+    Number.parseFloat(match[0]),
+  )
+
+  if (!temperatures.length) return null
+
+  return {
+    min: Math.min(...temperatures),
+    max: Math.max(...temperatures),
+  }
+}
+
+const temperaturePosition = (value: number) =>
+  ((clampNumber(value, CLIMATE_SCALE_MIN, CLIMATE_SCALE_MAX) - CLIMATE_SCALE_MIN) /
+    (CLIMATE_SCALE_MAX - CLIMATE_SCALE_MIN)) *
+  100
 
 const tabs: Array<{ key: ReviewSectionKey; label: string }> = [
   { key: 'property', label: 'Property' },
   { key: 'climate', label: 'Climate' },
   { key: 'crime', label: 'Crime' },
   { key: 'infrastructure', label: 'Infrastructure' },
+  { key: 'map', label: 'Map' },
 ]
 
 const loadSettings = (): LlmSettings => {
@@ -82,6 +143,20 @@ const saveSettings = (settings: LlmSettings) => {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
 }
 
+const loadRecentSearches = () => {
+  try {
+    const raw = window.localStorage.getItem(RECENT_SEARCHES_KEY)
+    const parsed = raw ? (JSON.parse(raw) as unknown) : []
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+const saveRecentSearches = (searches: string[]) => {
+  window.localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(searches))
+}
+
 const stripJsonFence = (value: string) =>
   value
     .trim()
@@ -94,14 +169,18 @@ const buildPrompt = (query: string) => `You are an Australian suburb research an
 
 Create a concise but useful suburb review for: ${query}.
 
+If you cannot confidently identify the Australian location, return "exists": false, use the requested place/state in "suburb" and "state", explain the issue in "summary" and "notFoundReason", and return empty or brief placeholder values for the remaining fields.
+
 Return JSON only. Do not include markdown fences. Use current 2026 context where possible. Use AUD for money. Do not use em dashes.
 
 JSON shape:
 {
+  "exists": true,
   "suburb": "Suburb name",
   "state": "State abbreviation",
   "generatedAt": "ISO timestamp",
   "summary": "Top-level practical assessment in 2-4 sentences.",
+  "notFoundReason": "Only present when exists is false.",
   "marketNarrative": "Short market conditions paragraph.",
   "marketRows": [
     { "propertyType": "Houses", "medianPrice": "AUD $...", "twelveMonthGrowth": "+...%", "medianWeeklyRent": "AUD $...", "grossYield": "...%" },
@@ -118,7 +197,8 @@ JSON shape:
     "lifestyle": "Retail, dining, parks, health, culture and daily amenity.",
     "demographic": "Dominant resident profiles and census-style context."
   },
-  "caveats": ["Any uncertainty, unavailable fresh data, or source limitation."]
+  "caveats": ["Any uncertainty, unavailable fresh data, or source limitation."],
+  "references": ["Named data source, publication, or public agency used or recommended for verification."]
 }`
 
 const extractAzureResponseText = (payload: {
@@ -144,6 +224,10 @@ const friendlyRequestError = (caught: unknown) => {
 
 const parseReview = (content: string): Review => {
   const parsed = JSON.parse(stripJsonFence(content)) as Review
+  if (parsed.exists === false && parsed.summary) {
+    return parsed
+  }
+
   if (!parsed.summary || !Array.isArray(parsed.marketRows) || !parsed.infrastructure) {
     throw new Error('The model returned JSON, but not the expected review shape.')
   }
@@ -229,18 +313,77 @@ const callLlm = async (settings: LlmSettings, query: string): Promise<Review> =>
   }
 }
 
+const ScouterMark = ({ className = '' }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 180 190" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <g transform="rotate(-6 90 85)">
+      <path d="M136 44C126 20 70 24 58 50C48 72 76 82 98 86C136 94 146 122 116 144C94 160 54 152 46 128" stroke="#9FD7A8" strokeWidth="5.6" strokeLinecap="round" />
+      <path d="M140 58C130 34 74 38 62 64C52 86 80 96 102 100C140 108 150 136 120 158C98 174 58 166 50 142" stroke="#4F8F66" strokeWidth="5" strokeLinecap="round" strokeDasharray="7 8" />
+      <path d="M144 72C134 48 78 52 66 78C56 100 84 110 106 114C144 122 154 150 124 172C102 188 62 180 54 156" stroke="#1F4D36" strokeWidth="5.6" strokeLinecap="round" />
+    </g>
+  </svg>
+)
+
+const WordmarkMotif = () => (
+  <svg className="wordmark-motif" viewBox="0 0 220 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M4 8C42 1 61 17 99 10C136 3 157 19 216 9" stroke="#9FD7A8" strokeWidth="2.5" strokeLinecap="round" />
+    <path d="M4 14C42 7 61 23 99 16C136 9 157 25 216 15" stroke="#4F8F66" strokeWidth="2.3" strokeLinecap="round" strokeDasharray="5 7" />
+    <path d="M4 20C42 13 61 29 99 22C136 15 157 31 216 21" stroke="#1F4D36" strokeWidth="2.5" strokeLinecap="round" />
+  </svg>
+)
+
+const ThermometerRange = ({ label, description }: { label: string; description: string }) => {
+  const range = extractTemperatureRange(description)
+
+  if (!range) {
+    return (
+      <div className="thermometer-card">
+        <p className="thermometer-label">{label}</p>
+        <p className="thermometer-empty">Temperature range unavailable</p>
+      </div>
+    )
+  }
+
+  const minPosition = temperaturePosition(range.min)
+  const maxPosition = temperaturePosition(range.max)
+
+  return (
+    <div className="thermometer-card" aria-label={`${label} temperature range`}>
+      <div className="thermometer-header">
+        <p className="thermometer-label">{label}</p>
+        <p>
+          <span>{formatTemperature(range.min)}</span>
+          <span>{formatTemperature(range.max)}</span>
+        </p>
+      </div>
+      <div className="thermometer-track" aria-hidden="true">
+        <span className="thermometer-fill" style={{ left: `${minPosition}%`, width: `${Math.max(maxPosition - minPosition, 2)}%` }} />
+        <span className="thermometer-marker min" style={{ left: `${minPosition}%` }} />
+        <span className="thermometer-marker max" style={{ left: `${maxPosition}%` }} />
+      </div>
+      <div className="thermometer-scale" aria-hidden="true">
+        <span>{formatTemperature(CLIMATE_SCALE_MIN)}</span>
+        <span>{formatTemperature(CLIMATE_SCALE_MAX)}</span>
+      </div>
+    </div>
+  )
+}
+
 function App() {
   const [query, setQuery] = useState('')
+  const [selectedState, setSelectedState] = useState<(typeof australianStates)[number]>('VIC')
   const [settings, setSettings] = useState<LlmSettings>(() => loadSettings())
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => loadRecentSearches())
   const [showSettings, setShowSettings] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(true)
   const [review, setReview] = useState<Review | null>(null)
   const [activeTab, setActiveTab] = useState<ReviewSectionKey>('property')
   const [isLoading, setIsLoading] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [error, setError] = useState('')
   const [saveStatus, setSaveStatus] = useState('Loaded from this browser')
-  const [requestStatus, setRequestStatus] = useState('')
   const [fallbackPrompt, setFallbackPrompt] = useState('')
+  const [showReferences, setShowReferences] = useState(false)
 
   const providerReady = useMemo(() => {
     if (settings.provider === 'azure') {
@@ -249,15 +392,51 @@ function App() {
     return Boolean(settings.openAiApiKey && settings.openAiModel)
   }, [settings])
 
+  const quickSearches = useMemo(() => {
+    const seen = new Set<string>()
+    return [...recentSearches, ...examples].filter((search) => {
+      const key = search.trim().toLowerCase()
+      if (!key || seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }, [recentSearches])
+
+  const composedQuery = query.trim() ? `${query.trim()}, ${selectedState}` : ''
+  const locationNotFound = review?.exists === false
+
   const updateSettings = (next: LlmSettings) => {
     setSettings(next)
     saveSettings(next)
     setSaveStatus(`Saved ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`)
   }
 
+  const rememberSearch = (search: string) => {
+    const normalized = search.trim()
+    if (!normalized) return
+
+    setRecentSearches((current) => {
+      const next = [
+        normalized,
+        ...current.filter((item) => item.trim().toLowerCase() !== normalized.toLowerCase()),
+      ].slice(0, MAX_RECENT_SEARCHES)
+      saveRecentSearches(next)
+      return next
+    })
+  }
+
+  const applySearch = (search: string) => {
+    const parsed = splitLocation(search)
+    setQuery(parsed.place)
+    if (parsed.state) setSelectedState(parsed.state)
+  }
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const trimmedQuery = query.trim()
+    const parsedQuery = splitLocation(query)
+    const place = parsedQuery.place
+    const state = parsedQuery.state ?? selectedState
+    const trimmedQuery = place ? `${place}, ${state}` : ''
     if (!trimmedQuery) return
 
     if (!providerReady) {
@@ -269,17 +448,20 @@ function App() {
     setIsLoading(true)
     setError('')
     setFallbackPrompt('')
-    setRequestStatus('Contacting LLM provider...')
+    setShowReferences(false)
     setReview(null)
     setActiveTab('property')
+    setQuery(place)
+    setSelectedState(state)
+    rememberSearch(trimmedQuery)
+    setHasSearched(true)
+    setIsSearchOpen(false)
     try {
       const result = await callLlm(settings, trimmedQuery)
       setReview({ ...result, generatedAt: result.generatedAt || new Date().toISOString() })
-      setRequestStatus('Review generated')
     } catch (caught) {
       setError(friendlyRequestError(caught))
       setFallbackPrompt(buildPrompt(trimmedQuery))
-      setRequestStatus('Review failed')
     } finally {
       setIsLoading(false)
     }
@@ -288,7 +470,6 @@ function App() {
   const copyPrompt = async () => {
     if (!fallbackPrompt) return
     await navigator.clipboard.writeText(fallbackPrompt)
-    setRequestStatus('Prompt copied')
   }
 
   const downloadPdf = async () => {
@@ -352,6 +533,10 @@ function App() {
         section('Caveats', review.caveats.map((caveat) => `- ${caveat}`).join('\n'))
       }
 
+      if (review.references?.length) {
+        section('References', review.references.map((reference) => `- ${reference}`).join('\n'))
+      }
+
       const fileName = `${review.suburb || 'suburb'}-${review.state || 'review'}`
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
@@ -367,9 +552,14 @@ function App() {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <div>
-          <p className="eyebrow">Static suburb intelligence</p>
-          <h1>Scouter</h1>
+        <div className="brand-lockup">
+          <ScouterMark className="brand-mark" />
+          <div className="brand-copy">
+            <div className="brand-wordmark" aria-label="Scouter">
+              <WordmarkMotif />
+              <h1>Scouter</h1>
+            </div>
+          </div>
         </div>
         <button className="ghost-button" type="button" onClick={() => setShowSettings((open) => !open)}>
           LLM settings
@@ -461,50 +651,78 @@ function App() {
         </section>
       )}
 
-      <section className="hero-panel">
-        <div className="hero-copy">
-          <span className="pill">Property, climate, crime, logistics</span>
-          <h2>Generate a practical suburb review in one pass.</h2>
-          <p>
-            Enter a suburb and state, run the review, then scan the summary or jump through each section.
-          </p>
-        </div>
-        <form className="search-card" onSubmit={handleSubmit}>
-          <label htmlFor="suburb-query">Suburb search</label>
-          <div className="search-row">
-            <input
-              id="suburb-query"
-              list="suburb-examples"
-              placeholder="e.g. Heidelberg, VIC"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              disabled={isLoading}
-            />
-            <button type="submit" disabled={isLoading || !query.trim()}>
-              {isLoading ? 'Reviewing...' : 'Run review'}
-            </button>
-          </div>
-          <datalist id="suburb-examples">
-            {examples.map((example) => (
-              <option key={example} value={example} />
-            ))}
-          </datalist>
-          <div className="example-row">
-            {examples.map((example) => (
-              <button key={example} type="button" onClick={() => setQuery(example)}>
-                {example}
-              </button>
-            ))}
-          </div>
-        </form>
+      <section className={hasSearched && !isSearchOpen ? 'hero-panel collapsed' : 'hero-panel'}>
+        {hasSearched && !isSearchOpen ? (
+          <button
+            className="search-accordion-button"
+            type="button"
+            onClick={() => setIsSearchOpen(true)}
+            aria-expanded={isSearchOpen}
+          >
+            <span>
+              <span className="eyebrow">Suburb search</span>
+              <strong>{composedQuery || 'Search another suburb'}</strong>
+            </span>
+            <span>{isLoading ? 'Reviewing...' : 'Change search'}</span>
+          </button>
+        ) : (
+          <>
+            <div className="hero-copy">
+              <span className="pill">Property, climate, crime, logistics</span>
+              <h2>Scout a location before you make your move.</h2>
+              <p>
+                Enter a suburb and state, run the review, then scan the summary or jump through each section.
+              </p>
+            </div>
+            <form className="search-card" onSubmit={handleSubmit}>
+              <label htmlFor="suburb-query">Suburb search</label>
+              <div className="search-row">
+                <input
+                  id="suburb-query"
+                  list="suburb-examples"
+                  placeholder="e.g. Heidelberg"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  disabled={isLoading}
+                />
+                <select
+                  aria-label="State or territory"
+                  value={selectedState}
+                  onChange={(event) => setSelectedState(event.target.value as (typeof australianStates)[number])}
+                  disabled={isLoading}
+                >
+                  {australianStates.map((state) => (
+                    <option key={state} value={state}>
+                      {state}
+                    </option>
+                  ))}
+                </select>
+                <button type="submit" disabled={isLoading || !query.trim()}>
+                  {isLoading ? 'Reviewing...' : 'Scout'}
+                </button>
+              </div>
+              <datalist id="suburb-examples">
+                {quickSearches.map((search) => (
+                  <option key={search} value={search} />
+                ))}
+              </datalist>
+              <div className="example-row">
+                {quickSearches.map((search) => (
+                  <button key={search} type="button" onClick={() => applySearch(search)}>
+                    {search}
+                  </button>
+                ))}
+              </div>
+            </form>
+          </>
+        )}
       </section>
 
       {isLoading && (
         <section className="busy-card" aria-live="polite">
           <div className="spinner" />
           <div>
-            <h2>Building the review</h2>
-            <p>{requestStatus || 'Asking the model for structured market, climate, safety and logistics sections.'}</p>
+            <h2>Scouting location...</h2>
           </div>
         </section>
       )}
@@ -528,6 +746,38 @@ function App() {
 
       {review && (
         <section className="review-wrap">
+          <div className={showReferences ? 'references-drawer open' : 'references-drawer'}>
+            <button
+              type="button"
+              className="references-tab"
+              onClick={() => setShowReferences((visible) => !visible)}
+              aria-expanded={showReferences}
+              aria-controls="references-panel"
+            >
+              References
+            </button>
+
+            <section id="references-panel" className="references-panel" aria-label="All references" aria-hidden={!showReferences}>
+              <div className="references-panel-header">
+                <div>
+                  <p className="eyebrow">References</p>
+                  <h2>All references</h2>
+                </div>
+              </div>
+              {review.references?.length ? (
+                <ol>
+                  {review.references.map((reference) => (
+                    <li key={reference}>{reference}</li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="references-empty">
+                  No references are available for this review yet.
+                </p>
+              )}
+            </section>
+          </div>
+
           <div className="review-actions">
             <div>
               <p className="eyebrow">Generated review</p>
@@ -535,108 +785,156 @@ function App() {
                 {review.suburb}, {review.state}
               </h2>
             </div>
-            <button type="button" className="primary-lite" onClick={downloadPdf} disabled={isExporting}>
-              {isExporting ? 'Preparing PDF...' : 'Download PDF'}
-            </button>
           </div>
 
           <article className="review-card">
-            <section className="summary-card">
-              <div>
-                <p className="eyebrow">Summary</p>
-                <h2>
-                  {review.suburb}, {review.state} Profile
-                </h2>
-              </div>
-              <p>{review.summary}</p>
-            </section>
-
-            <nav className="tabs" aria-label="Review sections">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.key}
-                  type="button"
-                  className={activeTab === tab.key ? 'active' : ''}
-                  onClick={() => setActiveTab(tab.key)}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </nav>
-
-            {activeTab === 'property' && (
-              <section className="tab-panel">
-                <h3>Property Market & Rental Realities</h3>
-                <p>{review.marketNarrative}</p>
-                <div className="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Property Type</th>
-                        <th>Median Price</th>
-                        <th>12-Month Growth</th>
-                        <th>Median Weekly Rent</th>
-                        <th>Gross Yield</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {review.marketRows.map((row) => (
-                        <tr key={row.propertyType}>
-                          <td>{row.propertyType}</td>
-                          <td>{row.medianPrice}</td>
-                          <td>{row.twelveMonthGrowth}</td>
-                          <td>{row.medianWeeklyRent}</td>
-                          <td>{row.grossYield}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            {locationNotFound ? (
+              <section className="not-found-card" aria-label="Location not found">
+                <div className="not-found-illustration" aria-hidden="true">
+                  <span className="not-found-sun" />
+                  <span className="not-found-map" />
+                  <span className="not-found-path" />
+                  <span className="not-found-marker">?</span>
+                </div>
+                <div>
+                  <p className="eyebrow">Location not found</p>
+                  <h2>We could not scout this location.</h2>
+                  <p>{review.notFoundReason || review.summary}</p>
+                  <button type="button" className="primary-lite" onClick={() => setIsSearchOpen(true)}>
+                    Try another search
+                  </button>
                 </div>
               </section>
+            ) : (
+              <>
+                <section className="summary-card">
+                  <div>
+                    <p className="eyebrow">Summary</p>
+                    <h2>
+                      {review.suburb}, {review.state} Profile
+                    </h2>
+                  </div>
+                  <p>{review.summary}</p>
+                  <button type="button" className="summary-download primary-lite" onClick={downloadPdf} disabled={isExporting}>
+                    {isExporting ? 'Preparing PDF...' : 'Download PDF'}
+                  </button>
+                </section>
+
+                <nav className="tabs" aria-label="Review sections">
+                  {tabs.map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      className={activeTab === tab.key ? 'active' : ''}
+                      onClick={() => setActiveTab(tab.key)}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </nav>
+
+                {activeTab === 'property' && (
+                  <section className="tab-panel">
+                    <h3>Property Market & Rental Realities</h3>
+                    <p>{review.marketNarrative}</p>
+                    <div className="table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Property Type</th>
+                            <th>Median Price</th>
+                            <th>12-Month Growth</th>
+                            <th>Median Weekly Rent</th>
+                            <th>Gross Yield</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {review.marketRows.map((row) => (
+                            <tr key={row.propertyType}>
+                              <td>{row.propertyType}</td>
+                              <td>{row.medianPrice}</td>
+                              <td>{row.twelveMonthGrowth}</td>
+                              <td>{row.medianWeeklyRent}</td>
+                              <td>{row.grossYield}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+                )}
+
+                {activeTab === 'climate' && (
+                  <section className="tab-panel climate-panel">
+                    <div className="climate-card">
+                      <h3>Summer Averages</h3>
+                      <ThermometerRange label="Summer min / max" description={review.climate.summerAverages} />
+                      <p>{review.climate.summerAverages}</p>
+                    </div>
+                    <div className="climate-card">
+                      <h3>Winter Averages</h3>
+                      <ThermometerRange label="Winter min / max" description={review.climate.winterAverages} />
+                      <p>{review.climate.winterAverages}</p>
+                    </div>
+                  </section>
+                )}
+
+                {activeTab === 'crime' && (
+                  <section className="tab-panel">
+                    <h3>Crime & Safety Analysis</h3>
+                    <p>{review.crime}</p>
+                  </section>
+                )}
+
+                {activeTab === 'infrastructure' && (
+                  <section className="tab-panel feature-grid">
+                    <div>
+                      <h3>Transit & Commute</h3>
+                      <p>{review.infrastructure.transit}</p>
+                    </div>
+                    <div>
+                      <h3>Education & Catchments</h3>
+                      <p>{review.infrastructure.education}</p>
+                    </div>
+                    <div>
+                      <h3>Lifestyle & Amenities</h3>
+                      <p>{review.infrastructure.lifestyle}</p>
+                    </div>
+                    <div>
+                      <h3>Demographic Vibe</h3>
+                      <p>{review.infrastructure.demographic}</p>
+                    </div>
+                  </section>
+                )}
+
+                {activeTab === 'map' && (
+                  <section className="tab-panel map-panel">
+                    <div className="map-copy">
+                      <div>
+                        <h3>Map location</h3>
+                        <p>
+                          Explore {review.suburb}, {review.state} in Google Maps.
+                        </p>
+                      </div>
+                      <a className="map-open-link" href={toGoogleMapsUrl(review)} target="_blank" rel="noreferrer">
+                        Open in Google Maps
+                      </a>
+                    </div>
+                    <div className="map-frame-wrap">
+                      <iframe
+                        title={`${review.suburb}, ${review.state} map`}
+                        src={toGoogleMapsEmbedUrl(review)}
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                        allowFullScreen
+                      />
+                    </div>
+                  </section>
+                )}
+              </>
             )}
 
-            {activeTab === 'climate' && (
-              <section className="tab-panel split-panel">
-                <div>
-                  <h3>Summer Averages</h3>
-                  <p>{review.climate.summerAverages}</p>
-                </div>
-                <div>
-                  <h3>Winter Averages</h3>
-                  <p>{review.climate.winterAverages}</p>
-                </div>
-              </section>
-            )}
-
-            {activeTab === 'crime' && (
-              <section className="tab-panel">
-                <h3>Crime & Safety Analysis</h3>
-                <p>{review.crime}</p>
-              </section>
-            )}
-
-            {activeTab === 'infrastructure' && (
-              <section className="tab-panel feature-grid">
-                <div>
-                  <h3>Transit & Commute</h3>
-                  <p>{review.infrastructure.transit}</p>
-                </div>
-                <div>
-                  <h3>Education & Catchments</h3>
-                  <p>{review.infrastructure.education}</p>
-                </div>
-                <div>
-                  <h3>Lifestyle & Amenities</h3>
-                  <p>{review.infrastructure.lifestyle}</p>
-                </div>
-                <div>
-                  <h3>Demographic Vibe</h3>
-                  <p>{review.infrastructure.demographic}</p>
-                </div>
-              </section>
-            )}
-
-            {review.caveats?.length > 0 && (
+            {!locationNotFound && review.caveats?.length > 0 && (
               <section className="caveats">
                 <h3>Caveats</h3>
                 <ul>
@@ -647,6 +945,7 @@ function App() {
               </section>
             )}
           </article>
+
         </section>
       )}
 
@@ -654,16 +953,13 @@ function App() {
         <section className="empty-state">
           <div>
             <h2>Designed for fast suburb decisions.</h2>
-            <p>
-              The app runs fully in the browser, keeps provider settings local, and builds a structured
-              review ready for PDF export.
-            </p>
           </div>
-          <div className="mini-card">Static deploy ready</div>
-          <div className="mini-card">Pastel green UI</div>
-          <div className="mini-card">Structured LLM output</div>
         </section>
       )}
+
+      <footer className="site-footer">
+        <p>© {new Date().getFullYear()} Michael Soutar</p>
+      </footer>
     </main>
   )
 }
