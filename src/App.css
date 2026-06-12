@@ -287,6 +287,14 @@ input:disabled {
   margin-top: 18px;
 }
 
+.settings-note {
+  align-self: end;
+  color: #627163;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  margin: 0;
+}
+
 label {
   color: #395440;
   display: grid;

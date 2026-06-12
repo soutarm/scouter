@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { jsPDF } from 'jspdf'
 import './App.css'
 
-type ProviderKind = 'azure' | 'openai'
+type ProviderKind = 'azure' | 'openai' | 'gemini'
 
 type LlmSettings = {
   provider: ProviderKind
@@ -13,6 +13,8 @@ type LlmSettings = {
   openAiBaseUrl: string
   openAiModel: string
   openAiApiKey: string
+  geminiModel: string
+  geminiApiKey: string
 }
 
 type ReviewSectionKey = 'property' | 'climate' | 'crime' | 'infrastructure' | 'map'
@@ -63,8 +65,10 @@ const defaultSettings: LlmSettings = {
   azureApiKey: '',
   azureApiVersion: '2025-04-01-preview',
   openAiBaseUrl: 'https://api.openai.com/v1',
-  openAiModel: '',
+  openAiModel: 'gpt-5.4-mini',
   openAiApiKey: '',
+  geminiModel: 'gemini-2.5-flash',
+  geminiApiKey: '',
 }
 
 const australianStates = ['ACT', 'NSW', 'NT', 'QLD', 'SA', 'TAS', 'VIC', 'WA'] as const
@@ -200,7 +204,15 @@ const tabs: Array<{ key: ReviewSectionKey; label: string }> = [
 const loadSettings = (): LlmSettings => {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
-    return raw ? { ...defaultSettings, ...JSON.parse(raw) } : defaultSettings
+    if (!raw) return defaultSettings
+
+    const parsed = JSON.parse(raw) as Partial<LlmSettings>
+    const merged = { ...defaultSettings, ...parsed }
+    return {
+      ...merged,
+      openAiModel: merged.openAiModel?.trim() || defaultSettings.openAiModel,
+      geminiModel: merged.geminiModel?.trim() || defaultSettings.geminiModel,
+    }
   } catch {
     return defaultSettings
   }
@@ -307,6 +319,10 @@ const extractAzureResponseText = (payload: {
     ?.flatMap((item) => item.content ?? [])
     .find((item) => item.type === 'output_text' || item.type === 'text')?.text
 
+const extractGeminiResponseText = (payload: {
+  candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
+}) => payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('').trim()
+
 const friendlyRequestError = (caught: unknown) => {
   if (caught instanceof DOMException && caught.name === 'AbortError') {
     return 'The LLM request timed out after 60 seconds. Try a smaller/faster model or run the query again.'
@@ -373,6 +389,48 @@ const callLlm = async (settings: LlmSettings, query: string): Promise<Review> =>
       const content = extractAzureResponseText(payload)
 
       if (!content) throw new Error('Azure returned no review content.')
+      return parseReview(content)
+    }
+
+    if (settings.provider === 'gemini') {
+      if (!settings.geminiApiKey || !settings.geminiModel) {
+        throw new Error('Gemini API key and model are required.')
+      }
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(settings.geminiModel)}:generateContent?key=${encodeURIComponent(settings.geminiApiKey)}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: 'user',
+                parts: [{ text: prompt }],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.2,
+              responseMimeType: 'application/json',
+              maxOutputTokens: 2600,
+            },
+          }),
+          signal: controller.signal,
+        },
+      )
+
+      const rawPayload = await response.text()
+      if (!response.ok) {
+        throw new Error(`Gemini request failed: ${response.status} ${rawPayload.slice(0, 260)}`)
+      }
+
+      const payload = JSON.parse(rawPayload) as {
+        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
+      }
+      const content = extractGeminiResponseText(payload)
+      if (!content) throw new Error('Gemini returned no review content.')
       return parseReview(content)
     }
 
@@ -486,6 +544,11 @@ function App() {
     if (settings.provider === 'azure') {
       return Boolean(settings.azureEndpoint && settings.azureDeployment && settings.azureApiKey)
     }
+
+    if (settings.provider === 'gemini') {
+      return Boolean(settings.geminiApiKey && settings.geminiModel)
+    }
+
     return Boolean(settings.openAiApiKey && settings.openAiModel)
   }, [settings])
 
@@ -728,6 +791,7 @@ function App() {
               >
                 <option value="azure">Azure OpenAI</option>
                 <option value="openai">OpenAI compatible</option>
+                <option value="gemini">Google Gemini</option>
               </select>
             </div>
           </div>
@@ -766,6 +830,28 @@ function App() {
                 />
               </label>
             </div>
+          ) : settings.provider === 'gemini' ? (
+            <div className="settings-grid">
+              <label>
+                Model
+                <input
+                  placeholder="gemini-2.5-flash"
+                  value={settings.geminiModel}
+                  onChange={(event) => updateSettings({ ...settings, geminiModel: event.target.value })}
+                />
+              </label>
+              <label>
+                API key
+                <input
+                  type="password"
+                  value={settings.geminiApiKey}
+                  onChange={(event) => updateSettings({ ...settings, geminiApiKey: event.target.value })}
+                />
+              </label>
+              <p className="settings-note">
+                Uses Google AI Studio's Gemini API directly from this browser. Keep keys restricted where possible.
+              </p>
+            </div>
           ) : (
             <div className="settings-grid">
               <label>
@@ -778,7 +864,7 @@ function App() {
               <label>
                 Model
                 <input
-                  placeholder="gpt-4.1-mini"
+                  placeholder="gpt-5.4-mini"
                   value={settings.openAiModel}
                   onChange={(event) => updateSettings({ ...settings, openAiModel: event.target.value })}
                 />

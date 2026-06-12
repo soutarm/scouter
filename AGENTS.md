@@ -16,7 +16,7 @@ These instructions take precedence over generic defaults for this repository.
 - **Build Tool:** Vite
 - **Deployment:** Static output to GitHub Pages via `gh-pages`
 - **PDF Export:** `jspdf` (client-side)
-- **LLM calls:** Browser-side provider calls (Azure OpenAI Responses API + OpenAI-compatible Chat Completions)
+- **LLM calls:** Browser-side provider calls (Azure OpenAI Responses API + OpenAI-compatible Chat Completions + Google Gemini API)
 
 Key deployment settings:
 
