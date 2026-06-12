@@ -70,6 +70,17 @@ const defaultSettings: LlmSettings = {
 const australianStates = ['ACT', 'NSW', 'NT', 'QLD', 'SA', 'TAS', 'VIC', 'WA'] as const
 type AustralianState = (typeof australianStates)[number]
 
+const featuredQuickLocations = [
+  'Canberra, ACT',
+  'Sydney, NSW',
+  'Darwin, NT',
+  'Brisbane, QLD',
+  'Adelaide, SA',
+  'Hobart, TAS',
+  'Melbourne, VIC',
+  'Perth, WA',
+] as const
+
 const splitLocation = (value: string) => {
   const trimmed = value.trim()
   const match = trimmed.match(/^(.*?),\s*(ACT|NSW|NT|QLD|SA|TAS|VIC|WA)$/i)
@@ -441,9 +452,16 @@ const ThermometerRange = ({ label, description }: { label: string; description: 
   )
 }
 
+const LocationPinIcon = () => (
+  <svg className="location-pin" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+    <path d="M12 21s6.3-5.6 6.3-11.1A6.3 6.3 0 0 0 5.7 9.9C5.7 15.4 12 21 12 21Z" />
+    <circle cx="12" cy="9.9" r="2.15" />
+  </svg>
+)
+
 function App() {
   const [query, setQuery] = useState('')
-  const [selectedState, setSelectedState] = useState<AustralianState>('VIC')
+  const [selectedState, setSelectedState] = useState<AustralianState>('TAS')
   const [settings, setSettings] = useState<LlmSettings>(() => loadSettings())
   const [recentSearches, setRecentSearches] = useState<string[]>(() => loadRecentSearches())
   const [showSettings, setShowSettings] = useState(false)
@@ -466,14 +484,23 @@ function App() {
     return Boolean(settings.openAiApiKey && settings.openAiModel)
   }, [settings])
 
-  const recentSearchPills = useMemo(() => {
+  const quickLocationTags = useMemo(() => {
     const seen = new Set<string>()
-    return recentSearches.filter((search) => {
+    const uniqueRecentSearches = recentSearches.filter((search) => {
       const key = search.trim().toLowerCase()
       if (!key || seen.has(key)) return false
       seen.add(key)
       return true
     }).slice(0, MAX_RECENT_SEARCHES)
+
+    if (uniqueRecentSearches.length >= featuredQuickLocations.length) {
+      return uniqueRecentSearches
+    }
+
+    return [
+      ...uniqueRecentSearches,
+      ...featuredQuickLocations.filter((search) => !seen.has(search.toLowerCase())),
+    ].slice(0, featuredQuickLocations.length)
   }, [recentSearches])
 
   const composedQuery = query.trim() ? `${query.trim()}, ${selectedState}` : ''
@@ -655,7 +682,7 @@ function App() {
           <div className="brand-copy">
             <div className="brand-wordmark" aria-label="Scouter">
               <WordmarkMotif />
-              <h1>Scouter</h1>
+              <h1>SCOUTER</h1>
             </div>
           </div>
         </div>
@@ -780,12 +807,21 @@ function App() {
               <h2>Scout a location before you make your move.</h2>
               <p>Enter a location and state and let us scout it out.</p>
             </div>
+            <svg className="hero-contours" aria-hidden="true" viewBox="0 0 260 220" focusable="false">
+              <path d="M231 13c-38 4-72 16-101 37-28 20-46 43-83 49-21 4-37 1-56-5" />
+              <path d="M251 62c-36 7-66 20-91 39-32 24-50 53-95 57-25 2-43-5-65-18" />
+              <path d="M243 118c-27 2-50 11-70 26-24 18-39 41-73 48-24 5-50 0-76-16" />
+              <path d="M202 11c-16 23-23 45-20 66 4 28 24 49 21 82-2 19-11 34-27 48" />
+            </svg>
             <form className="search-card" onSubmit={handleSubmit}>
-              <label htmlFor="suburb-query">Suburb search</label>
+              <div className="search-card-heading">
+                <span>Suburb search</span>
+              </div>
+              <label htmlFor="suburb-query">Location</label>
               <div className="search-row">
                 <input
                   id="suburb-query"
-                  placeholder="e.g. Heidelberg"
+                  placeholder="Hobart"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   disabled={isLoading}
@@ -806,11 +842,12 @@ function App() {
                   {isLoading ? <span className="button-spinner" aria-label="Scouting" /> : 'Scout'}
                 </button>
               </div>
-              {recentSearchPills.length > 0 && (
-                <div className="example-row" aria-label="Recent searches">
-                  {recentSearchPills.map((search) => (
+              {quickLocationTags.length > 0 && (
+                <div className="quick-location-grid" aria-label="Quick location selections">
+                  {quickLocationTags.map((search) => (
                     <a
                       key={search}
+                      className="quick-location-tag"
                       href={toSearchHref(search, selectedState)}
                       onClick={(event) => {
                         event.preventDefault()
@@ -819,7 +856,8 @@ function App() {
                         void runSearch(parsed.place, parsed.state ?? selectedState)
                       }}
                     >
-                      {search}
+                      <LocationPinIcon />
+                      <span>{search}</span>
                     </a>
                   ))}
                 </div>
