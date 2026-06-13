@@ -7,10 +7,9 @@ type Props = {
   saveStatus: string
   onUpdate: (next: LlmSettings) => void
   onClearCache: () => void
-  onClose: () => void
 }
 
-export const SettingsPanel = ({ settings, providerReady, saveStatus, onUpdate, onClearCache, onClose }: Props) => (
+export const SettingsPanel = ({ settings, providerReady, saveStatus, onUpdate, onClearCache }: Props) => (
   <section className="settings-card" aria-label="LLM settings" role="dialog" aria-modal="true">
     <div className="settings-header">
       <div>
@@ -32,16 +31,6 @@ export const SettingsPanel = ({ settings, providerReady, saveStatus, onUpdate, o
             <option value="gemini">Google Gemini</option>
           </select>
         </div>
-        <button
-          type="button"
-          className="settings-close-button"
-          onClick={onClose}
-          aria-label="Close settings"
-        >
-          <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
       </div>
     </div>
 

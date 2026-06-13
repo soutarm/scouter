@@ -907,12 +907,12 @@ button:focus-visible {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  color: #f7fff2;
+  color: var(--cat-colour, #f7fff2);
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 6px 5px 5px;
+  gap: 3px;
+  padding: 7px 6px 6px;
   transition: background 160ms ease, transform 160ms ease;
   width: 46px;
 }
@@ -922,19 +922,23 @@ button:focus-visible {
   transform: translateY(-2px);
 }
 
-.score-ring-cat-arc {
-  display: block;
-  height: 36px;
-  width: 36px;
+.score-ring-cat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.score-ring-cat-label {
-  font-size: 0.58rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  opacity: 0.7;
-  text-transform: uppercase;
-  white-space: nowrap;
+.score-ring-cat-icon svg {
+  height: 16px;
+  width: 16px;
+  stroke-width: 2;
+}
+
+.score-ring-cat-score {
+  color: #f7fff2;
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .not-found-card {

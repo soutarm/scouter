@@ -1,14 +1,15 @@
-import { useEffect, useRef } from 'react'
+import React, { useEffect, useRef } from 'react'
 import type { ReviewScores } from '../../types'
+import { PropertyIcon, SafetyIcon, InfrastructureIcon, DemographicsIcon, EnvironmentIcon } from '../TabIcons'
 
 // ── Category config ──────────────────────────────────────────────────────────
 
-const CATEGORIES: Array<{ key: keyof Omit<ReviewScores, 'overall'>; label: string }> = [
-  { key: 'property',       label: 'Property' },
-  { key: 'safety',         label: 'Safety' },
-  { key: 'infrastructure', label: 'Infra' },
-  { key: 'demographics',   label: 'People' },
-  { key: 'environment',    label: 'Environ' },
+const CATEGORIES: Array<{ key: keyof Omit<ReviewScores, 'overall'>; label: string; Icon: () => React.ReactElement }> = [
+  { key: 'property',       label: 'Property',       Icon: PropertyIcon },
+  { key: 'safety',         label: 'Safety',          Icon: SafetyIcon },
+  { key: 'infrastructure', label: 'Infrastructure',  Icon: InfrastructureIcon },
+  { key: 'demographics',   label: 'Demographics',    Icon: DemographicsIcon },
+  { key: 'environment',    label: 'Environment',     Icon: EnvironmentIcon },
 ]
 
 // Score → colour: 8-10 bright mint, 6-7 sage, 4-5 amber, 1-3 coral
@@ -106,34 +107,22 @@ export const ScoreRing = ({ scores, onCategoryClick }: Props) => {
 
       {/* Category row */}
       <div className="score-ring-cats" role="list">
-        {CATEGORIES.map(({ key, label }) => {
+        {CATEGORIES.map(({ key, label, Icon }) => {
           const val = scores[key]
           const colour = scoreColour(val)
+          const tabKey = key === 'safety' ? 'crime' : key
           return (
             <button
               key={key}
               type="button"
               className="score-ring-cat"
               role="listitem"
-              onClick={() => onCategoryClick?.(key === 'safety' ? 'crime' : key === 'demographics' ? 'demographics' : key)}
+              onClick={() => onCategoryClick?.(tabKey)}
               title={`${label}: ${val}/10`}
+              style={{ '--cat-colour': colour } as React.CSSProperties}
             >
-              <svg className="score-ring-cat-arc" viewBox="0 0 36 36" aria-hidden="true">
-                {/* Track */}
-                <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="4"
-                  strokeDasharray={`${0.75 * 2 * Math.PI * 14} ${2 * Math.PI * 14}`}
-                  strokeLinecap="round"
-                  transform={`rotate(135 18 18)`}
-                />
-                {/* Fill */}
-                <circle cx="18" cy="18" r="14" fill="none" stroke={colour} strokeWidth="4"
-                  strokeDasharray={`${(val / 10) * 0.75 * 2 * Math.PI * 14} ${2 * Math.PI * 14}`}
-                  strokeLinecap="round"
-                  transform={`rotate(135 18 18)`}
-                />
-                <text x="18" y="22" textAnchor="middle" fontSize="11" fontWeight="800" fill="#f7fff2">{val}</text>
-              </svg>
-              <span className="score-ring-cat-label">{label}</span>
+              <span className="score-ring-cat-icon"><Icon /></span>
+              <span className="score-ring-cat-score">{val}</span>
             </button>
           )
         })}
