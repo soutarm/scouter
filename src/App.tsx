@@ -83,6 +83,14 @@ type Review = {
     majorRoads?: string[]
     cbdDistanceKm?: number
     cbdCommuteMinutes?: number
+    suburbLat?: number
+    suburbLng?: number
+    primarySchools?: number
+    secondarySchools?: number
+    shoppingPrecincts?: number
+    parks?: number
+    medicalCentres?: number
+    pointsOfInterest?: Array<{ icon: string; label: string }>
   }
   demographics?: {
     summary: string
@@ -119,6 +127,41 @@ const defaultSettings: LlmSettings = {
 
 const australianStates = ['ACT', 'NSW', 'NT', 'QLD', 'SA', 'TAS', 'VIC', 'WA'] as const
 type AustralianState = (typeof australianStates)[number]
+
+// Haversine straight-line distance in km
+const haversineKm = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+  const R = 6371
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLng = ((lng2 - lng1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+// CBD centre coordinates per state
+const STATE_CBD: Record<AustralianState, { lat: number; lng: number; name: string; mapsQuery: string }> = {
+  ACT: { lat: -35.2809, lng: 149.1300, name: 'Canberra City', mapsQuery: 'Civic+ACT+2601' },
+  NSW: { lat: -33.8688, lng: 151.2093, name: 'Sydney CBD', mapsQuery: 'Sydney+CBD+NSW+2000' },
+  NT:  { lat: -12.4634, lng: 130.8456, name: 'Darwin CBD', mapsQuery: 'Darwin+CBD+NT+0800' },
+  QLD: { lat: -27.4705, lng: 153.0260, name: 'Brisbane CBD', mapsQuery: 'Brisbane+CBD+QLD+4000' },
+  SA:  { lat: -34.9285, lng: 138.6007, name: 'Adelaide CBD', mapsQuery: 'Adelaide+CBD+SA+5000' },
+  TAS: { lat: -42.8821, lng: 147.3272, name: 'Hobart CBD', mapsQuery: 'Hobart+CBD+TAS+7000' },
+  VIC: { lat: -37.8136, lng: 144.9631, name: 'Melbourne CBD', mapsQuery: 'Melbourne+CBD+VIC+3000' },
+  WA:  { lat: -31.9505, lng: 115.8605, name: 'Perth CBD', mapsQuery: 'Perth+CBD+WA+6000' },
+}
+
+// Public transport authority URLs per state
+const STATE_PT_URLS: Record<AustralianState, { train?: string; tram?: string; bus?: string; label: string }> = {
+  ACT: { bus: 'https://www.transport.act.gov.au/getting-around/by-bus', label: 'Transport Canberra' },
+  NSW: { train: 'https://transportnsw.info/routes/train', bus: 'https://transportnsw.info/routes/bus', label: 'Transport NSW' },
+  NT:  { bus: 'https://nt.gov.au/driving/buses-and-public-transport', label: 'NT Public Transport' },
+  QLD: { train: 'https://translink.com.au/plan-your-journey/maps/rail-network-map', bus: 'https://translink.com.au', label: 'TransLink' },
+  SA:  { train: 'https://www.adelaidemetro.com.au/routes-and-maps/trains', tram: 'https://www.adelaidemetro.com.au/routes-and-maps/trams', bus: 'https://www.adelaidemetro.com.au/routes-and-maps/buses', label: 'Adelaide Metro' },
+  TAS: { bus: 'https://www.metrotas.com.au/timetables/', label: 'Metro Tasmania' },
+  VIC: { train: 'https://ptv.vic.gov.au/routes/train/', tram: 'https://ptv.vic.gov.au/routes/tram/', bus: 'https://ptv.vic.gov.au/routes/bus/', label: 'PTV' },
+  WA:  { train: 'https://www.transperth.wa.gov.au/Timetables/Train-Timetables', bus: 'https://www.transperth.wa.gov.au/Timetables/Bus-Timetables', label: 'Transperth' },
+}
 
 const STATE_NAME_MAP: Record<string, AustralianState> = {
   'australian capital territory': 'ACT',
@@ -497,7 +540,17 @@ JSON shape:
     "busAvailability": "One of: Excellent, Good, Limited, None",
     "majorRoads": ["Nearest freeway or arterial road name and approximate distance"],
     "cbdDistanceKm": 12,
-    "cbdCommuteMinutes": 25
+    "cbdCommuteMinutes": 25,
+    "suburbLat": -37.123,
+    "suburbLng": 144.456,
+    "primarySchools": 3,
+    "secondarySchools": 1,
+    "shoppingPrecincts": 2,
+    "parks": 5,
+    "medicalCentres": 2,
+    "pointsOfInterest": [
+      { "icon": "🏛", "label": "Notable landmark or facility name" }
+    ]
   },
   "demographics": {
     "summary": "Census-style population and resident profile summary.",
@@ -1733,45 +1786,110 @@ function App() {
                   </section>
                 )}
 
-                 {activeTab === 'infrastructure' && (
+                 {activeTab === 'infrastructure' && (() => {
+                   const stateKey = review.state.toUpperCase() as AustralianState
+                   const cbd = STATE_CBD[stateKey]
+                   const pt = STATE_PT_URLS[stateKey]
+                   const straightLineKm = (review.infrastructure.suburbLat != null && review.infrastructure.suburbLng != null && cbd)
+                     ? Math.round(haversineKm(review.infrastructure.suburbLat, review.infrastructure.suburbLng, cbd.lat, cbd.lng) * 10) / 10
+                     : review.infrastructure.cbdDistanceKm ?? null
+                   const mapsDirectionsUrl = cbd
+                     ? `https://www.google.com/maps/dir/${encodeURIComponent(`${review.suburb} ${review.state}`)}/${cbd.mapsQuery}`
+                     : null
+                   const totalSchools = (review.infrastructure.primarySchools ?? 0) + (review.infrastructure.secondarySchools ?? 0)
+
+                   return (
                    <section className="tab-panel infra-panel">
                      {/* Stat chips row */}
                      <div className="infra-stats-row">
-                       {review.infrastructure.cbdDistanceKm != null && (
-                         <div className="infra-stat">
+                       {/* CBD distance — straight-line, links to Google Maps */}
+                       {straightLineKm != null && (
+                         <a
+                           className="infra-stat infra-stat-link"
+                           href={mapsDirectionsUrl ?? '#'}
+                           target="_blank" rel="noreferrer"
+                           title={`Straight-line distance to ${cbd?.name ?? 'CBD'} — open in Google Maps`}
+                         >
                            <span className="infra-stat-icon">📍</span>
-                           <strong>{review.infrastructure.cbdDistanceKm} km</strong>
-                           <span>to CBD</span>
-                         </div>
+                           <strong>{straightLineKm} km</strong>
+                           <span>to {cbd?.name ?? 'CBD'}</span>
+                           <span className="infra-stat-sublabel">straight-line</span>
+                         </a>
                        )}
+                       {/* Commute time */}
                        {review.infrastructure.cbdCommuteMinutes != null && (
                          <div className="infra-stat">
                            <span className="infra-stat-icon">⏱</span>
                            <strong>{review.infrastructure.cbdCommuteMinutes} min</strong>
-                           <span>commute</span>
+                           <span>est. commute</span>
                          </div>
                        )}
+                       {/* Bus — links to PT authority */}
                        {review.infrastructure.busAvailability && (
-                         <div className="infra-stat">
+                         <a className="infra-stat infra-stat-link" href={pt?.bus ?? pt?.train ?? '#'} target="_blank" rel="noreferrer" title={`${pt?.label ?? 'Public transport'} bus routes`}>
                            <span className="infra-stat-icon">🚌</span>
                            <strong>{review.infrastructure.busAvailability}</strong>
                            <span>bus access</span>
-                         </div>
+                         </a>
                        )}
+                       {/* Train stations — links to PT authority */}
                        {review.infrastructure.trainStations && review.infrastructure.trainStations.length > 0 && (
-                         <div className="infra-stat">
+                         <a className="infra-stat infra-stat-link" href={pt?.train ?? '#'} target="_blank" rel="noreferrer" title={`${pt?.label ?? 'Public transport'} train routes`}>
                            <span className="infra-stat-icon">🚉</span>
                            <strong>{review.infrastructure.trainStations.length}</strong>
                            <span>train station{review.infrastructure.trainStations.length !== 1 ? 's' : ''}</span>
-                         </div>
+                         </a>
                        )}
+                       {/* Tram — links to PT authority */}
                        {review.infrastructure.tramStops && (
-                         <div className="infra-stat">
+                         <a className="infra-stat infra-stat-link" href={pt?.tram ?? pt?.train ?? '#'} target="_blank" rel="noreferrer" title={`${pt?.label ?? 'Public transport'} tram routes`}>
                            <span className="infra-stat-icon">🚋</span>
                            <strong>Tram</strong>
                            <span>access</span>
+                         </a>
+                       )}
+                       {/* Schools */}
+                       {totalSchools > 0 && (
+                         <div className="infra-stat">
+                           <span className="infra-stat-icon">🏫</span>
+                           <strong>{totalSchools}</strong>
+                           <span>school{totalSchools !== 1 ? 's' : ''}</span>
+                           {review.infrastructure.primarySchools != null && review.infrastructure.secondarySchools != null && (
+                             <span className="infra-stat-sublabel">{review.infrastructure.primarySchools} primary · {review.infrastructure.secondarySchools} secondary</span>
+                           )}
                          </div>
                        )}
+                       {/* Shopping precincts */}
+                       {review.infrastructure.shoppingPrecincts != null && review.infrastructure.shoppingPrecincts > 0 && (
+                         <div className="infra-stat">
+                           <span className="infra-stat-icon">🛍</span>
+                           <strong>{review.infrastructure.shoppingPrecincts}</strong>
+                           <span>shopping precinct{review.infrastructure.shoppingPrecincts !== 1 ? 's' : ''}</span>
+                         </div>
+                       )}
+                       {/* Parks */}
+                       {review.infrastructure.parks != null && review.infrastructure.parks > 0 && (
+                         <div className="infra-stat">
+                           <span className="infra-stat-icon">🌳</span>
+                           <strong>{review.infrastructure.parks}</strong>
+                           <span>park{review.infrastructure.parks !== 1 ? 's' : ''}</span>
+                         </div>
+                       )}
+                       {/* Medical centres */}
+                       {review.infrastructure.medicalCentres != null && review.infrastructure.medicalCentres > 0 && (
+                         <div className="infra-stat">
+                           <span className="infra-stat-icon">🏥</span>
+                           <strong>{review.infrastructure.medicalCentres}</strong>
+                           <span>medical centre{review.infrastructure.medicalCentres !== 1 ? 's' : ''}</span>
+                         </div>
+                       )}
+                       {/* Other POIs */}
+                       {review.infrastructure.pointsOfInterest?.map((poi) => (
+                         <div key={poi.label} className="infra-stat">
+                           <span className="infra-stat-icon">{poi.icon}</span>
+                           <strong className="infra-stat-poi-label">{poi.label}</strong>
+                         </div>
+                       ))}
                      </div>
 
                      {/* Train stations list */}
@@ -1819,10 +1937,11 @@ function App() {
                          <p>{review.infrastructure.lifestyle}</p>
                        </div>
                      </div>
-                   </section>
-                 )}
+                    </section>
+                   )
+                  })()}
 
-                {activeTab === 'demographics' && (
+                 {activeTab === 'demographics' && (
                   <section className="tab-panel demographic-panel">
                     <div className="demographic-copy">
                       <p className="eyebrow">Resident profile</p>
