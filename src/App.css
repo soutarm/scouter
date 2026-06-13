@@ -1449,7 +1449,9 @@ td {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  max-width: 50%;
   padding: 18px;
+  width: 50%;
 }
 
 .noise-bars-card {
@@ -1939,6 +1941,11 @@ td {
 
   .noise-panel {
     grid-template-columns: 1fr;
+  }
+
+  .noise-rating-card {
+    max-width: 100%;
+    width: 100%;
   }
 
   .infra-narrative-grid {
