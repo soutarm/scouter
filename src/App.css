@@ -614,6 +614,14 @@ button:focus-visible {
   width: 18px;
 }
 
+.accordion-spinner {
+  border-color: rgba(74, 111, 81, 0.25);
+  border-top-color: #2f5139;
+  flex-shrink: 0;
+  height: 16px;
+  width: 16px;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);

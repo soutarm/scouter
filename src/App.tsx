@@ -1268,7 +1268,10 @@ function App() {
               <span className="eyebrow">Suburb search</span>
               <strong>{composedQuery || 'Search another suburb'}</strong>
             </span>
-            <span>{isLoading ? 'Reviewing...' : review && !locationNotFound ? 'Scout again' : 'Change search'}</span>
+            {isLoading
+              ? <span className="button-spinner accordion-spinner" aria-label="Scouting" />
+              : <span>{review && !locationNotFound ? 'Scout again' : 'Change search'}</span>
+            }
           </button>
         ) : (
           <>
