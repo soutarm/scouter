@@ -2,6 +2,31 @@ import type { LlmSettings, Review } from '../types'
 import { parseReview } from './reviewParser'
 
 const REQUEST_TIMEOUT_MS = 60_000
+const MAX_RETRIES = 3
+const RETRY_BASE_MS = 1_200
+
+const sleep = (ms: number) => new Promise<void>((res) => setTimeout(res, ms))
+
+// Retries a fetch on 5xx responses (transient server errors like 503).
+// Each attempt gets a fresh AbortSignal tied to the shared controller.
+const fetchWithRetry = async (
+  url: string,
+  init: RequestInit,
+  signal: AbortSignal,
+): Promise<Response> => {
+  let lastError: Error = new Error('Request failed')
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
+    const res = await fetch(url, { ...init, signal })
+    if (res.ok || res.status < 500) return res   // success or client error — don't retry
+    const body = await res.text()
+    lastError = new Error(`${res.status} ${body.slice(0, 260)}`)
+    if (attempt < MAX_RETRIES - 1) {
+      await sleep(RETRY_BASE_MS * (attempt + 1))
+    }
+  }
+  throw lastError
+}
 
 const extractAzureResponseText = (payload: {
   output_text?: string
@@ -195,7 +220,7 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
       if (!settings.azureEndpoint || !settings.azureDeployment || !settings.azureApiKey) {
         throw new Error('Azure endpoint, deployment and API key are required.')
       }
-      const response = await fetch(
+      const response = await fetchWithRetry(
         `${settings.azureEndpoint.replace(/\/$/, '')}/openai/responses?api-version=${settings.azureApiVersion}`,
         {
           method: 'POST',
@@ -207,8 +232,8 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
             reasoning: { effort: 'low' },
             max_output_tokens: 4000,
           }),
-          signal: controller.signal,
         },
+        controller.signal,
       )
       const rawPayload = await response.text()
       if (!response.ok) throw new Error(`Azure request failed: ${response.status} ${rawPayload.slice(0, 260)}`)
@@ -225,7 +250,7 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
       if (!settings.geminiApiKey || !settings.geminiModel) {
         throw new Error('Gemini API key and model are required.')
       }
-      const response = await fetch(
+      const response = await fetchWithRetry(
         `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(settings.geminiModel)}:generateContent?key=${encodeURIComponent(settings.geminiApiKey)}`,
         {
           method: 'POST',
@@ -234,8 +259,8 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
             generationConfig: { temperature: 0.2, responseMimeType: 'application/json', maxOutputTokens: 4000 },
           }),
-          signal: controller.signal,
         },
+        controller.signal,
       )
       const rawPayload = await response.text()
       if (!response.ok) throw new Error(`Gemini request failed: ${response.status} ${rawPayload.slice(0, 260)}`)
@@ -248,18 +273,21 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
     if (!settings.openAiApiKey || !settings.openAiModel) {
       throw new Error('OpenAI-compatible API key and model are required.')
     }
-    const response = await fetch(`${settings.openAiBaseUrl.replace(/\/$/, '')}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.openAiApiKey}` },
-      body: JSON.stringify({
-        model: settings.openAiModel,
-        temperature: 0.2,
-        messages: [{ role: 'user', content: prompt }],
-        response_format: { type: 'json_object' },
-        max_completion_tokens: 4000,
-      }),
-      signal: controller.signal,
-    })
+    const response = await fetchWithRetry(
+      `${settings.openAiBaseUrl.replace(/\/$/, '')}/chat/completions`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.openAiApiKey}` },
+        body: JSON.stringify({
+          model: settings.openAiModel,
+          temperature: 0.2,
+          messages: [{ role: 'user', content: prompt }],
+          response_format: { type: 'json_object' },
+          max_completion_tokens: 4000,
+        }),
+      },
+      controller.signal,
+    )
     const rawPayload = await response.text()
     if (!response.ok) throw new Error(`OpenAI-compatible request failed: ${response.status} ${rawPayload.slice(0, 260)}`)
     const payload = JSON.parse(rawPayload) as { choices?: Array<{ message?: { content?: string } }> }

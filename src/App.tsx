@@ -126,6 +126,7 @@ function App() {
   const suggestionsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const autoSearchStartedRef = useRef(false)
   const reviewRef = useRef<HTMLElement | null>(null)
+  const comparePanelRef = useRef<HTMLElement | null>(null)
 
   const providerReady = useMemo(() => {
     if (settings.provider === 'azure') return Boolean(settings.azureEndpoint && settings.azureDeployment && settings.azureApiKey)
@@ -254,6 +255,14 @@ function App() {
           rememberSearch(trimmedQuery)
           setCachedReview(trimmedQuery, nextReview)
           setCacheLocationCount(getReviewCacheCount())
+          // If compare mode is active and there's room, auto-add this location
+          const cacheKey = trimmedQuery.toLowerCase()
+          setCompareKeys((prev) => {
+            if (compareMode && prev.length < 3 && !prev.includes(cacheKey)) {
+              return [...prev, cacheKey]
+            }
+            return prev
+          })
         }
       } catch (caught) {
         setError(friendlyRequestError(caught))
@@ -283,6 +292,15 @@ function App() {
     }, 80)
     return () => clearTimeout(id)
   }, [review])
+
+  // Scroll to compare panel when a new location is added while in compare mode
+  useEffect(() => {
+    if (!compareMode || compareKeys.length === 0 || !comparePanelRef.current) return
+    const id = setTimeout(() => {
+      comparePanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 120)
+    return () => clearTimeout(id)
+  }, [compareKeys, compareMode])
 
   // Update page title based on active review
   useEffect(() => {
@@ -642,20 +660,22 @@ function App() {
       )}
 
       {compareMode && compareReviews.length > 0 && (
-        <ComparePanel
-          reviews={compareReviews}
-          onDetails={(r) => {
-            setCompareMode(false)
-            setCompareKeys([])
-            void runSearch(r.suburb, r.state as import('./types').AustralianState, { updateQueryString: true })
-          }}
-        />
+        <div ref={comparePanelRef as React.RefObject<HTMLDivElement>}>
+          <ComparePanel
+            reviews={compareReviews}
+            onDetails={(r) => {
+              setCompareMode(false)
+              setCompareKeys([])
+              void runSearch(r.suburb, r.state as import('./types').AustralianState, { updateQueryString: true })
+            }}
+          />
+        </div>
       )}
 
       {isLoading && (
         <section className="busy-card" aria-live="polite">
           <div className="spinner" />
-          <div><h2>Scouting location...</h2></div>
+          <div><h2>Scouting {composedQuery ? `${composedQuery}` : 'location'}…</h2></div>
         </section>
       )}
 
