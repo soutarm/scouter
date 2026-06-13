@@ -1506,7 +1506,9 @@ td {
   display: flex;
   flex-direction: column;
   gap: 0;
+  max-width: 50%;
   overflow: hidden;
+  width: 50%;
 }
 
 .noise-factor-row {
@@ -1943,7 +1945,8 @@ td {
     grid-template-columns: 1fr;
   }
 
-  .noise-rating-card {
+  .noise-rating-card,
+  .noise-factors {
     max-width: 100%;
     width: 100%;
   }
