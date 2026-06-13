@@ -122,6 +122,7 @@ export type Review = {
     ageGroups?: DemographicDatum[]
     tenureTypes?: DemographicDatum[]
     countryOfOrigin?: DemographicDatum[]
+    residentProfiles?: DemographicDatum[]
   }
   caveats: string[]
   references?: string[]

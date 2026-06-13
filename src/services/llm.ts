@@ -188,6 +188,14 @@ JSON shape:
       { "label": "India", "value": 4 },
       { "label": "China", "value": 3 },
       { "label": "Other", "value": 20 }
+    ],
+    "residentProfiles": [
+      { "label": "Families", "value": 35 },
+      { "label": "Professionals", "value": 25 },
+      { "label": "Retirees / Elderly", "value": 15 },
+      { "label": "Students", "value": 10 },
+      { "label": "Singles", "value": 10 },
+      { "label": "Other", "value": 5 }
     ]
   },
   "scores": {
