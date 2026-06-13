@@ -1577,9 +1577,9 @@ td {
 }
 
 .infra-stat-icon {
-  font-size: 1.4rem;
+  font-size: 3rem;
   line-height: 1;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .infra-stat strong {
