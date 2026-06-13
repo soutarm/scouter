@@ -24,6 +24,7 @@ import { InfrastructureTab } from './components/review/InfrastructureTab'
 import { DemographicsTab } from './components/review/DemographicsTab'
 import { MapTab } from './components/review/MapTab'
 import { ScoreRing } from './components/review/ScoreRing'
+import { ComparePanel } from './components/review/ComparePanel'
 import { PropertyIcon, SafetyIcon, InfrastructureIcon, DemographicsIcon, EnvironmentIcon, MapIcon } from './components/TabIcons'
 
 // ---------------------------------------------------------------------------
@@ -118,6 +119,8 @@ function App() {
   const [cacheLocationCount, setCacheLocationCount] = useState(() => getReviewCacheCount())
   const [cacheCleared, setCacheCleared] = useState(false)
   const [showReferences, setShowReferences] = useState(false)
+  const [compareMode, setCompareMode] = useState(false)
+  const [compareKeys, setCompareKeys] = useState<string[]>([])
   const [suggestions, setSuggestions] = useState<SuburbSuggestion[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const suggestionsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -148,6 +151,12 @@ function App() {
   }, [recentSearches])
 
   const composedQuery = query.trim() ? `${query.trim()}, ${selectedState}` : ''
+
+  const compareReviews = useMemo(() => {
+    return compareKeys
+      .map((key) => getCachedReview(key))
+      .filter((r): r is Review => r !== null && r.exists !== false)
+  }, [compareKeys])
   const locationNotFound = review?.exists === false
   const suggestedLocation = getSuggestedLocation(review)
 
@@ -505,7 +514,6 @@ function App() {
       {!isSticky && (
         <section className="hero-panel">
           <div className="hero-copy">
-            <span className="pill">Property, climate, crime, logistics</span>
             <h2>Scout a location before you make your move.</h2>
             <p>Enter a location and let us scout it out.</p>
           </div>
@@ -562,29 +570,86 @@ function App() {
               )}
             </div>
             {quickLocationTags.length > 0 && (
-              <div className="quick-location-grid" aria-label="Quick location selections">
-                {quickLocationTags.map((search) => (
-                  <a
-                    key={search}
-                    className="quick-location-tag"
-                    href={toSearchHref(search, selectedState)}
-                    onClick={(e) => {
-                      e.preventDefault()
-                      setSuggestions([])
-                      setShowSuggestions(false)
-                      const parsed = splitLocation(search)
-                      if (!parsed.place) return
-                      void runSearch(parsed.place, parsed.state ?? selectedState)
-                    }}
-                  >
-                    <LocationPinIcon />
-                    <span>{search}</span>
-                  </a>
-                ))}
-              </div>
+              <>
+                <div className="compare-toggle-row">
+                  <label className="compare-toggle-label">
+                    <input
+                      type="checkbox"
+                      checked={compareMode}
+                      onChange={(e) => {
+                        setCompareMode(e.target.checked)
+                        if (!e.target.checked) setCompareKeys([])
+                      }}
+                    />
+                    <span>Compare</span>
+                  </label>
+                  {compareMode && compareKeys.length > 0 && (
+                    <span className="compare-count-badge">
+                      {compareKeys.length}/3 selected
+                    </span>
+                  )}
+                </div>
+                <div className="quick-location-grid" aria-label="Quick location selections">
+                  {quickLocationTags.map((search) => {
+                    const key = search.trim().toLowerCase()
+                    const isSelected = compareKeys.includes(key)
+                    const isCached = getCachedReview(key) !== null
+                    const isDisabled = compareMode && !isSelected && compareKeys.length >= 3
+                    if (compareMode) {
+                      return (
+                        <button
+                          key={search}
+                          type="button"
+                          className={`quick-location-tag quick-location-tag--compare${isSelected ? ' selected' : ''}${isDisabled ? ' disabled' : ''}${!isCached ? ' uncached' : ''}`}
+                          disabled={isDisabled}
+                          onClick={() => {
+                            if (!isCached) return
+                            setCompareKeys((prev) =>
+                              prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+                            )
+                          }}
+                          title={!isCached ? 'Scout this location first to compare it' : undefined}
+                        >
+                          <span className={`compare-checkbox${isSelected ? ' checked' : ''}`} aria-hidden="true" />
+                          <span>{search}</span>
+                        </button>
+                      )
+                    }
+                    return (
+                      <a
+                        key={search}
+                        className="quick-location-tag"
+                        href={toSearchHref(search, selectedState)}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          setSuggestions([])
+                          setShowSuggestions(false)
+                          const parsed = splitLocation(search)
+                          if (!parsed.place) return
+                          void runSearch(parsed.place, parsed.state ?? selectedState)
+                        }}
+                      >
+                        <LocationPinIcon />
+                        <span>{search}</span>
+                      </a>
+                    )
+                  })}
+                </div>
+              </>
             )}
           </form>
         </section>
+      )}
+
+      {compareMode && compareReviews.length > 0 && (
+        <ComparePanel
+          reviews={compareReviews}
+          onDetails={(r) => {
+            setCompareMode(false)
+            setCompareKeys([])
+            void runSearch(r.suburb, r.state as import('./types').AustralianState, { updateQueryString: true })
+          }}
+        />
       )}
 
       {isLoading && (
