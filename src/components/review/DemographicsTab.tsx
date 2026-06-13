@@ -15,44 +15,48 @@ export const DemographicsTab = ({ review }: Props) => {
         <p className="eyebrow">Resident profile</p>
         <h3>Demographic snapshot</h3>
         <p>{demographicSummary}</p>
-        {review.demographics?.population && (
+        {(review.demographics?.population || review.demographics?.medianAge) && (
           <div className="demographic-stats">
-            <div>
-              <span>Population</span>
-              <strong>{review.demographics.population}</strong>
-            </div>
+            {review.demographics?.population && (
+              <div>
+                <span>Population</span>
+                <strong>{review.demographics.population}</strong>
+              </div>
+            )}
+            {review.demographics?.medianAge && (
+              <div>
+                <span>Median age</span>
+                <strong>{review.demographics.medianAge}</strong>
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Age profile — Median Age appears as footer stat inside this card */}
-      {ageData?.length ? (
-        <DemographicPieChart
-          title={review.demographics?.ageGroups?.length ? 'Age profile' : 'Household mix'}
-          data={ageData}
-          footerStat={review.demographics?.medianAge
-            ? { label: 'Median age', value: review.demographics.medianAge }
-            : undefined}
-        />
-      ) : null}
+      {/* Charts — 2-column grid via CSS */}
+      <div className="demographic-charts-grid">
+        {ageData?.length ? (
+          <DemographicPieChart
+            title={review.demographics?.ageGroups?.length ? 'Age profile' : 'Household mix'}
+            data={ageData}
+          />
+        ) : null}
 
-      {/* Who lives here — resident profiles */}
-      {review.demographics?.residentProfiles?.length ? (
-        <DemographicPieChart
-          title="Who lives here"
-          data={review.demographics.residentProfiles}
-        />
-      ) : null}
+        {review.demographics?.residentProfiles?.length ? (
+          <DemographicPieChart
+            title="Who lives here"
+            data={review.demographics.residentProfiles}
+          />
+        ) : null}
 
-      {/* Housing tenure */}
-      {review.demographics?.tenureTypes?.length ? (
-        <DemographicPieChart title="Housing tenure" data={review.demographics.tenureTypes} />
-      ) : null}
+        {review.demographics?.tenureTypes?.length ? (
+          <DemographicPieChart title="Housing tenure" data={review.demographics.tenureTypes} />
+        ) : null}
 
-      {/* Country of origin */}
-      {review.demographics?.countryOfOrigin?.length ? (
-        <DemographicPieChart title="Country of origin" data={review.demographics.countryOfOrigin} />
-      ) : null}
+        {review.demographics?.countryOfOrigin?.length ? (
+          <DemographicPieChart title="Country of origin" data={review.demographics.countryOfOrigin} />
+        ) : null}
+      </div>
     </section>
   )
 }
