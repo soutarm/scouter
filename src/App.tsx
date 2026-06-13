@@ -272,6 +272,15 @@ function App() {
     return () => clearTimeout(id)
   }, [review])
 
+  // Update page title based on active review
+  useEffect(() => {
+    if (review?.exists && review.suburb && review.state) {
+      document.title = `Scouter – ${review.suburb}, ${review.state} Review`
+    } else {
+      document.title = 'Scouter'
+    }
+  }, [review])
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const parsedQuery = splitLocation(query)

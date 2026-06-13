@@ -922,12 +922,13 @@ button:focus-visible {
   transform: translateY(-2px);
 }
 
-/* Dial wrapper: SVG ring + icon overlaid in centre */
+/* Dial wrapper: SVG ring + score number overlaid in centre */
 .score-ring-cat-dial {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .score-ring-cat-icon {
