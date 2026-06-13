@@ -426,13 +426,18 @@ const setCachedReview = (query: string, review: Review) => {
   }
 }
 
-const stripJsonFence = (value: string) =>
-  value
-    .trim()
-    .replace(/^```json\s*/i, '')
-    .replace(/^```\s*/i, '')
-    .replace(/```$/i, '')
-    .trim()
+const stripJsonFence = (value: string): string => {
+  const trimmed = value.trim()
+  // Strip markdown code fences if present
+  const fenced = trimmed.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim()
+  // Extract the outermost JSON object in case the model adds prose before/after
+  const start = fenced.indexOf('{')
+  const end = fenced.lastIndexOf('}')
+  if (start !== -1 && end !== -1 && end > start) {
+    return fenced.slice(start, end + 1)
+  }
+  return fenced
+}
 
 const parseReferenceLink = (reference: string) => {
   const trimmed = reference.trim()
@@ -619,7 +624,14 @@ const friendlyRequestError = (caught: unknown) => {
 }
 
 const parseReview = (content: string): Review => {
-  const parsed = JSON.parse(stripJsonFence(content)) as Review
+  const stripped = stripJsonFence(content)
+  let parsed: Review
+  try {
+    parsed = JSON.parse(stripped) as Review
+  } catch (e) {
+    const snippet = stripped.slice(0, 300).replace(/\n/g, ' ')
+    throw new Error(`The model returned invalid JSON. Parse error: ${e instanceof Error ? e.message : e}. Content preview: ${snippet}`)
+  }
   // Handle legacy string crime field from cached/old responses
   if (typeof parsed.crime === 'string') {
     parsed.crime = { narrative: parsed.crime as unknown as string, insuranceImpact: '' }
