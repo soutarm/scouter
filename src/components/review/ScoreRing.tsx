@@ -100,7 +100,6 @@ export const ScoreRing = ({ scores, onCategoryClick }: Props) => {
         {/* Centre label */}
         <div className="score-ring-centre">
           <span className="score-ring-number">{scores.overall}</span>
-          <span className="score-ring-denom">/10</span>
           <span className="score-ring-label">Overall</span>
         </div>
       </div>

@@ -23,6 +23,11 @@
   max-width: 1180px;
 }
 
+.topbar.settings-open {
+  position: relative;
+  z-index: 160;
+}
+
 /* Sticky topbar — shown after a search is completed */
 .topbar.is-sticky {
   backdrop-filter: blur(18px) saturate(1.4);
@@ -38,6 +43,10 @@
   top: 0;
   width: calc(100% + 56px);
   z-index: 100;
+}
+
+.topbar.is-sticky.settings-open {
+  z-index: 160;
 }
 
 /* Compact search pill shown in the sticky topbar */
@@ -333,6 +342,7 @@ input:disabled {
   gap: 20px;
   min-width: min(560px, calc(100vw - 32px));
   padding: 24px;
+  pointer-events: auto;
   position: absolute;
   right: 0;
   top: calc(100% + 10px);
@@ -454,6 +464,14 @@ input:disabled {
   display: inline-block;
   font-weight: 800;
   margin-left: 8px;
+}
+
+.settings-storage-note {
+  color: #7a887c;
+  flex: 1 0 100%;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  margin: 4px 0 0;
 }
 
 .clear-cache-button {
@@ -626,6 +644,7 @@ button:focus-visible {
     inset 0 1px 0 rgba(255, 255, 255, 0.88);
   padding: clamp(18px, 3vw, 28px);
   position: relative;
+  width: min(520px, 100%);
   z-index: 1;
 }
 
@@ -705,6 +724,7 @@ button:focus-visible {
   font-weight: 850;
   gap: 8px;
   min-height: 40px;
+  overflow: hidden;
   padding: 8px 11px;
   text-decoration: none;
   transition:
@@ -713,6 +733,12 @@ button:focus-visible {
     box-shadow 180ms ease,
     color 180ms ease,
     transform 180ms ease;
+}
+
+.quick-location-tag span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .quick-location-tag:hover,

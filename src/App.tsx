@@ -278,7 +278,7 @@ function App() {
   // Update page title based on active review
   useEffect(() => {
     if (review?.exists && review.suburb && review.state) {
-      document.title = `Scouter - ${review.suburb}, ${review.state} Review`
+      document.title = `Scouter: ${review.suburb}, ${review.state}`
     } else {
       document.title = 'Scouter'
     }
@@ -309,6 +309,7 @@ function App() {
     setShowSuggestions(false)
     setCacheActionMessage('')
     clearSearchFromUrl()
+    window.localStorage.removeItem('scouter.last-location')
   }, [clearSearchFromUrl, openSearchPanel])
 
   const clearCacheAndRecentSearches = useCallback(() => {
@@ -430,7 +431,7 @@ function App() {
 
   return (
     <main className="app-shell">
-      <header className={isSticky ? 'topbar is-sticky' : 'topbar'}>
+      <header className={`topbar${isSticky ? ' is-sticky' : ''}${showSettings ? ' settings-open' : ''}`}>
         <h1 className="brand-wordmark" aria-label="Scouter">
           <span className="brand-letter brand-letter-s" aria-hidden="true">S</span>
           <span className="brand-letter" aria-hidden="true">C</span>
@@ -505,7 +506,7 @@ function App() {
           <div className="hero-copy">
             <span className="pill">Property, climate, crime, logistics</span>
             <h2>Scout a location before you make your move.</h2>
-            <p>Enter a location and state and let us scout it out.</p>
+            <p>Enter a location and let us scout it out.</p>
           </div>
           <svg className="hero-contours" aria-hidden="true" viewBox="0 0 260 220" focusable="false">
             <path d="M231 13c-38 4-72 16-101 37-28 20-46 43-83 49-21 4-37 1-56-5" />
@@ -730,15 +731,6 @@ function App() {
         </section>
       )}
 
-      {!review && !isLoading && (
-        <section className="empty-state">
-          <div><h2>Make a smarter move with a clearer view.</h2></div>
-        </section>
-      )}
-
-      <footer className="site-footer">
-        <p>© {new Date().getFullYear()} Michael Soutar</p>
-      </footer>
     </main>
   )
 }

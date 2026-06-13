@@ -21,12 +21,18 @@ export const SettingsPanel = ({
   onClearCache,
   onClearCurrentLocation,
 }: Props) => (
-  <section className="settings-card" aria-label="LLM settings" role="dialog" aria-modal="true">
+  <section
+    className="settings-card"
+    aria-label="LLM settings"
+    role="dialog"
+    aria-modal="true"
+    onClick={(event) => event.stopPropagation()}
+    onPointerDown={(event) => event.stopPropagation()}
+  >
     <div className="settings-header">
       <div>
         <p className="eyebrow">Configuration</p>
         <h2>Provider settings</h2>
-        <p>Stored locally in this browser. Do not use public/shared API keys.</p>
       </div>
       <div className="settings-header-right">
         <div className="settings-controls">
@@ -123,6 +129,9 @@ export const SettingsPanel = ({
       >
         Clear current location
       </button>
+      <p className="settings-storage-note">
+        Stored locally in this browser. Do not use public/shared API keys.
+      </p>
     </div>
   </section>
 )
