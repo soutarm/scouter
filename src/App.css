@@ -4,12 +4,18 @@
 }
 
 .topbar,
-.settings-header,
 .review-actions {
   align-items: center;
   display: flex;
   justify-content: space-between;
   gap: 18px;
+}
+
+.settings-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
 }
 
 .topbar {
@@ -322,8 +328,11 @@ input:disabled {
   box-shadow:
     0 4px 12px rgba(31, 77, 54, 0.08),
     0 24px 60px rgba(31, 77, 54, 0.18);
-  min-width: min(520px, calc(100vw - 32px));
-  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: min(560px, calc(100vw - 32px));
+  padding: 24px;
   position: absolute;
   right: 0;
   top: calc(100% + 10px);
@@ -348,6 +357,7 @@ input:disabled {
   flex-direction: column;
   flex-shrink: 0;
   gap: 10px;
+  align-self: flex-start;
 }
 
 .settings-close-button {
@@ -409,8 +419,7 @@ input:disabled {
 .settings-grid {
   display: grid;
   gap: 14px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin-top: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .settings-note {
@@ -423,7 +432,6 @@ input:disabled {
 
 .settings-footer {
   border-top: 1px solid rgba(74, 111, 81, 0.12);
-  margin-top: 6px;
   padding-top: 14px;
 }
 
@@ -1974,10 +1982,13 @@ td {
   }
 
   .topbar,
-  .settings-header,
   .review-actions,
   .search-row {
     align-items: stretch;
+    flex-direction: column;
+  }
+
+  .settings-header {
     flex-direction: column;
   }
 
