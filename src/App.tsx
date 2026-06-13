@@ -17,7 +17,7 @@ type LlmSettings = {
   geminiApiKey: string
 }
 
-type ReviewSectionKey = 'property' | 'climate' | 'crime' | 'infrastructure' | 'demographics' | 'map'
+type ReviewSectionKey = 'property' | 'environment' | 'crime' | 'infrastructure' | 'demographics' | 'map'
 
 type DemographicDatum = {
   label: string
@@ -53,6 +53,14 @@ type Review = {
   climate: {
     summerAverages: string
     winterAverages: string
+    noise?: {
+      flightPath: string
+      railNoise: string
+      roadNoise: string
+      industrialZones: string
+      overallRating: 'Low' | 'Moderate' | 'High' | 'Very High'
+      overallSummary: string
+    }
   }
   crime: {
     narrative: string
@@ -69,6 +77,12 @@ type Review = {
     education: string
     lifestyle: string
     demographic: string
+    trainStations?: Array<{ name: string; lines: string }>
+    tramStops?: string
+    busAvailability?: 'Excellent' | 'Good' | 'Limited' | 'None'
+    majorRoads?: string[]
+    cbdDistanceKm?: number
+    cbdCommuteMinutes?: number
   }
   demographics?: {
     summary: string
@@ -282,7 +296,7 @@ const tabs: Array<{ key: ReviewSectionKey; label: string }> = [
   { key: 'crime', label: 'Safety' },
   { key: 'infrastructure', label: 'Infrastructure' },
   { key: 'demographics', label: 'Demographics' },
-  { key: 'climate', label: 'Climate' },
+  { key: 'environment', label: 'Environment' },
   { key: 'map', label: 'Map' },
 ]
 
@@ -399,12 +413,33 @@ const parseReferenceLink = (reference: string) => {
   }
 }
 
-const buildPrompt = (query: string) => `You are an Australian suburb research analyst.
+const fetchHomelyContext = async (suburb: string, state: string, postcode?: string): Promise<string> => {
+  try {
+    const slug = `${suburb.toLowerCase().replace(/\s+/g, '-')}-${state.toLowerCase()}${postcode ? `-${postcode}` : ''}`
+    const url = `https://www.homely.com.au/suburb-profile/${slug}`
+    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) })
+    if (!res.ok) return ''
+    const html = await res.text()
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(html, 'text/html')
+    const article = doc.querySelector('article')
+    if (!article) return ''
+    // Strip listing cards — they contain property addresses not useful for context
+    article.querySelectorAll('[class*="listing"], [class*="Listing"], [class*="property-card"]').forEach(el => el.remove())
+    const raw = article.innerText ?? article.textContent ?? ''
+    // Trim to 2500 chars to avoid blowing out token budget
+    return raw.replace(/\s+/g, ' ').trim().slice(0, 2500)
+  } catch {
+    return ''
+  }
+}
+
+const buildPrompt = (query: string, homelyContext?: string) => `You are an Australian suburb research analyst.
 
 Create a concise but useful suburb review for: ${query}.
 
 If you cannot confidently identify the Australian location, return "exists": false, use the requested place/state in "suburb" and "state", explain the issue in "summary" and "notFoundReason", and return empty or brief placeholder values for the remaining fields. If there is a likely intended Australian suburb or town, include it in "suggestedSuburb" and include its Australian state or territory abbreviation in "suggestedState". For example, if the request is "Warragul, TAS", explain that it appears to correspond to Warragul, VIC, and set "suggestedSuburb": "Warragul" and "suggestedState": "VIC".
-
+${homelyContext ? `\nThe following is community-sourced context from Homely.com.au for this suburb. Use it to enrich the demographics and lifestyle sections where relevant, but treat it as anecdotal and supplement with your own knowledge:\n<homely_context>\n${homelyContext}\n</homely_context>\n` : ''}
 Return JSON only. Do not include markdown fences. Use current 2026 context where possible. Use AUD for money. Do not use em dashes.
 
 JSON shape:
@@ -425,7 +460,15 @@ JSON shape:
   ],
   "climate": {
     "summerAverages": "Average high and low temperatures plus seasonal behaviour.",
-    "winterAverages": "Average high and low temperatures plus rainfall/cloud/frost behaviour."
+    "winterAverages": "Average high and low temperatures plus rainfall/cloud/frost behaviour.",
+    "noise": {
+      "flightPath": "Is the suburb under a flight path? Which airport, which runway approach, frequency of overflights, and estimated noise level.",
+      "railNoise": "Proximity to train or tram lines and resulting noise impact on residents.",
+      "roadNoise": "Proximity to major roads, freeways or arterials and traffic noise impact.",
+      "industrialZones": "Nearby industrial, port, or manufacturing zones and any associated noise or air quality impact.",
+      "overallRating": "One of: Low, Moderate, High, Very High",
+      "overallSummary": "1-2 sentence summary of the suburb's overall noise and environmental amenity."
+    }
   },
   "crime": {
     "narrative": "Crime and safety analysis with LGA, common incident types, and practical safety interpretation.",
@@ -448,7 +491,13 @@ JSON shape:
     "transit": "Train, bus, road and commute context.",
     "education": "Primary, secondary, tertiary and catchment notes.",
     "lifestyle": "Retail, dining, parks, health, culture and daily amenity.",
-    "demographic": "Dominant resident profiles and census-style context."
+    "demographic": "Dominant resident profiles and census-style context.",
+    "trainStations": [{ "name": "Station name", "lines": "Line name(s)" }],
+    "tramStops": "Description of tram stop availability, or null if not applicable.",
+    "busAvailability": "One of: Excellent, Good, Limited, None",
+    "majorRoads": ["Nearest freeway or arterial road name and approximate distance"],
+    "cbdDistanceKm": 12,
+    "cbdCommuteMinutes": 25
   },
   "demographics": {
     "summary": "Census-style population and resident profile summary.",
@@ -524,8 +573,8 @@ const parseReview = (content: string): Review => {
   return parsed
 }
 
-const callLlm = async (settings: LlmSettings, query: string): Promise<Review> => {
-  const prompt = buildPrompt(query)
+const callLlm = async (settings: LlmSettings, query: string, homelyContext?: string): Promise<Review> => {
+  const prompt = buildPrompt(query, homelyContext)
   const controller = new AbortController()
   const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
@@ -977,7 +1026,9 @@ function App() {
       setHasSearched(true)
       setIsSearchOpen(false)
       try {
-        const result = await callLlm(settings, trimmedQuery)
+        // Fetch Homely context in parallel with the start of LLM call setup
+        const homelyContext = await fetchHomelyContext(trimmedPlace, state)
+        const result = await callLlm(settings, trimmedQuery, homelyContext)
         const nextReview = { ...result, generatedAt: result.generatedAt || new Date().toISOString() }
         setReview(nextReview)
         if (nextReview.exists !== false) {
@@ -1065,7 +1116,13 @@ function App() {
         )
       })
 
-      section('Climate & Weather Profile', `Summer: ${review.climate.summerAverages}\n\nWinter: ${review.climate.winterAverages}`)
+      section('Climate & Environment', [
+        `Summer: ${review.climate.summerAverages}`,
+        `Winter: ${review.climate.winterAverages}`,
+        review.climate.noise
+          ? `\nNoise & Amenity (${review.climate.noise.overallRating}): ${review.climate.noise.overallSummary}\nFlight paths: ${review.climate.noise.flightPath}\nRail: ${review.climate.noise.railNoise}\nRoad: ${review.climate.noise.roadNoise}\nIndustrial: ${review.climate.noise.industrialZones}`
+          : '',
+      ].filter(Boolean).join('\n\n'))
       section('Safety & Insurance', [
         review.crime.narrative,
         review.crime.insuranceImpact ? `\nInsurance impact: ${review.crime.insuranceImpact}` : '',
@@ -1073,7 +1130,16 @@ function App() {
       ].filter(Boolean).join('\n\n'))
       section(
         'Infrastructure, Education & Logistics',
-        `Transit & Commute: ${review.infrastructure.transit}\n\nEducation & Catchments: ${review.infrastructure.education}\n\nLifestyle & Amenities: ${review.infrastructure.lifestyle}\n\nDemographic Vibe: ${review.infrastructure.demographic}`,
+        [
+          review.infrastructure.cbdDistanceKm != null ? `CBD distance: ${review.infrastructure.cbdDistanceKm} km (${review.infrastructure.cbdCommuteMinutes ?? '?'} min commute)` : '',
+          review.infrastructure.trainStations?.length ? `Train stations: ${review.infrastructure.trainStations.map(s => `${s.name} (${s.lines})`).join(', ')}` : '',
+          review.infrastructure.tramStops ? `Tram: ${review.infrastructure.tramStops}` : '',
+          review.infrastructure.busAvailability ? `Bus: ${review.infrastructure.busAvailability}` : '',
+          review.infrastructure.majorRoads?.length ? `Major roads: ${review.infrastructure.majorRoads.join(', ')}` : '',
+          `Transit & Commute: ${review.infrastructure.transit}`,
+          `Education & Catchments: ${review.infrastructure.education}`,
+          `Lifestyle & Amenities: ${review.infrastructure.lifestyle}`,
+        ].filter(Boolean).join('\n\n'),
       )
 
       if (review.demographics) {
@@ -1570,20 +1636,55 @@ function App() {
                   </section>
                 )}
 
-                {activeTab === 'climate' && (
-                  <section className="tab-panel climate-panel">
-                    <div className="climate-card">
-                      <h3>Summer Averages</h3>
-                      <ThermometerRange label="Summer min / max" description={review.climate.summerAverages} />
-                      <p>{review.climate.summerAverages}</p>
-                    </div>
-                    <div className="climate-card">
-                      <h3>Winter Averages</h3>
-                      <ThermometerRange label="Winter min / max" description={review.climate.winterAverages} />
-                      <p>{review.climate.winterAverages}</p>
-                    </div>
-                  </section>
-                )}
+                 {activeTab === 'environment' && (
+                   <section className="tab-panel environment-panel">
+                     <div className="environment-section">
+                       <p className="eyebrow">Climate</p>
+                       <div className="climate-panel">
+                         <div className="climate-card">
+                           <h3>Summer Averages</h3>
+                           <ThermometerRange label="Summer min / max" description={review.climate.summerAverages} />
+                           <p>{review.climate.summerAverages}</p>
+                         </div>
+                         <div className="climate-card">
+                           <h3>Winter Averages</h3>
+                           <ThermometerRange label="Winter min / max" description={review.climate.winterAverages} />
+                           <p>{review.climate.winterAverages}</p>
+                         </div>
+                       </div>
+                     </div>
+                     {review.climate.noise && (
+                       <div className="environment-section">
+                         <p className="eyebrow">Noise & Amenity</p>
+                         <div className="noise-panel">
+                           <div className="noise-rating-card">
+                             <span className="noise-rating-label">Overall noise level</span>
+                             <span className={`noise-badge noise-badge-${review.climate.noise.overallRating.toLowerCase().replace(' ', '-')}`}>
+                               {review.climate.noise.overallRating}
+                             </span>
+                             <p className="noise-summary">{review.climate.noise.overallSummary}</p>
+                           </div>
+                           <div className="noise-factors">
+                             {([
+                               { icon: '✈', label: 'Flight paths', value: review.climate.noise.flightPath },
+                               { icon: '🚆', label: 'Rail noise', value: review.climate.noise.railNoise },
+                               { icon: '🛣', label: 'Road noise', value: review.climate.noise.roadNoise },
+                               { icon: '🏭', label: 'Industrial zones', value: review.climate.noise.industrialZones },
+                             ] as const).map(({ icon, label, value }) => (
+                               <div key={label} className="noise-factor-row">
+                                 <span className="noise-factor-icon">{icon}</span>
+                                 <div>
+                                   <span className="noise-factor-label">{label}</span>
+                                   <p className="noise-factor-value">{value}</p>
+                                 </div>
+                               </div>
+                             ))}
+                           </div>
+                         </div>
+                       </div>
+                     )}
+                   </section>
+                 )}
 
                 {activeTab === 'crime' && (
                   <section className="tab-panel safety-panel">
@@ -1632,22 +1733,94 @@ function App() {
                   </section>
                 )}
 
-                {activeTab === 'infrastructure' && (
-                  <section className="tab-panel feature-grid">
-                    <div>
-                      <h3>Transit & Commute</h3>
-                      <p>{review.infrastructure.transit}</p>
-                    </div>
-                    <div>
-                      <h3>Education & Catchments</h3>
-                      <p>{review.infrastructure.education}</p>
-                    </div>
-                    <div>
-                      <h3>Lifestyle & Amenities</h3>
-                      <p>{review.infrastructure.lifestyle}</p>
-                    </div>
-                  </section>
-                )}
+                 {activeTab === 'infrastructure' && (
+                   <section className="tab-panel infra-panel">
+                     {/* Stat chips row */}
+                     <div className="infra-stats-row">
+                       {review.infrastructure.cbdDistanceKm != null && (
+                         <div className="infra-stat">
+                           <span className="infra-stat-icon">📍</span>
+                           <strong>{review.infrastructure.cbdDistanceKm} km</strong>
+                           <span>to CBD</span>
+                         </div>
+                       )}
+                       {review.infrastructure.cbdCommuteMinutes != null && (
+                         <div className="infra-stat">
+                           <span className="infra-stat-icon">⏱</span>
+                           <strong>{review.infrastructure.cbdCommuteMinutes} min</strong>
+                           <span>commute</span>
+                         </div>
+                       )}
+                       {review.infrastructure.busAvailability && (
+                         <div className="infra-stat">
+                           <span className="infra-stat-icon">🚌</span>
+                           <strong>{review.infrastructure.busAvailability}</strong>
+                           <span>bus access</span>
+                         </div>
+                       )}
+                       {review.infrastructure.trainStations && review.infrastructure.trainStations.length > 0 && (
+                         <div className="infra-stat">
+                           <span className="infra-stat-icon">🚉</span>
+                           <strong>{review.infrastructure.trainStations.length}</strong>
+                           <span>train station{review.infrastructure.trainStations.length !== 1 ? 's' : ''}</span>
+                         </div>
+                       )}
+                       {review.infrastructure.tramStops && (
+                         <div className="infra-stat">
+                           <span className="infra-stat-icon">🚋</span>
+                           <strong>Tram</strong>
+                           <span>access</span>
+                         </div>
+                       )}
+                     </div>
+
+                     {/* Train stations list */}
+                     {review.infrastructure.trainStations && review.infrastructure.trainStations.length > 0 && (
+                       <div className="infra-card">
+                         <h3>Train Stations</h3>
+                         <div className="infra-station-list">
+                           {review.infrastructure.trainStations.map((st) => (
+                             <div key={st.name} className="infra-station-row">
+                               <span className="infra-station-name">{st.name}</span>
+                               <span className="infra-station-lines">{st.lines}</span>
+                             </div>
+                           ))}
+                         </div>
+                         {review.infrastructure.tramStops && (
+                           <p className="infra-tram-note">{review.infrastructure.tramStops}</p>
+                         )}
+                       </div>
+                     )}
+
+                     {/* Major roads */}
+                     {review.infrastructure.majorRoads && review.infrastructure.majorRoads.length > 0 && (
+                       <div className="infra-card">
+                         <h3>Major Roads & Freeways</h3>
+                         <ul className="infra-roads-list">
+                           {review.infrastructure.majorRoads.map((road) => (
+                             <li key={road}>{road}</li>
+                           ))}
+                         </ul>
+                       </div>
+                     )}
+
+                     {/* Narrative cards */}
+                     <div className="infra-narrative-grid">
+                       <div className="infra-card">
+                         <h3>Transit & Commute</h3>
+                         <p>{review.infrastructure.transit}</p>
+                       </div>
+                       <div className="infra-card">
+                         <h3>Education & Catchments</h3>
+                         <p>{review.infrastructure.education}</p>
+                       </div>
+                       <div className="infra-card">
+                         <h3>Lifestyle & Amenities</h3>
+                         <p>{review.infrastructure.lifestyle}</p>
+                       </div>
+                     </div>
+                   </section>
+                 )}
 
                 {activeTab === 'demographics' && (
                   <section className="tab-panel demographic-panel">

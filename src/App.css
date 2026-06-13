@@ -1423,6 +1423,230 @@ td {
   color: #1a3d25;
 }
 
+/* Environment tab */
+.environment-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.environment-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Noise section */
+.noise-panel {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+}
+
+.noise-rating-card {
+  align-items: flex-start;
+  background: #f1f8ed;
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+}
+
+.noise-rating-label {
+  color: #5e7561;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.noise-badge {
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  padding: 5px 14px;
+}
+
+.noise-badge-low { background: #d4edda; color: #1a5c30; }
+.noise-badge-moderate { background: #fff3cd; color: #856404; }
+.noise-badge-high { background: #ffe0c2; color: #7a3d00; }
+.noise-badge-very-high { background: #f8d7da; color: #721c24; }
+
+.noise-summary {
+  color: #3a5040;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.noise-factors {
+  background: #fff;
+  border: 1px solid rgba(74, 111, 81, 0.13);
+  border-radius: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+}
+
+.noise-factor-row {
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(74, 111, 81, 0.09);
+  display: flex;
+  gap: 12px;
+  padding: 13px 16px;
+}
+
+.noise-factor-row:last-child {
+  border-bottom: none;
+}
+
+.noise-factor-icon {
+  flex-shrink: 0;
+  font-size: 1.1rem;
+  line-height: 1.4;
+  width: 22px;
+}
+
+.noise-factor-label {
+  color: #2f5139;
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  margin-bottom: 3px;
+  text-transform: uppercase;
+}
+
+.noise-factor-value {
+  color: #3a5040;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Infrastructure tab */
+.infra-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.infra-stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.infra-stat {
+  align-items: center;
+  background: #f1f8ed;
+  border: 1px solid rgba(74, 111, 81, 0.14);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 90px;
+  padding: 14px 16px 12px;
+  text-align: center;
+}
+
+.infra-stat-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.infra-stat strong {
+  color: #1a3d25;
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.infra-stat span:last-child {
+  color: #5e7561;
+  font-size: 0.73rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.infra-card {
+  background: #f1f8ed;
+  border-radius: 18px;
+  padding: 18px;
+}
+
+.infra-card h3 {
+  color: #1a3d25;
+  font-size: 1rem;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.infra-station-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.infra-station-row {
+  align-items: center;
+  background: #fff;
+  border: 1px solid rgba(74, 111, 81, 0.14);
+  border-radius: 10px;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 8px 14px;
+}
+
+.infra-station-name {
+  color: #1a3d25;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.infra-station-lines {
+  color: #5e7561;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+.infra-tram-note {
+  color: #5e7561;
+  font-size: 0.88rem;
+  margin: 10px 0 0;
+}
+
+.infra-roads-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.infra-roads-list li {
+  background: #fff;
+  border: 1px solid rgba(74, 111, 81, 0.14);
+  border-radius: 10px;
+  color: #3a5040;
+  font-size: 0.88rem;
+  padding: 8px 14px;
+}
+
+.infra-narrative-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 /* Safety / Crime / Insurance */
 .safety-panel {
   display: grid;
@@ -1651,6 +1875,14 @@ td {
   }
 
   .safety-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .noise-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .infra-narrative-grid {
     grid-template-columns: 1fr;
   }
 }
