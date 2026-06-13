@@ -279,10 +279,10 @@ const normalizeDemographicData = (data: DemographicDatum[] | undefined) => {
 
 const tabs: Array<{ key: ReviewSectionKey; label: string }> = [
   { key: 'property', label: 'Property' },
-  { key: 'climate', label: 'Climate' },
   { key: 'crime', label: 'Safety' },
   { key: 'infrastructure', label: 'Infrastructure' },
   { key: 'demographics', label: 'Demographics' },
+  { key: 'climate', label: 'Climate' },
   { key: 'map', label: 'Map' },
 ]
 

@@ -24,14 +24,13 @@
   --brand-sage: #4f8f66;
   --brand-mint: #9fd7a8;
   --brand-lockup-size: clamp(2.35rem, 5.4vw, 5rem);
-  gap: calc(var(--brand-lockup-size) * 0.14);
+  gap: calc(var(--brand-lockup-size) * 0.18);
 }
 
 .brand-mark {
   flex: 0 0 auto;
-  height: calc(var(--brand-lockup-size) * 0.72);
-  transform: translateY(calc(var(--brand-lockup-size) * -0.005));
-  width: calc(var(--brand-lockup-size) * 0.72);
+  height: calc(var(--brand-lockup-size) * 0.75);
+  width: calc(var(--brand-lockup-size) * 0.75);
 }
 
 .brand-mark-road {
@@ -606,10 +605,13 @@ button:focus-visible {
 
 .button-spinner {
   animation: spin 0.8s linear infinite;
-  border: 3px solid rgba(251, 255, 247, 0.42);
-  border-radius: 999px;
+  aspect-ratio: 1;
+  border: 2.5px solid rgba(251, 255, 247, 0.35);
+  border-radius: 50%;
   border-top-color: #fbfff7;
-  display: inline-block;
+  box-sizing: border-box;
+  display: block;
+  flex-shrink: 0;
   height: 18px;
   width: 18px;
 }
@@ -617,7 +619,6 @@ button:focus-visible {
 .accordion-spinner {
   border-color: rgba(74, 111, 81, 0.25);
   border-top-color: #2f5139;
-  flex-shrink: 0;
   height: 16px;
   width: 16px;
 }
