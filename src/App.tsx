@@ -292,11 +292,16 @@ function App() {
     window.history.replaceState(null, '', `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${window.location.hash}`)
   }, [])
 
+  const openSearchPanel = useCallback(() => {
+    setIsSearchOpen(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
+
   const clearCurrentLocation = useCallback(() => {
     setQuery('')
     setReview(null)
     setHasSearched(false)
-    setIsSearchOpen(true)
+    openSearchPanel()
     setActiveTab('property')
     setError('')
     setShowReferences(false)
@@ -304,7 +309,7 @@ function App() {
     setShowSuggestions(false)
     setCacheActionMessage('')
     clearSearchFromUrl()
-  }, [clearSearchFromUrl])
+  }, [clearSearchFromUrl, openSearchPanel])
 
   const clearCacheAndRecentSearches = useCallback(() => {
     clearReviewCache()
@@ -440,7 +445,7 @@ function App() {
           <button
             className="topbar-search-pill"
             type="button"
-            onClick={() => setIsSearchOpen(true)}
+            onClick={openSearchPanel}
             aria-label="Open suburb search"
           >
             <svg aria-hidden="true" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -652,7 +657,7 @@ function App() {
                     className="primary-lite"
                     onClick={() => {
                       if (suggestedLocation) { void runSearch(suggestedLocation.place, suggestedLocation.state); return }
-                      setIsSearchOpen(true)
+                      openSearchPanel()
                     }}
                   >
                     {suggestedLocation ? `Try ${suggestedLocation.label}` : 'Try another search'}
