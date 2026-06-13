@@ -350,13 +350,20 @@ const normalizeDemographicData = (data: DemographicDatum[] | undefined) => {
   }))
 }
 
+const MapIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/>
+    <line x1="9" y1="3" x2="9" y2="18"/>
+    <line x1="15" y1="6" x2="15" y2="21"/>
+  </svg>
+)
+
 const tabs: Array<{ key: ReviewSectionKey; label: string }> = [
   { key: 'property', label: 'Property' },
   { key: 'crime', label: 'Safety' },
   { key: 'infrastructure', label: 'Infrastructure' },
   { key: 'demographics', label: 'Demographics' },
   { key: 'environment', label: 'Environment' },
-  { key: 'map', label: 'Map' },
 ]
 
 const loadSettings = (): LlmSettings => {
@@ -1681,6 +1688,15 @@ function App() {
                       {tab.label}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    className={`tab-map-btn${activeTab === 'map' ? ' active' : ''}`}
+                    onClick={() => setActiveTab('map')}
+                    aria-label="Map"
+                    title="Map"
+                  >
+                    <MapIcon />
+                  </button>
                 </nav>
 
                 {activeTab === 'property' && (
