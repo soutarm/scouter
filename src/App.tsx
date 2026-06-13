@@ -23,6 +23,7 @@ import { CrimeTab } from './components/review/CrimeTab'
 import { InfrastructureTab } from './components/review/InfrastructureTab'
 import { DemographicsTab } from './components/review/DemographicsTab'
 import { MapTab } from './components/review/MapTab'
+import { ScoreRing } from './components/review/ScoreRing'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -627,14 +628,29 @@ function App() {
             ) : (
               <>
                 <section className="summary-card">
-                  <div>
-                    <p className="eyebrow">Summary</p>
-                    <h2>{review.suburb}, {review.state} Profile</h2>
+                  {review.scores ? (
+                    <ScoreRing
+                      scores={review.scores}
+                      onCategoryClick={(key) => setActiveTab(key as ReviewSectionKey)}
+                    />
+                  ) : (
+                    <div>
+                      <p className="eyebrow">Summary</p>
+                      <h2>{review.suburb}, {review.state}</h2>
+                    </div>
+                  )}
+                  <div className="summary-card-body">
+                    {review.scores && (
+                      <div className="summary-card-title">
+                        <p className="eyebrow">Summary</p>
+                        <h2>{review.suburb}, {review.state}</h2>
+                      </div>
+                    )}
+                    <p>{review.summary}</p>
+                    <button type="button" className="summary-download primary-lite" onClick={downloadPdf} disabled={isExporting}>
+                      {isExporting ? 'Preparing PDF...' : 'Download PDF'}
+                    </button>
                   </div>
-                  <p>{review.summary}</p>
-                  <button type="button" className="summary-download primary-lite" onClick={downloadPdf} disabled={isExporting}>
-                    {isExporting ? 'Preparing PDF...' : 'Download PDF'}
-                  </button>
                 </section>
 
                 <nav className="tabs" aria-label="Review sections">

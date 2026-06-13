@@ -34,6 +34,15 @@ export type SuburbSuggestion = {
   postcode: string
 }
 
+export type ReviewScores = {
+  overall: number        // 1–10
+  property: number
+  safety: number
+  infrastructure: number
+  demographics: number
+  environment: number
+}
+
 export type Review = {
   exists?: boolean
   suburb: string
@@ -41,6 +50,7 @@ export type Review = {
   postcode?: string
   generatedAt: string
   summary: string
+  scores?: ReviewScores
   notFoundReason?: string
   suggestedSuburb?: string
   suggestedState?: string

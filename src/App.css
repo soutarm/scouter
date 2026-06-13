@@ -800,9 +800,9 @@ button:focus-visible {
   border-radius: 24px;
   color: #f7fff2;
   display: grid;
-  gap: 18px;
-  grid-template-columns: 0.72fr 1.28fr;
-  padding: 24px;
+  gap: 24px;
+  grid-template-columns: auto 1fr;
+  padding: 28px;
   position: relative;
 }
 
@@ -817,14 +817,124 @@ button:focus-visible {
   margin-bottom: 0;
 }
 
+.summary-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: center;
+  min-width: 0;
+}
+
+.summary-card-title {
+  margin-bottom: 2px;
+}
+
 .summary-download {
-  align-self: end;
+  align-self: start;
+  align-self: flex-start;
   background: #fbfff7;
   box-shadow: 0 14px 32px rgba(12, 35, 20, 0.22);
   color: #244b31;
-  grid-column: 2;
-  justify-self: end;
   margin-top: 4px;
+  width: fit-content;
+}
+
+/* ── Score ring ─────────────────────────────────────────────────────────────── */
+
+.score-ring-wrap {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.score-ring-dial-wrap {
+  position: relative;
+  /* size is driven by the SVG viewBox — let it be natural */
+}
+
+.score-ring-svg {
+  display: block;
+  height: 174px;
+  width: 174px;
+}
+
+.score-ring-centre {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  left: 50%;
+  pointer-events: none;
+  position: absolute;
+  top: 48%;
+  transform: translate(-50%, -50%);
+}
+
+.score-ring-number {
+  color: #f7fff2;
+  font-family: 'Avenir Next', 'Century Gothic', Futura, sans-serif;
+  font-size: 3rem;
+  font-weight: 950;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.score-ring-denom {
+  color: rgba(247, 255, 242, 0.55);
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.score-ring-label {
+  color: rgba(247, 255, 242, 0.6);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  margin-top: 4px;
+  text-transform: uppercase;
+}
+
+/* Category mini-arcs row */
+.score-ring-cats {
+  display: flex;
+  gap: 6px;
+}
+
+.score-ring-cat {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: #f7fff2;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 5px 5px;
+  transition: background 160ms ease, transform 160ms ease;
+  width: 46px;
+}
+
+.score-ring-cat:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: translateY(-2px);
+}
+
+.score-ring-cat-arc {
+  display: block;
+  height: 36px;
+  width: 36px;
+}
+
+.score-ring-cat-label {
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .not-found-card {
@@ -2029,7 +2139,6 @@ td {
 
   .hero-panel,
   .settings-grid,
-  .summary-card,
   .not-found-card,
   .split-panel,
   .climate-panel,
@@ -2038,6 +2147,21 @@ td {
   .feature-grid,
   .empty-state {
     grid-template-columns: 1fr;
+  }
+
+  .summary-card {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .summary-card-body {
+    align-items: center;
+    text-align: center;
+    width: 100%;
+  }
+
+  .summary-download {
+    align-self: center;
   }
 
   .demographic-stats {
