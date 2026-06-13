@@ -116,7 +116,7 @@ function App() {
   const [error, setError] = useState('')
   const [saveStatus, setSaveStatus] = useState('Loaded from this browser')
   const [cacheLocationCount, setCacheLocationCount] = useState(() => getReviewCacheCount())
-  const [cacheActionMessage, setCacheActionMessage] = useState('')
+  const [cacheCleared, setCacheCleared] = useState(false)
   const [showReferences, setShowReferences] = useState(false)
   const [suggestions, setSuggestions] = useState<SuburbSuggestion[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -307,7 +307,6 @@ function App() {
     setShowReferences(false)
     setSuggestions([])
     setShowSuggestions(false)
-    setCacheActionMessage('')
     clearSearchFromUrl()
     window.localStorage.removeItem('scouter.last-location')
   }, [clearSearchFromUrl, openSearchPanel])
@@ -317,9 +316,10 @@ function App() {
     saveRecentSearches([])
     setRecentSearches([])
     setCacheLocationCount(0)
+    setCacheCleared(true)
     clearCurrentLocation()
-    setCacheActionMessage('Cache cleared.')
     setSaveStatus('Cache cleared')
+    setTimeout(() => setCacheCleared(false), 3000)
   }, [clearCurrentLocation])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -428,6 +428,7 @@ function App() {
   }
 
   const isSticky = hasSearched && !isSearchOpen
+  const cacheStatus = isLoading ? 'busy' : cacheCleared ? 'updated' : 'stale'
 
   return (
     <main className="app-shell">
@@ -483,8 +484,8 @@ function App() {
               settings={settings}
               providerReady={providerReady}
               saveStatus={saveStatus}
-              cacheLocationCount={cacheLocationCount}
-              cacheActionMessage={cacheActionMessage}
+              cacheCount={cacheLocationCount}
+              cacheStatus={cacheStatus}
               onUpdate={updateSettings}
               onClearCache={clearCacheAndRecentSearches}
               onClearCurrentLocation={clearCurrentLocation}

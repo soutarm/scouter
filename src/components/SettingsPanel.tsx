@@ -1,22 +1,48 @@
 import type { LlmSettings, ProviderKind } from '../types'
 
+type CacheStatus = 'stale' | 'busy' | 'updated'
+
 type Props = {
   settings: LlmSettings
   providerReady: boolean
   saveStatus: string
-  cacheLocationCount: number
-  cacheActionMessage: string
+  cacheCount: number
+  cacheStatus: CacheStatus
   onUpdate: (next: LlmSettings) => void
   onClearCache: () => void
   onClearCurrentLocation: () => void
+}
+
+const CacheIcon = ({ status }: { status: CacheStatus }) => {
+  if (status === 'busy') return (
+    <span className="cache-pill cache-pill--busy" title="Updating cache…" aria-label="Cache busy">
+      <span className="cache-pill-spinner" aria-hidden="true" />
+    </span>
+  )
+  if (status === 'updated') return (
+    <span className="cache-pill cache-pill--updated" title="Cache updated" aria-label="Cache updated">
+      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M3 8.5l3.5 3.5 6.5-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    </span>
+  )
+  // stale
+  return (
+    <span className="cache-pill cache-pill--stale" title="Cache ready" aria-label="Cache ready">
+      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.6"/>
+        <path d="M8 5v3.5l2 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+      </svg>
+    </span>
+  )
 }
 
 export const SettingsPanel = ({
   settings,
   providerReady,
   saveStatus,
-  cacheLocationCount,
-  cacheActionMessage,
+  cacheCount,
+  cacheStatus,
   onUpdate,
   onClearCache,
   onClearCurrentLocation,
@@ -111,10 +137,6 @@ export const SettingsPanel = ({
     )}
 
     <div className="settings-footer">
-      <div className="cache-status" aria-live="polite">
-        <strong>Cache:</strong> {cacheLocationCount} saved {cacheLocationCount === 1 ? 'location' : 'locations'}
-        {cacheActionMessage && <span>{cacheActionMessage}</span>}
-      </div>
       <button
         type="button"
         className="clear-cache-button"
@@ -132,6 +154,10 @@ export const SettingsPanel = ({
       <p className="settings-storage-note">
         Stored locally in this browser. Do not use public/shared API keys.
       </p>
+      <div className="cache-pill-wrap" aria-live="polite">
+        <CacheIcon status={cacheStatus} />
+        <span className="cache-pill-label">{cacheCount} {cacheCount === 1 ? 'location' : 'locations'}</span>
+      </div>
     </div>
   </section>
 )
