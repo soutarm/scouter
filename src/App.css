@@ -1868,6 +1868,8 @@ td {
   flex: 1 1 0;
   flex-direction: column;
   gap: 10px;
+  min-width: 0;
+  overflow: hidden;
   padding: 18px;
 }
 
@@ -1876,6 +1878,8 @@ td {
   border: none;
   box-shadow: none;
   margin: 0;
+  min-width: 0;
+  overflow: hidden;
   padding: 0;
   width: 100%;
 }
@@ -2168,7 +2172,8 @@ td {
   align-items: center;
   display: grid;
   gap: 10px;
-  grid-template-columns: minmax(120px, 1fr) auto auto;
+  grid-template-columns: minmax(80px, 1fr) auto minmax(0, auto);
+  min-width: 0;
 }
 
 .crime-bar-label {
@@ -2194,9 +2199,10 @@ td {
   font-size: 0.76rem;
   font-weight: 900;
   letter-spacing: 0.04em;
-  min-width: 60px;
+  min-width: 0;
   text-align: right;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .insurance-premiums {
@@ -2603,12 +2609,14 @@ td {
   }
 
   .noise-panel {
-    grid-template-columns: 1fr;
+    flex-direction: column;
   }
 
   .noise-rating-card,
   .noise-factors {
     flex: 1 1 100%;
+    min-width: 0;
+    width: 100%;
   }
 
   .infra-narrative-grid {
