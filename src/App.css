@@ -1437,9 +1437,9 @@ td {
 
 /* Noise section */
 .noise-panel {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 14px;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
 }
 
 .noise-rating-card {
@@ -1450,6 +1450,24 @@ td {
   flex-direction: column;
   gap: 10px;
   padding: 18px;
+}
+
+.noise-bars-card {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+.noise-bars-card h3 {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #5e7561;
+  text-transform: uppercase;
+  margin: 0 0 10px;
 }
 
 .noise-rating-label {

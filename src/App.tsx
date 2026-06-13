@@ -55,10 +55,14 @@ type Review = {
     winterAverages: string
     noise?: {
       flightPath: string
+      flightPathLevel: 'Low' | 'Medium' | 'High' | 'Very High'
       railNoise: string
+      railNoiseLevel: 'Low' | 'Medium' | 'High' | 'Very High'
       roadNoise: string
+      roadNoiseLevel: 'Low' | 'Medium' | 'High' | 'Very High'
       industrialZones: string
-      overallRating: 'Low' | 'Moderate' | 'High' | 'Very High'
+      industrialZonesLevel: 'Low' | 'Medium' | 'High' | 'Very High'
+      overallRating: 'Low' | 'Medium' | 'High' | 'Very High'
       overallSummary: string
     }
   }
@@ -506,10 +510,14 @@ JSON shape:
     "winterAverages": "Average high and low temperatures plus rainfall/cloud/frost behaviour.",
     "noise": {
       "flightPath": "Is the suburb under a flight path? Which airport, which runway approach, frequency of overflights, and estimated noise level.",
+      "flightPathLevel": "One of: Low, Medium, High, Very High",
       "railNoise": "Proximity to train or tram lines and resulting noise impact on residents.",
+      "railNoiseLevel": "One of: Low, Medium, High, Very High",
       "roadNoise": "Proximity to major roads, freeways or arterials and traffic noise impact.",
+      "roadNoiseLevel": "One of: Low, Medium, High, Very High",
       "industrialZones": "Nearby industrial, port, or manufacturing zones and any associated noise or air quality impact.",
-      "overallRating": "One of: Low, Moderate, High, Very High",
+      "industrialZonesLevel": "One of: Low, Medium, High, Very High",
+      "overallRating": "One of: Low, Medium, High, Very High",
       "overallSummary": "1-2 sentence summary of the suburb's overall noise and environmental amenity."
     }
   },
@@ -1713,29 +1721,35 @@ function App() {
                        <div className="environment-section">
                          <p className="eyebrow">Noise & Amenity</p>
                          <div className="noise-panel">
-                           <div className="noise-rating-card">
-                             <span className="noise-rating-label">Overall noise level</span>
-                             <span className={`noise-badge noise-badge-${review.climate.noise.overallRating.toLowerCase().replace(' ', '-')}`}>
-                               {review.climate.noise.overallRating}
-                             </span>
-                             <p className="noise-summary">{review.climate.noise.overallSummary}</p>
-                           </div>
-                           <div className="noise-factors">
-                             {([
-                               { icon: '✈', label: 'Flight paths', value: review.climate.noise.flightPath },
-                               { icon: '🚆', label: 'Rail noise', value: review.climate.noise.railNoise },
-                               { icon: '🛣', label: 'Road noise', value: review.climate.noise.roadNoise },
-                               { icon: '🏭', label: 'Industrial zones', value: review.climate.noise.industrialZones },
-                             ] as const).map(({ icon, label, value }) => (
-                               <div key={label} className="noise-factor-row">
-                                 <span className="noise-factor-icon">{icon}</span>
-                                 <div>
-                                   <span className="noise-factor-label">{label}</span>
-                                   <p className="noise-factor-value">{value}</p>
-                                 </div>
-                               </div>
-                             ))}
-                           </div>
+                            <div className="noise-rating-card">
+                              <div className="crime-chart-card noise-bars-card">
+                                <h3>Noise level by source</h3>
+                                <div className="crime-bars">
+                                  <CrimeBar label="Flight paths" level={review.climate.noise.flightPathLevel ?? 'Low'} />
+                                  <CrimeBar label="Rail noise" level={review.climate.noise.railNoiseLevel ?? 'Low'} />
+                                  <CrimeBar label="Road noise" level={review.climate.noise.roadNoiseLevel ?? 'Low'} />
+                                  <CrimeBar label="Industrial zones" level={review.climate.noise.industrialZonesLevel ?? 'Low'} />
+                                  <CrimeBar label="Overall" level={review.climate.noise.overallRating ?? 'Low'} />
+                                </div>
+                              </div>
+                              <p className="noise-summary">{review.climate.noise.overallSummary}</p>
+                            </div>
+                            <div className="noise-factors">
+                              {([
+                                { icon: '✈', label: 'Flight paths', value: review.climate.noise.flightPath },
+                                { icon: '🚆', label: 'Rail noise', value: review.climate.noise.railNoise },
+                                { icon: '🛣', label: 'Road noise', value: review.climate.noise.roadNoise },
+                                { icon: '🏭', label: 'Industrial zones', value: review.climate.noise.industrialZones },
+                              ] as const).map(({ icon, label, value }) => (
+                                <div key={label} className="noise-factor-row">
+                                  <span className="noise-factor-icon">{icon}</span>
+                                  <div>
+                                    <span className="noise-factor-label">{label}</span>
+                                    <p className="noise-factor-value">{value}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                          </div>
                        </div>
                      )}
