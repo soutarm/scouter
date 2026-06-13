@@ -64,11 +64,12 @@
 }
 
 .brand-wordmark {
+  --brand-forest: #1f4d36;
   align-items: center;
   color: var(--brand-forest);
   display: inline-flex;
   font-family: 'Avenir Next', 'Century Gothic', Futura, 'Trebuchet MS', sans-serif;
-  font-size: var(--brand-lockup-size);
+  font-size: clamp(2rem, 5.4vw, 4rem);
   font-weight: 950;
   gap: 0.075em;
   letter-spacing: 0;
@@ -1826,9 +1827,8 @@ td {
     gap: 12px;
   }
 
-  .brand-lockup {
-    min-width: 0;
-    --brand-lockup-size: clamp(2rem, 11vw, 3.6rem);
+  .brand-wordmark {
+    font-size: clamp(1.6rem, 11vw, 2.6rem);
   }
 
   .settings-button {
