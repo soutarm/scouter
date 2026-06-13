@@ -18,8 +18,8 @@ const scoreColour = (s: number) =>
 
 // ── Arc maths ────────────────────────────────────────────────────────────────
 
-const R = 72          // circle radius
-const STROKE = 11     // stroke width
+const R = 84          // circle radius
+const STROKE = 12     // stroke width
 const CIRCUMFERENCE = 2 * Math.PI * R
 
 // The arc sweeps 270° (leaving a 90° gap at the bottom-centre)
@@ -39,6 +39,14 @@ const scoreToOffset = (score: number) =>
 // ── Component ────────────────────────────────────────────────────────────────
 
 type Props = { scores: ReviewScores; onCategoryClick?: (key: string) => void }
+
+// Derive a 1-decimal overall from the five sub-scores for extra precision
+const subScoreDecimal = (scores: ReviewScores): string => {
+  const avg =
+    (scores.property + scores.safety + scores.infrastructure + scores.demographics + scores.environment) / 5
+  const decimal = Math.round((avg % 1) * 10)
+  return `.${decimal}`
+}
 
 export const ScoreRing = ({ scores, onCategoryClick }: Props) => {
   const arcRef = useRef<SVGCircleElement>(null)
@@ -99,7 +107,10 @@ export const ScoreRing = ({ scores, onCategoryClick }: Props) => {
 
         {/* Centre label */}
         <div className="score-ring-centre">
-          <span className="score-ring-number">{scores.overall}</span>
+          <div className="score-ring-number-wrap">
+            <span className="score-ring-number">{scores.overall}</span>
+            <span className="score-ring-decimal">{subScoreDecimal(scores)}</span>
+          </div>
           <span className="score-ring-label">Overall</span>
         </div>
       </div>

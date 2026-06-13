@@ -65,18 +65,22 @@ export const readSearchFromQueryString = () => {
   const params = new URLSearchParams(window.location.search)
   const rawSearch = (params.get('search') ?? '').trim()
   const rawState = params.get('state')
+  const rawTab = params.get('tab') ?? undefined
   if (!rawSearch) return null
   const parsed = splitLocation(rawSearch)
   return {
     place: parsed.place,
     state: isAustralianState(rawState) ? rawState.toUpperCase() as AustralianState : parsed.state,
+    tab: rawTab,
   }
 }
 
-export const writeSearchToQueryString = (place: string, state: AustralianState) => {
+export const writeSearchToQueryString = (place: string, state: AustralianState, tab?: string) => {
   const params = new URLSearchParams(window.location.search)
   params.set('search', place)
   params.set('state', state)
+  if (tab) params.set('tab', tab)
+  else params.delete('tab')
   window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}${window.location.hash}`)
 }
 

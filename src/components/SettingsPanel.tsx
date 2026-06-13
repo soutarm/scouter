@@ -13,6 +13,26 @@ type Props = {
   onClearCurrentLocation: () => void
 }
 
+const ProviderIcon = ({ ready, label }: { ready: boolean; label: string }) => (
+  <span
+    className={ready ? 'cache-pill cache-pill--provider-ready' : 'cache-pill cache-pill--provider-waiting'}
+    title={label}
+    aria-label={label}
+  >
+    {ready ? (
+      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M9 2L4 9h4l-1 5 5-7H8l1-5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
+      </svg>
+    ) : (
+      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.6"/>
+        <path d="M8 5v3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        <circle cx="8" cy="11" r="0.8" fill="currentColor"/>
+      </svg>
+    )}
+  </span>
+)
+
 const CacheIcon = ({ status }: { status: CacheStatus }) => {
   if (status === 'busy') return (
     <span className="cache-pill cache-pill--busy" title="Updating cache…" aria-label="Cache busy">
@@ -62,9 +82,6 @@ export const SettingsPanel = ({
       </div>
       <div className="settings-header-right">
         <div className="settings-controls">
-          <span className={providerReady ? 'status-pill ready' : 'status-pill'}>
-            {providerReady ? `Ready · ${saveStatus}` : saveStatus}
-          </span>
           <select
             value={settings.provider}
             onChange={(e) => onUpdate({ ...settings, provider: e.target.value as ProviderKind })}
@@ -155,6 +172,7 @@ export const SettingsPanel = ({
         Stored locally in this browser. Do not use public/shared API keys.
       </p>
       <div className="cache-pill-wrap" aria-live="polite">
+        <ProviderIcon ready={providerReady} label={providerReady ? `Ready · ${saveStatus}` : saveStatus} />
         <CacheIcon status={cacheStatus} />
         <span className="cache-pill-label">{cacheCount} {cacheCount === 1 ? 'location' : 'locations'}</span>
       </div>

@@ -213,7 +213,7 @@ function App() {
   }, [])
 
   const runSearch = useCallback(
-    async (place: string, state: AustralianState, options: { updateQueryString?: boolean } = {}) => {
+    async (place: string, state: AustralianState, options: { updateQueryString?: boolean; tab?: string } = {}) => {
       const trimmedPlace = place.trim()
       const trimmedQuery = trimmedPlace ? `${trimmedPlace}, ${state}` : ''
       if (!trimmedQuery) return
@@ -221,7 +221,7 @@ function App() {
       setQuery(trimmedPlace)
       setSelectedState(state)
 
-      if (options.updateQueryString !== false) writeSearchToQueryString(trimmedPlace, state)
+      if (options.updateQueryString !== false) writeSearchToQueryString(trimmedPlace, state, options.tab)
 
       if (!providerReady) {
         setShowSettings(true)
@@ -234,7 +234,7 @@ function App() {
         setHasSearched(true)
         setIsSearchOpen(false)
         setReview(cached)
-        setActiveTab('property')
+        setActiveTab((options.tab as ReviewSectionKey) ?? 'property')
         setShowReferences(false)
         return
       }
@@ -243,7 +243,7 @@ function App() {
       setError('')
       setShowReferences(false)
       setReview(null)
-      setActiveTab('property')
+      setActiveTab((options.tab as ReviewSectionKey) ?? 'property')
       setHasSearched(true)
       setIsSearchOpen(false)
       try {
@@ -255,10 +255,13 @@ function App() {
           rememberSearch(trimmedQuery)
           setCachedReview(trimmedQuery, nextReview)
           setCacheLocationCount(getReviewCacheCount())
-          // If compare mode is active and there's room, auto-add this location
+          // If compare mode is active and there's room, auto-add this location and scroll to panel
           const cacheKey = trimmedQuery.toLowerCase()
           setCompareKeys((prev) => {
             if (compareMode && prev.length < 3 && !prev.includes(cacheKey)) {
+              setTimeout(() => {
+                comparePanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }, 120)
               return [...prev, cacheKey]
             }
             return prev
@@ -280,7 +283,7 @@ function App() {
     const initialState = initialSearch.state ?? selectedState
     autoSearchStartedRef.current = true
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    void runSearch(initialSearch.place, initialState)
+    void runSearch(initialSearch.place, initialState, { tab: initialSearch.tab })
   }, [runSearch, selectedState])
 
   // Scroll to review section when a new result arrives
@@ -293,14 +296,7 @@ function App() {
     return () => clearTimeout(id)
   }, [review])
 
-  // Scroll to compare panel when a new location is added while in compare mode
-  useEffect(() => {
-    if (!compareMode || compareKeys.length === 0 || !comparePanelRef.current) return
-    const id = setTimeout(() => {
-      comparePanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 120)
-    return () => clearTimeout(id)
-  }, [compareKeys, compareMode])
+
 
   // Update page title based on active review
   useEffect(() => {
@@ -667,6 +663,11 @@ function App() {
               setCompareMode(false)
               setCompareKeys([])
               void runSearch(r.suburb, r.state as import('./types').AustralianState, { updateQueryString: true })
+            }}
+            onCategoryClick={(r, tabKey) => {
+              setCompareMode(false)
+              setCompareKeys([])
+              void runSearch(r.suburb, r.state as import('./types').AustralianState, { updateQueryString: true, tab: tabKey })
             }}
           />
         </div>

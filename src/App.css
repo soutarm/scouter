@@ -479,6 +479,16 @@ input:disabled {
   width: 13px;
 }
 
+.cache-pill--provider-ready {
+  background: rgba(47, 124, 63, 0.14);
+  color: #2f7c3f;
+}
+
+.cache-pill--provider-waiting {
+  background: #fff7df;
+  color: #7a5422;
+}
+
 .cache-pill--stale {
   background: rgba(74, 111, 81, 0.1);
   color: #5e7561;

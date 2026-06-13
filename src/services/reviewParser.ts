@@ -12,20 +12,36 @@ export const stripJsonFence = (value: string): string => {
 }
 
 export const repairTruncatedJson = (s: string): string => {
+  // Walk the string tracking open brackets and whether we're inside a string,
+  // so we know exactly what needs closing and where the last "safe" character was.
   const stack: string[] = []
   let inString = false
   let escape = false
-  for (const ch of s) {
+  let lastSafeOutsideString = 0  // index of last char that was outside a string
+
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i]
     if (escape) { escape = false; continue }
     if (ch === '\\' && inString) { escape = true; continue }
-    if (ch === '"') { inString = !inString; continue }
+    if (ch === '"') {
+      inString = !inString
+      if (!inString) lastSafeOutsideString = i  // just closed a string
+      continue
+    }
     if (inString) continue
+    lastSafeOutsideString = i
     if (ch === '{' || ch === '[') stack.push(ch === '{' ? '}' : ']')
-    else if (ch === '}' || ch === ']') stack.pop()
+    else if ((ch === '}' || ch === ']') && stack.length) stack.pop()
   }
-  if (stack.length === 0) return s
-  let trimmed = s.trimEnd()
-  trimmed = trimmed.replace(/,?\s*"[^"]*$/, '').replace(/,\s*$/, '')
+
+  // Already valid
+  if (stack.length === 0 && !inString) return s
+
+  // Trim back to the last character that was safely outside a string,
+  // then strip any trailing comma or partial key before closing.
+  let trimmed = s.slice(0, lastSafeOutsideString + 1).trimEnd()
+  trimmed = trimmed.replace(/,\s*$/, '')
+
   return trimmed + stack.reverse().join('')
 }
 

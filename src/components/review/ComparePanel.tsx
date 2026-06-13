@@ -4,9 +4,10 @@ import { ScoreRing } from './ScoreRing'
 type Props = {
   reviews: Review[]
   onDetails: (review: Review) => void
+  onCategoryClick: (review: Review, tabKey: string) => void
 }
 
-export const ComparePanel = ({ reviews, onDetails }: Props) => (
+export const ComparePanel = ({ reviews, onDetails, onCategoryClick }: Props) => (
   <section className="compare-panel" aria-label="Compare locations">
     <div className="compare-panel-header">
       <p className="eyebrow">Comparing {reviews.length} location{reviews.length !== 1 ? 's' : ''}</p>
@@ -16,7 +17,10 @@ export const ComparePanel = ({ reviews, onDetails }: Props) => (
       {reviews.map((review) => (
         <div key={`${review.suburb}-${review.state}`} className="compare-card">
           {review.scores ? (
-            <ScoreRing scores={review.scores} />
+            <ScoreRing
+              scores={review.scores}
+              onCategoryClick={(tabKey) => onCategoryClick(review, tabKey)}
+            />
           ) : (
             <div className="compare-card-fallback-score">
               <span className="compare-card-overall">–</span>
