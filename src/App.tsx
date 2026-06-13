@@ -53,6 +53,18 @@ type Review = {
   climate: {
     summerAverages: string
     winterAverages: string
+    airQuality?: {
+      overallRating: 'Low' | 'Medium' | 'High' | 'Very High'
+      overallSummary: string
+      particulateMatter: string
+      particulateMatterLevel: 'Low' | 'Medium' | 'High' | 'Very High'
+      ozone: string
+      ozoneLevel: 'Low' | 'Medium' | 'High' | 'Very High'
+      pollen: string
+      pollenLevel: 'Low' | 'Medium' | 'High' | 'Very High'
+      industrialPollution: string
+      industrialPollutionLevel: 'Low' | 'Medium' | 'High' | 'Very High'
+    }
     noise?: {
       flightPath: string
       flightPathLevel: 'Low' | 'Medium' | 'High' | 'Very High'
@@ -513,6 +525,18 @@ JSON shape:
   "climate": {
     "summerAverages": "Average high and low temperatures plus seasonal behaviour.",
     "winterAverages": "Average high and low temperatures plus rainfall/cloud/frost behaviour.",
+    "airQuality": {
+      "overallRating": "One of: Low, Medium, High, Very High (Low = cleanest)",
+      "overallSummary": "1-2 sentence summary of the suburb's typical air quality and any seasonal variation.",
+      "particulateMatter": "Typical PM2.5/PM10 levels, sources (traffic, industry, bushfire smoke) and health context.",
+      "particulateMatterLevel": "One of: Low, Medium, High, Very High",
+      "ozone": "Ground-level ozone risk, seasonal peaks, and any health advisories.",
+      "ozoneLevel": "One of: Low, Medium, High, Very High",
+      "pollen": "Pollen season severity, dominant plant species, and impact on allergy sufferers.",
+      "pollenLevel": "One of: Low, Medium, High, Very High",
+      "industrialPollution": "Nearby industrial or traffic pollution sources and their impact on air quality.",
+      "industrialPollutionLevel": "One of: Low, Medium, High, Very High"
+    },
     "noise": {
       "flightPath": "Is the suburb under a flight path? Which airport, which runway approach, frequency of overflights, and estimated noise level.",
       "flightPathLevel": "One of: Low, Medium, High, Very High",
@@ -1183,6 +1207,9 @@ function App() {
       section('Climate & Environment', [
         `Summer: ${review.climate.summerAverages}`,
         `Winter: ${review.climate.winterAverages}`,
+        review.climate.airQuality
+          ? `\nAir Quality (${review.climate.airQuality.overallRating}): ${review.climate.airQuality.overallSummary}\nParticulate matter: ${review.climate.airQuality.particulateMatter}\nOzone: ${review.climate.airQuality.ozone}\nPollen: ${review.climate.airQuality.pollen}\nIndustrial pollution: ${review.climate.airQuality.industrialPollution}`
+          : '',
         review.climate.noise
           ? `\nNoise & Amenity (${review.climate.noise.overallRating}): ${review.climate.noise.overallSummary}\nFlight paths: ${review.climate.noise.flightPath}\nRail: ${review.climate.noise.railNoise}\nRoad: ${review.climate.noise.roadNoise}\nIndustrial: ${review.climate.noise.industrialZones}`
           : '',
@@ -1729,9 +1756,45 @@ function App() {
                          </div>
                        </div>
                      </div>
-                     {review.climate.noise && (
-                       <div className="environment-section">
-                         <p className="eyebrow">Noise & Amenity</p>
+                      {review.climate.airQuality && (
+                        <div className="environment-section">
+                          <p className="eyebrow">Air Quality</p>
+                          <div className="noise-panel">
+                            <div className="noise-rating-card">
+                              <div className="crime-chart-card noise-bars-card">
+                                <h3>Air quality by source</h3>
+                                <div className="crime-bars">
+                                  <CrimeBar label="Particulate matter" level={review.climate.airQuality.particulateMatterLevel ?? 'Low'} />
+                                  <CrimeBar label="Ozone" level={review.climate.airQuality.ozoneLevel ?? 'Low'} />
+                                  <CrimeBar label="Pollen" level={review.climate.airQuality.pollenLevel ?? 'Low'} />
+                                  <CrimeBar label="Industrial pollution" level={review.climate.airQuality.industrialPollutionLevel ?? 'Low'} />
+                                  <CrimeBar label="Overall" level={review.climate.airQuality.overallRating ?? 'Low'} />
+                                </div>
+                              </div>
+                              <p className="noise-summary">{review.climate.airQuality.overallSummary}</p>
+                            </div>
+                            <div className="noise-factors">
+                              {([
+                                { icon: '🌫', label: 'Particulate matter', value: review.climate.airQuality.particulateMatter },
+                                { icon: '🌤', label: 'Ozone', value: review.climate.airQuality.ozone },
+                                { icon: '🌿', label: 'Pollen', value: review.climate.airQuality.pollen },
+                                { icon: '🏭', label: 'Industrial pollution', value: review.climate.airQuality.industrialPollution },
+                              ] as const).map(({ icon, label, value }) => (
+                                <div key={label} className="noise-factor-row">
+                                  <span className="noise-factor-icon">{icon}</span>
+                                  <div>
+                                    <span className="noise-factor-label">{label}</span>
+                                    <p className="noise-factor-value">{value}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {review.climate.noise && (
+                        <div className="environment-section">
+                          <p className="eyebrow">Noise & Amenity</p>
                          <div className="noise-panel">
                             <div className="noise-rating-card">
                               <div className="crime-chart-card noise-bars-card">
