@@ -17,7 +17,12 @@ type LlmSettings = {
   geminiApiKey: string
 }
 
-type ReviewSectionKey = 'property' | 'climate' | 'crime' | 'infrastructure' | 'map'
+type ReviewSectionKey = 'property' | 'climate' | 'crime' | 'infrastructure' | 'demographics' | 'map'
+
+type DemographicDatum = {
+  label: string
+  value: number
+}
 
 type MarketRow = {
   propertyType: string
@@ -25,6 +30,12 @@ type MarketRow = {
   twelveMonthGrowth: string
   medianWeeklyRent: string
   grossYield: string
+}
+
+type SuburbSuggestion = {
+  name: string
+  state: AustralianState
+  postcode: string
 }
 
 type Review = {
@@ -42,12 +53,30 @@ type Review = {
     summerAverages: string
     winterAverages: string
   }
-  crime: string
+  crime: {
+    narrative: string
+    insuranceImpact: string
+    estimatedAnnualPremiums?: {
+      homeBuilding?: string
+      homeContents?: string
+      carComprehensive?: string
+    }
+    crimeTypes?: Array<{ label: string; level: 'Low' | 'Medium' | 'High' | 'Very High' }>
+  }
   infrastructure: {
     transit: string
     education: string
     lifestyle: string
     demographic: string
+  }
+  demographics?: {
+    summary: string
+    population?: string
+    medianAge?: string
+    householdTypes?: DemographicDatum[]
+    ageGroups?: DemographicDatum[]
+    tenureTypes?: DemographicDatum[]
+    countryOfOrigin?: DemographicDatum[]
   }
   caveats: string[]
   references?: string[]
@@ -55,8 +84,10 @@ type Review = {
 
 const STORAGE_KEY = 'scouter.llm-settings'
 const RECENT_SEARCHES_KEY = 'scouter.recent-searches'
+const REVIEW_CACHE_KEY = 'scouter.review-cache'
 const REQUEST_TIMEOUT_MS = 60_000
 const MAX_RECENT_SEARCHES = 12
+const REVIEW_CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 1 day
 
 const defaultSettings: LlmSettings = {
   provider: 'azure',
@@ -73,6 +104,20 @@ const defaultSettings: LlmSettings = {
 
 const australianStates = ['ACT', 'NSW', 'NT', 'QLD', 'SA', 'TAS', 'VIC', 'WA'] as const
 type AustralianState = (typeof australianStates)[number]
+
+const STATE_NAME_MAP: Record<string, AustralianState> = {
+  'australian capital territory': 'ACT',
+  'new south wales': 'NSW',
+  'northern territory': 'NT',
+  'queensland': 'QLD',
+  'south australia': 'SA',
+  'tasmania': 'TAS',
+  'victoria': 'VIC',
+  'western australia': 'WA',
+}
+
+const mapStateName = (name: string): AustralianState | undefined =>
+  STATE_NAME_MAP[name.toLowerCase().trim()]
 
 const featuredQuickLocations = [
   'Canberra, ACT',
@@ -157,14 +202,15 @@ const toGoogleMapsUrl = (review: Review) =>
 
 const CLIMATE_SCALE_MIN = -10
 const CLIMATE_SCALE_MAX = 50
+const DEMOGRAPHIC_COLORS = ['#244b31', '#4f8f66', '#9fd7a8', '#d4e9a6', '#f1c96b', '#d9835f']
 
 const clampNumber = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max)
 
 const formatTemperature = (value: number) => `${Math.round(value)}°C`
 
-const extractTemperatureRange = (description: string) => {
+const collectTemperatures = (text: string) => {
   const temperatures: number[] = []
-  let textWithoutRanges = description
+  let textWithoutRanges = text
 
   textWithoutRanges = textWithoutRanges.replace(
     /(^|[^\d.])(-?\d+(?:\.\d+)?)\s*(?:°\s*)?(?:c\b)?\s*(?:-|–|—|to)\s*(-?\d+(?:\.\d+)?)\s*(?:°\s*)?c\b/gi,
@@ -180,11 +226,35 @@ const extractTemperatureRange = (description: string) => {
     ),
   )
 
-  if (!temperatures.length) return null
+  return temperatures
+}
+
+const extractTemperatureProfile = (description: string) => {
+  const sentences = description.split(/(?<=[.!?])\s+/).filter(Boolean)
+  const averageTemperatures: number[] = []
+  const peakTemperatures: number[] = []
+
+  sentences.forEach((sentence) => {
+    const temperatures = collectTemperatures(sentence)
+    if (!temperatures.length) return
+
+    if (/heat\s*wave|heatwave|peak|extreme|record|above|push/i.test(sentence)) {
+      peakTemperatures.push(...temperatures)
+      return
+    }
+
+    averageTemperatures.push(...temperatures)
+  })
+
+  const fallbackTemperatures = averageTemperatures.length ? averageTemperatures : collectTemperatures(description)
+  const peak = peakTemperatures.length ? Math.max(...peakTemperatures) : undefined
+
+  if (!fallbackTemperatures.length) return peak ? { min: peak, max: peak, peak } : null
 
   return {
-    min: Math.min(...temperatures),
-    max: Math.max(...temperatures),
+    min: Math.min(...fallbackTemperatures),
+    max: Math.max(...fallbackTemperatures),
+    peak: peak && peak > Math.max(...fallbackTemperatures) ? peak : undefined,
   }
 }
 
@@ -193,11 +263,25 @@ const temperaturePosition = (value: number) =>
     (CLIMATE_SCALE_MAX - CLIMATE_SCALE_MIN)) *
   100
 
+const normalizeDemographicData = (data: DemographicDatum[] | undefined) => {
+  const cleanData = (data ?? []).filter((item) => item.label && Number.isFinite(item.value) && item.value > 0)
+  const total = cleanData.reduce((sum, item) => sum + item.value, 0)
+
+  if (!total) return []
+
+  return cleanData.map((item, index) => ({
+    ...item,
+    color: DEMOGRAPHIC_COLORS[index % DEMOGRAPHIC_COLORS.length],
+    percent: (item.value / total) * 100,
+  }))
+}
+
 const tabs: Array<{ key: ReviewSectionKey; label: string }> = [
   { key: 'property', label: 'Property' },
   { key: 'climate', label: 'Climate' },
-  { key: 'crime', label: 'Crime' },
+  { key: 'crime', label: 'Safety' },
   { key: 'infrastructure', label: 'Infrastructure' },
+  { key: 'demographics', label: 'Demographics' },
   { key: 'map', label: 'Map' },
 ]
 
@@ -236,6 +320,48 @@ const loadRecentSearches = () => {
 
 const saveRecentSearches = (searches: string[]) => {
   window.localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(searches))
+}
+
+type ReviewCacheEntry = {
+  review: Review
+  cachedAt: number
+}
+
+type ReviewCache = Record<string, ReviewCacheEntry>
+
+const loadReviewCache = (): ReviewCache => {
+  try {
+    const raw = window.localStorage.getItem(REVIEW_CACHE_KEY)
+    return raw ? (JSON.parse(raw) as ReviewCache) : {}
+  } catch {
+    return {}
+  }
+}
+
+const getCachedReview = (query: string): Review | null => {
+  const key = query.trim().toLowerCase()
+  const cache = loadReviewCache()
+  const entry = cache[key]
+  if (!entry) return null
+  if (Date.now() - entry.cachedAt > REVIEW_CACHE_TTL_MS) {
+    // Expired — prune and return null
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { [key]: _expired, ...rest } = cache
+    window.localStorage.setItem(REVIEW_CACHE_KEY, JSON.stringify(rest))
+    return null
+  }
+  return entry.review
+}
+
+const setCachedReview = (query: string, review: Review) => {
+  const key = query.trim().toLowerCase()
+  const cache = loadReviewCache()
+  cache[key] = { review, cachedAt: Date.now() }
+  try {
+    window.localStorage.setItem(REVIEW_CACHE_KEY, JSON.stringify(cache))
+  } catch {
+    // localStorage quota exceeded — silently skip caching
+  }
 }
 
 const stripJsonFence = (value: string) =>
@@ -299,12 +425,57 @@ JSON shape:
     "summerAverages": "Average high and low temperatures plus seasonal behaviour.",
     "winterAverages": "Average high and low temperatures plus rainfall/cloud/frost behaviour."
   },
-  "crime": "Crime and safety analysis with LGA, common incident types, and practical safety interpretation.",
+  "crime": {
+    "narrative": "Crime and safety analysis with LGA, common incident types, and practical safety interpretation.",
+    "insuranceImpact": "How crime and risk levels affect home, contents and car insurance in this suburb. Mention relevant factors like theft rates, flood/fire risk, and postcode loading.",
+    "estimatedAnnualPremiums": {
+      "homeBuilding": "AUD $X,XXX – $X,XXX",
+      "homeContents": "AUD $XXX – $X,XXX",
+      "carComprehensive": "AUD $XXX – $X,XXX"
+    },
+    "crimeTypes": [
+      { "label": "Theft", "level": "Medium" },
+      { "label": "Assault", "level": "Low" },
+      { "label": "Break & Enter", "level": "Low" },
+      { "label": "Vandalism", "level": "Medium" },
+      { "label": "Drug offences", "level": "Low" },
+      { "label": "Vehicle theft", "level": "Medium" }
+    ]
+  },
   "infrastructure": {
     "transit": "Train, bus, road and commute context.",
     "education": "Primary, secondary, tertiary and catchment notes.",
     "lifestyle": "Retail, dining, parks, health, culture and daily amenity.",
     "demographic": "Dominant resident profiles and census-style context."
+  },
+  "demographics": {
+    "summary": "Census-style population and resident profile summary.",
+    "population": "Approximate population if known.",
+    "medianAge": "Approximate median age if known.",
+    "ageGroups": [
+      { "label": "0-14", "value": 18 },
+      { "label": "15-24", "value": 12 },
+      { "label": "25-44", "value": 31 },
+      { "label": "45-64", "value": 24 },
+      { "label": "65+", "value": 15 }
+    ],
+    "householdTypes": [
+      { "label": "Family households", "value": 68 },
+      { "label": "Single-person households", "value": 24 },
+      { "label": "Group households", "value": 8 }
+    ],
+    "tenureTypes": [
+      { "label": "Owned outright", "value": 32 },
+      { "label": "Mortgage", "value": 38 },
+      { "label": "Rented", "value": 30 }
+    ],
+    "countryOfOrigin": [
+      { "label": "Australia", "value": 68 },
+      { "label": "England", "value": 5 },
+      { "label": "India", "value": 4 },
+      { "label": "China", "value": 3 },
+      { "label": "Other", "value": 20 }
+    ]
   },
   "caveats": ["Any uncertainty, unavailable fresh data, or source limitation."],
   "references": ["Named data source, publication, or public agency used or recommended for verification, including a URL when available."]
@@ -337,6 +508,10 @@ const friendlyRequestError = (caught: unknown) => {
 
 const parseReview = (content: string): Review => {
   const parsed = JSON.parse(stripJsonFence(content)) as Review
+  // Handle legacy string crime field from cached/old responses
+  if (typeof parsed.crime === 'string') {
+    parsed.crime = { narrative: parsed.crime as unknown as string, insuranceImpact: '' }
+  }
   if (parsed.exists === false && parsed.summary) {
     return parsed
   }
@@ -479,9 +654,9 @@ const ScouterMark = ({ className = '' }: { className?: string }) => (
 )
 
 const ThermometerRange = ({ label, description }: { label: string; description: string }) => {
-  const range = extractTemperatureRange(description)
+  const profile = extractTemperatureProfile(description)
 
-  if (!range) {
+  if (!profile) {
     return (
       <div className="thermometer-card">
         <p className="thermometer-label">{label}</p>
@@ -490,25 +665,29 @@ const ThermometerRange = ({ label, description }: { label: string; description: 
     )
   }
 
-  const minPosition = temperaturePosition(range.min)
-  const maxPosition = temperaturePosition(range.max)
+  const minPosition = temperaturePosition(profile.min)
+  const maxPosition = temperaturePosition(profile.max)
+  const peakPosition = profile.peak ? temperaturePosition(profile.peak) : null
 
   return (
     <div className="thermometer-card" aria-label={`${label} temperature range`}>
       <div className="thermometer-header">
         <p className="thermometer-label">{label}</p>
         <p>
-          <span>{formatTemperature(range.min)}</span>
-          <span>{formatTemperature(range.max)}</span>
+          <span>{formatTemperature(profile.min)}</span>
+          <span>{formatTemperature(profile.max)}</span>
+          {profile.peak ? <span>HW {formatTemperature(profile.peak)}</span> : null}
         </p>
       </div>
       <div className="thermometer-track" aria-hidden="true">
         <span className="thermometer-fill" style={{ left: `${minPosition}%`, width: `${Math.max(maxPosition - minPosition, 2)}%` }} />
         <span className="thermometer-marker min" style={{ left: `${minPosition}%` }} />
         <span className="thermometer-marker max" style={{ left: `${maxPosition}%` }} />
+        {peakPosition !== null ? <span className="thermometer-marker peak" style={{ left: `${peakPosition}%` }} /> : null}
       </div>
       <div className="thermometer-scale" aria-hidden="true">
         <span>{formatTemperature(CLIMATE_SCALE_MIN)}</span>
+        {profile.peak && peakPosition !== null ? <span className="thermometer-peak-label" style={{ left: `${peakPosition}%` }}>HW</span> : null}
         <span>{formatTemperature(CLIMATE_SCALE_MAX)}</span>
       </div>
     </div>
@@ -521,6 +700,130 @@ const LocationPinIcon = () => (
     <circle cx="12" cy="9.9" r="2.15" />
   </svg>
 )
+
+// Search type icons
+const IconAllListings = () => (
+  <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="7" width="16" height="11" rx="2" />
+    <path d="M5 7V5.5A2.5 2.5 0 0 1 7.5 3h5A2.5 2.5 0 0 1 15 5.5V7" />
+    <path d="M10 11v4M8 13h4" />
+  </svg>
+)
+
+const IconHouse = () => (
+  <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 9.5 10 3l7 6.5" />
+    <path d="M5 8v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V8" />
+    <rect x="7.5" y="12" width="5" height="5" rx="0.5" />
+  </svg>
+)
+
+const IconUnit = () => (
+  <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="3" width="16" height="14" rx="2" />
+    <path d="M2 8h16M10 3v14M6 11h1m6 0h1M6 14h1m6 0h1" />
+  </svg>
+)
+
+// Site logo wordmarks as inline SVG
+const LogoRealEstate = () => (
+  <svg aria-label="realestate.com.au" viewBox="0 0 140 22" fill="none" xmlns="http://www.w3.org/2000/svg" className="listing-site-logo">
+    <rect x="0" y="2" width="18" height="18" rx="3" fill="#e8001c" />
+    <path d="M5 15V7h5.5a2.5 2.5 0 0 1 0 5H9l3.5 3H10l-3-3v3H5Zm2-5h3a.5.5 0 0 0 0-1H7v1Z" fill="#fff" />
+    <text x="22" y="15.5" fontFamily="system-ui, sans-serif" fontSize="9.5" fontWeight="700" fill="#1a1a1a" letterSpacing="-0.2">realestate.com.au</text>
+  </svg>
+)
+
+const LogoDomain = () => (
+  <svg aria-label="domain.com.au" viewBox="0 0 120 22" fill="none" xmlns="http://www.w3.org/2000/svg" className="listing-site-logo">
+    <rect x="0" y="2" width="18" height="18" rx="3" fill="#1c1c1c" />
+    <path d="M5 15V7h3.5a4 4 0 0 1 0 8H5Zm2-1.5h1.5a2.5 2.5 0 0 0 0-5H7v5Z" fill="#fff" />
+    <text x="22" y="15.5" fontFamily="system-ui, sans-serif" fontSize="9.5" fontWeight="700" fill="#1a1a1a" letterSpacing="-0.2">domain.com.au</text>
+  </svg>
+)
+
+const LogoHomely = () => (
+  <svg aria-label="homely.com.au" viewBox="0 0 120 22" fill="none" xmlns="http://www.w3.org/2000/svg" className="listing-site-logo">
+    <rect x="0" y="2" width="18" height="18" rx="3" fill="#f26722" />
+    <path d="M9 5.5 4 9.5V16h4v-3.5h2V16h4V9.5L9 5.5Z" fill="#fff" />
+    <text x="22" y="15.5" fontFamily="system-ui, sans-serif" fontSize="9.5" fontWeight="700" fill="#1a1a1a" letterSpacing="-0.2">homely.com.au</text>
+  </svg>
+)
+
+const DemographicPieChart = ({ title, data }: { title: string; data: DemographicDatum[] | undefined }) => {
+  const segments = normalizeDemographicData(data)
+
+  if (!segments.length) {
+    return (
+      <div className="demographic-chart-card">
+        <h3>{title}</h3>
+        <p className="demographic-empty">Pie chart data unavailable.</p>
+      </div>
+    )
+  }
+
+  const gradient = segments
+    .reduce<{ stops: string[]; cursor: number }>(
+      (acc, segment) => {
+        const start = acc.cursor
+        const end = acc.cursor + segment.percent
+        return { stops: [...acc.stops, `${segment.color} ${start}% ${end}%`], cursor: end }
+      },
+      { stops: [], cursor: 0 },
+    )
+    .stops.join(', ')
+
+  return (
+    <div className="demographic-chart-card">
+      <h3>{title}</h3>
+      <div className="demographic-chart-layout">
+        <div
+          className="demographic-pie"
+          style={{ '--demographic-gradient': `conic-gradient(${gradient})` } as React.CSSProperties}
+          role="img"
+          aria-label={`${title}: ${segments.map((segment) => `${segment.label} ${Math.round(segment.percent)}%`).join(', ')}`}
+        />
+        <ul className="demographic-legend">
+          {segments.map((segment) => (
+            <li key={segment.label}>
+              <span className="demographic-swatch" style={{ background: segment.color }} aria-hidden="true" />
+              <span>{segment.label}</span>
+              <strong>{Math.round(segment.percent)}%</strong>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  )
+}
+
+const CRIME_LEVEL_MAP = { Low: 1, Medium: 2, High: 3, 'Very High': 4 } as const
+const CRIME_LEVEL_COLORS: Record<string, string> = {
+  Low: '#4f8f66',
+  Medium: '#d4a843',
+  High: '#c0703b',
+  'Very High': '#b03020',
+}
+
+const CrimeBar = ({ label, level }: { label: string; level: 'Low' | 'Medium' | 'High' | 'Very High' }) => {
+  const filled = CRIME_LEVEL_MAP[level]
+  return (
+    <div className="crime-bar-row">
+      <span className="crime-bar-label">{label}</span>
+      <div className="crime-bar-track" aria-label={`${label}: ${level}`}>
+        {([1, 2, 3, 4] as const).map((step) => (
+          <span
+            key={step}
+            className="crime-bar-segment"
+            style={step <= filled ? { background: CRIME_LEVEL_COLORS[level] } : undefined}
+            aria-hidden="true"
+          />
+        ))}
+      </div>
+      <span className="crime-bar-level" style={{ color: CRIME_LEVEL_COLORS[level] }}>{level}</span>
+    </div>
+  )
+}
 
 function App() {
   const [query, setQuery] = useState('')
@@ -536,8 +839,10 @@ function App() {
   const [isExporting, setIsExporting] = useState(false)
   const [error, setError] = useState('')
   const [saveStatus, setSaveStatus] = useState('Loaded from this browser')
-  const [fallbackPrompt, setFallbackPrompt] = useState('')
   const [showReferences, setShowReferences] = useState(false)
+  const [suggestions, setSuggestions] = useState<SuburbSuggestion[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const suggestionsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const autoSearchStartedRef = useRef(false)
 
   const providerReady = useMemo(() => {
@@ -574,6 +879,10 @@ function App() {
   const composedQuery = query.trim() ? `${query.trim()}, ${selectedState}` : ''
   const locationNotFound = review?.exists === false
   const suggestedLocation = getSuggestedLocation(review)
+  const demographicSummary = review?.demographics?.summary || review?.infrastructure.demographic || ''
+  const primaryDemographicData = review?.demographics?.ageGroups?.length
+    ? review.demographics.ageGroups
+    : review?.demographics?.householdTypes
 
   const updateSettings = (next: LlmSettings) => {
     setSettings(next)
@@ -595,6 +904,50 @@ function App() {
     })
   }, [])
 
+  const fetchSuggestions = useCallback((value: string) => {
+    if (suggestionsDebounceRef.current) clearTimeout(suggestionsDebounceRef.current)
+    const trimmed = value.trim()
+    if (trimmed.length < 2) {
+      setSuggestions([])
+      setShowSuggestions(false)
+      return
+    }
+
+    suggestionsDebounceRef.current = setTimeout(async () => {
+      try {
+        const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(trimmed)}&limit=8&lang=en&bbox=96.82,-43.74,168.0,-9.14`
+        const res = await fetch(url)
+        if (!res.ok) return
+        const data = await res.json() as { features?: Array<{ properties: { name?: string; state?: string; postcode?: string; type?: string; osm_value?: string } }> }
+        const results: SuburbSuggestion[] = (data.features ?? [])
+          .filter((f) => {
+            const p = f.properties
+            // Only suburbs, towns, cities, villages, localities
+            const relevant = ['suburb', 'city', 'town', 'village', 'locality', 'quarter', 'borough']
+            return (
+              p.name &&
+              p.state &&
+              mapStateName(p.state) &&
+              (relevant.includes(p.type ?? '') || relevant.includes(p.osm_value ?? ''))
+            )
+          })
+          .map((f) => ({
+            name: f.properties.name!,
+            state: mapStateName(f.properties.state!)!,
+            postcode: f.properties.postcode ?? '',
+          }))
+          // Dedupe by name+state
+          .filter((item, idx, arr) => arr.findIndex((x) => x.name === item.name && x.state === item.state) === idx)
+          .slice(0, 6)
+
+        setSuggestions(results)
+        setShowSuggestions(results.length > 0)
+      } catch {
+        // Silently fail — autocomplete is best-effort
+      }
+    }, 280)
+  }, [])
+
   const runSearch = useCallback(
     async (place: string, state: AustralianState, options: { updateQueryString?: boolean } = {}) => {
       const trimmedPlace = place.trim()
@@ -614,9 +967,19 @@ function App() {
         return
       }
 
+      // Check cache before hitting the LLM
+      const cached = getCachedReview(trimmedQuery)
+      if (cached) {
+        setHasSearched(true)
+        setIsSearchOpen(false)
+        setReview(cached)
+        setActiveTab('property')
+        setShowReferences(false)
+        return
+      }
+
       setIsLoading(true)
       setError('')
-      setFallbackPrompt('')
       setShowReferences(false)
       setReview(null)
       setActiveTab('property')
@@ -628,10 +991,10 @@ function App() {
         setReview(nextReview)
         if (nextReview.exists !== false) {
           rememberSearch(trimmedQuery)
+          setCachedReview(trimmedQuery, nextReview)
         }
       } catch (caught) {
         setError(friendlyRequestError(caught))
-        setFallbackPrompt(buildPrompt(trimmedQuery))
       } finally {
         setIsLoading(false)
       }
@@ -647,6 +1010,7 @@ function App() {
 
     const initialState = initialSearch.state ?? selectedState
     autoSearchStartedRef.current = true
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void runSearch(initialSearch.place, initialState)
   }, [runSearch, selectedState])
 
@@ -658,11 +1022,6 @@ function App() {
     const trimmedQuery = place ? `${place}, ${state}` : ''
     if (!trimmedQuery) return
     await runSearch(place, state)
-  }
-
-  const copyPrompt = async () => {
-    if (!fallbackPrompt) return
-    await navigator.clipboard.writeText(fallbackPrompt)
   }
 
   const downloadPdf = async () => {
@@ -716,11 +1075,35 @@ function App() {
       })
 
       section('Climate & Weather Profile', `Summer: ${review.climate.summerAverages}\n\nWinter: ${review.climate.winterAverages}`)
-      section('Crime & Safety Analysis', review.crime)
+      section('Safety & Insurance', [
+        review.crime.narrative,
+        review.crime.insuranceImpact ? `\nInsurance impact: ${review.crime.insuranceImpact}` : '',
+        review.crime.estimatedAnnualPremiums ? `\nEstimated annual premiums:\n${Object.entries(review.crime.estimatedAnnualPremiums).map(([k, v]) => `  ${k}: ${v}`).join('\n')}` : '',
+      ].filter(Boolean).join('\n\n'))
       section(
         'Infrastructure, Education & Logistics',
         `Transit & Commute: ${review.infrastructure.transit}\n\nEducation & Catchments: ${review.infrastructure.education}\n\nLifestyle & Amenities: ${review.infrastructure.lifestyle}\n\nDemographic Vibe: ${review.infrastructure.demographic}`,
       )
+
+      if (review.demographics) {
+        section(
+          'Demographics',
+          [
+            review.demographics.summary,
+            review.demographics.population ? `Population: ${review.demographics.population}` : '',
+            review.demographics.medianAge ? `Median age: ${review.demographics.medianAge}` : '',
+            review.demographics.ageGroups?.length
+              ? `Age groups: ${review.demographics.ageGroups.map((item) => `${item.label} ${item.value}%`).join(', ')}`
+              : '',
+            review.demographics.householdTypes?.length
+              ? `Household types: ${review.demographics.householdTypes.map((item) => `${item.label} ${item.value}%`).join(', ')}`
+              : '',
+            review.demographics.countryOfOrigin?.length
+              ? `Country of origin: ${review.demographics.countryOfOrigin.map((item) => `${item.label} ${item.value}%`).join(', ')}`
+              : '',
+          ].filter(Boolean).join('\n\n'),
+        )
+      }
 
       if (review.caveats?.length) {
         section('Caveats', review.caveats.map((caveat) => `- ${caveat}`).join('\n'))
@@ -894,7 +1277,7 @@ function App() {
               <span className="eyebrow">Suburb search</span>
               <strong>{composedQuery || 'Search another suburb'}</strong>
             </span>
-            <span>{isLoading ? 'Reviewing...' : 'Change search'}</span>
+            <span>{isLoading ? 'Reviewing...' : review && !locationNotFound ? 'Scout again' : 'Change search'}</span>
           </button>
         ) : (
           <>
@@ -914,29 +1297,51 @@ function App() {
                 <span>Suburb search</span>
               </div>
               <label htmlFor="suburb-query">Location</label>
-              <div className="search-row">
-                <input
-                  id="suburb-query"
-                  placeholder="Hobart"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  disabled={isLoading}
-                />
-                <select
-                  aria-label="State or territory"
-                  value={selectedState}
-                  onChange={(event) => setSelectedState(event.target.value as AustralianState)}
-                  disabled={isLoading}
-                >
-                  {australianStates.map((state) => (
-                    <option key={state} value={state}>
-                      {state}
-                    </option>
-                  ))}
-                </select>
-                <button type="submit" disabled={isLoading || !query.trim()}>
-                  {isLoading ? <span className="button-spinner" aria-label="Scouting" /> : 'Scout'}
-                </button>
+              <div className="search-input-wrap">
+                <div className="search-row">
+                  <input
+                    id="suburb-query"
+                    placeholder="Hobart"
+                    value={query}
+                    onChange={(event) => {
+                      setQuery(event.target.value)
+                      fetchSuggestions(event.target.value)
+                    }}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                    onFocus={() => { if (suggestions.length) setShowSuggestions(true) }}
+                    autoComplete="off"
+                    disabled={isLoading}
+                  />
+                  <button
+                    type="submit"
+                    className={isLoading ? 'is-loading' : undefined}
+                    disabled={isLoading || !query.trim()}
+                    aria-label={isLoading ? 'Scouting location' : undefined}
+                  >
+                    {isLoading ? <span className="button-spinner" aria-label="Scouting" /> : 'Scout'}
+                  </button>
+                </div>
+                {showSuggestions && suggestions.length > 0 && (
+                  <ul className="suggestions-list" role="listbox" aria-label="Location suggestions">
+                    {suggestions.map((s) => (
+                      <li
+                        key={`${s.name}-${s.state}`}
+                        role="option"
+                        aria-selected={false}
+                        className="suggestions-item"
+                        onMouseDown={(event) => {
+                          event.preventDefault()
+                          setSuggestions([])
+                          setShowSuggestions(false)
+                          void runSearch(s.name, s.state)
+                        }}
+                      >
+                        <span className="suggestions-name">{s.name}</span>
+                        <span className="suggestions-meta">{s.state}{s.postcode ? ` · ${s.postcode}` : ''}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
               {quickLocationTags.length > 0 && (
                 <div className="quick-location-grid" aria-label="Quick location selections">
@@ -947,6 +1352,8 @@ function App() {
                       href={toSearchHref(search, selectedState)}
                       onClick={(event) => {
                         event.preventDefault()
+                        setSuggestions([])
+                        setShowSuggestions(false)
                         const parsed = splitLocation(search)
                         if (!parsed.place) return
                         void runSearch(parsed.place, parsed.state ?? selectedState)
@@ -973,21 +1380,6 @@ function App() {
       )}
 
       {error && <div className="error-card">{error}</div>}
-
-      {fallbackPrompt && !isLoading && (
-        <section className="fallback-card">
-          <div>
-            <h2>Provider call did not complete</h2>
-            <p>
-              You can copy the exact prompt and run it in your LLM console while we decide whether to add a
-              small proxy for GitHub Pages.
-            </p>
-          </div>
-          <button type="button" className="ghost-button" onClick={copyPrompt}>
-            Copy prompt
-          </button>
-        </section>
-      )}
 
       {review && (
         <section className="review-wrap">
@@ -1128,6 +1520,51 @@ function App() {
                         </tbody>
                       </table>
                     </div>
+                    <div className="listing-links">
+                      <p className="eyebrow">Search listings</p>
+                      <div className="listing-link-grid">
+                        {([
+                          {
+                            Logo: LogoRealEstate,
+                            links: [
+                              { href: `https://www.realestate.com.au/buy/in-${review.suburb.toLowerCase().replace(/\s+/g, '-')},+${review.state}/list-1`, label: 'All listings', Icon: IconAllListings },
+                              { href: `https://www.realestate.com.au/buy/property-house-in-${review.suburb.toLowerCase().replace(/\s+/g, '-')},+${review.state}/list-1`, label: 'Houses', Icon: IconHouse },
+                              { href: `https://www.realestate.com.au/buy/property-unit+townhouse-in-${review.suburb.toLowerCase().replace(/\s+/g, '-')},+${review.state}/list-1`, label: 'Units & Townhouses', Icon: IconUnit },
+                            ],
+                          },
+                          {
+                            Logo: LogoDomain,
+                            links: [
+                              { href: `https://www.domain.com.au/sale/${review.suburb.toLowerCase().replace(/\s+/g, '-')}-${review.state.toLowerCase()}/`, label: 'All listings', Icon: IconAllListings },
+                              { href: `https://www.domain.com.au/sale/${review.suburb.toLowerCase().replace(/\s+/g, '-')}-${review.state.toLowerCase()}/?ptype=house`, label: 'Houses', Icon: IconHouse },
+                              { href: `https://www.domain.com.au/sale/${review.suburb.toLowerCase().replace(/\s+/g, '-')}-${review.state.toLowerCase()}/?ptype=unit+flat,apartment,studio,semi-detached`, label: 'Units & Townhouses', Icon: IconUnit },
+                            ],
+                          },
+                          {
+                            Logo: LogoHomely,
+                            links: [
+                              { href: `https://www.homely.com.au/buy/${review.suburb.toLowerCase().replace(/\s+/g, '-')}-${review.state.toLowerCase()}`, label: 'All listings', Icon: IconAllListings },
+                              { href: `https://www.homely.com.au/buy/${review.suburb.toLowerCase().replace(/\s+/g, '-')}-${review.state.toLowerCase()}?propertyTypes=house`, label: 'Houses', Icon: IconHouse },
+                              { href: `https://www.homely.com.au/buy/${review.suburb.toLowerCase().replace(/\s+/g, '-')}-${review.state.toLowerCase()}?propertyTypes=unit`, label: 'Units & Townhouses', Icon: IconUnit },
+                            ],
+                          },
+                        ] as const).map(({ Logo, links }) => (
+                          <div key={Logo.name} className="listing-site-card">
+                            <div className="listing-site-header">
+                              <Logo />
+                            </div>
+                            <div className="listing-link-row">
+                              {links.map(({ href, label, Icon }) => (
+                                <a key={label} href={href} target="_blank" rel="noreferrer" className="listing-link">
+                                  <Icon />
+                                  <span>{label}</span>
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </section>
                 )}
 
@@ -1147,9 +1584,49 @@ function App() {
                 )}
 
                 {activeTab === 'crime' && (
-                  <section className="tab-panel">
-                    <h3>Crime & Safety Analysis</h3>
-                    <p>{review.crime}</p>
+                  <section className="tab-panel safety-panel">
+                    <div className="safety-narrative">
+                      <h3>Crime & Safety Analysis</h3>
+                      <p>{review.crime.narrative}</p>
+                    </div>
+                    {review.crime.crimeTypes?.length ? (
+                      <div className="crime-chart-card">
+                        <h3>Crime type levels</h3>
+                        <div className="crime-bars">
+                          {review.crime.crimeTypes.map((ct) => (
+                            <CrimeBar key={ct.label} label={ct.label} level={ct.level} />
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    {(review.crime.insuranceImpact || review.crime.estimatedAnnualPremiums) && (
+                      <div className="insurance-card">
+                        <h3>Insurance & Risk</h3>
+                        {review.crime.insuranceImpact && <p>{review.crime.insuranceImpact}</p>}
+                        {review.crime.estimatedAnnualPremiums && (
+                          <div className="insurance-premiums">
+                            {review.crime.estimatedAnnualPremiums.homeBuilding && (
+                              <div className="insurance-premium-item">
+                                <span>Home building</span>
+                                <strong>{review.crime.estimatedAnnualPremiums.homeBuilding}</strong>
+                              </div>
+                            )}
+                            {review.crime.estimatedAnnualPremiums.homeContents && (
+                              <div className="insurance-premium-item">
+                                <span>Home contents</span>
+                                <strong>{review.crime.estimatedAnnualPremiums.homeContents}</strong>
+                              </div>
+                            )}
+                            {review.crime.estimatedAnnualPremiums.carComprehensive && (
+                              <div className="insurance-premium-item">
+                                <span>Car (comprehensive)</span>
+                                <strong>{review.crime.estimatedAnnualPremiums.carComprehensive}</strong>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </section>
                 )}
 
@@ -1167,10 +1644,40 @@ function App() {
                       <h3>Lifestyle & Amenities</h3>
                       <p>{review.infrastructure.lifestyle}</p>
                     </div>
-                    <div>
-                      <h3>Demographic Vibe</h3>
-                      <p>{review.infrastructure.demographic}</p>
+                  </section>
+                )}
+
+                {activeTab === 'demographics' && (
+                  <section className="tab-panel demographic-panel">
+                    <div className="demographic-copy">
+                      <p className="eyebrow">Resident profile</p>
+                      <h3>Demographic snapshot</h3>
+                      <p>{demographicSummary}</p>
+                      <div className="demographic-stats">
+                        {review.demographics?.population && (
+                          <div>
+                            <span>Population</span>
+                            <strong>{review.demographics.population}</strong>
+                          </div>
+                        )}
+                        {review.demographics?.medianAge && (
+                          <div>
+                            <span>Median age</span>
+                            <strong>{review.demographics.medianAge}</strong>
+                          </div>
+                        )}
+                      </div>
                     </div>
+                    <DemographicPieChart
+                      title={review.demographics?.ageGroups?.length ? 'Age profile' : 'Household mix'}
+                      data={primaryDemographicData}
+                    />
+                    {review.demographics?.tenureTypes?.length ? (
+                      <DemographicPieChart title="Housing tenure" data={review.demographics.tenureTypes} />
+                    ) : null}
+                    {review.demographics?.countryOfOrigin?.length ? (
+                      <DemographicPieChart title="Country of origin" data={review.demographics.countryOfOrigin} />
+                    ) : null}
                   </section>
                 )}
 
