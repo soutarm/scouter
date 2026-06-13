@@ -432,7 +432,28 @@ input:disabled {
 
 .settings-footer {
   border-top: 1px solid rgba(74, 111, 81, 0.12);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   padding-top: 14px;
+}
+
+.cache-status {
+  color: #5e7561;
+  flex: 1 0 100%;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.cache-status strong {
+  color: #2f5139;
+}
+
+.cache-status span {
+  color: #2f7c3f;
+  display: inline-block;
+  font-weight: 800;
+  margin-left: 8px;
 }
 
 .clear-cache-button {
@@ -949,7 +970,12 @@ button:focus-visible {
   color: #f7fff2;
   font-size: 0.75rem;
   font-weight: 900;
+  left: 50%;
   line-height: 1;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .not-found-card {
@@ -1067,6 +1093,7 @@ button:focus-visible {
   background: #edf6e8;
   border-radius: 999px;
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin: 18px 0;
   padding: 6px;
@@ -1085,6 +1112,7 @@ button:focus-visible {
   gap: 6px;
   justify-content: center;
   padding: 11px 8px;
+  white-space: nowrap;
 }
 
 .tabs button.active {

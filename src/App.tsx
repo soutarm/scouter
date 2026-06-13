@@ -5,7 +5,7 @@ import './App.css'
 import type { AustralianState, LlmSettings, Review, ReviewSectionKey, SuburbSuggestion } from './types'
 import {
   STORAGE_KEY, MAX_RECENT_SEARCHES,
-  getCachedReview, setCachedReview,
+  clearReviewCache, getCachedReview, getReviewCacheCount, setCachedReview,
   loadRecentSearches, saveRecentSearches,
 } from './services/cache'
 import {
@@ -115,6 +115,8 @@ function App() {
   const [isExporting, setIsExporting] = useState(false)
   const [error, setError] = useState('')
   const [saveStatus, setSaveStatus] = useState('Loaded from this browser')
+  const [cacheLocationCount, setCacheLocationCount] = useState(() => getReviewCacheCount())
+  const [cacheActionMessage, setCacheActionMessage] = useState('')
   const [showReferences, setShowReferences] = useState(false)
   const [suggestions, setSuggestions] = useState<SuburbSuggestion[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -242,6 +244,7 @@ function App() {
         if (nextReview.exists !== false) {
           rememberSearch(trimmedQuery)
           setCachedReview(trimmedQuery, nextReview)
+          setCacheLocationCount(getReviewCacheCount())
         }
       } catch (caught) {
         setError(friendlyRequestError(caught))
@@ -275,11 +278,43 @@ function App() {
   // Update page title based on active review
   useEffect(() => {
     if (review?.exists && review.suburb && review.state) {
-      document.title = `Scouter – ${review.suburb}, ${review.state} Review`
+      document.title = `Scouter - ${review.suburb}, ${review.state} Review`
     } else {
       document.title = 'Scouter'
     }
   }, [review])
+
+  const clearSearchFromUrl = useCallback(() => {
+    const params = new URLSearchParams(window.location.search)
+    params.delete('search')
+    params.delete('state')
+    const nextSearch = params.toString()
+    window.history.replaceState(null, '', `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${window.location.hash}`)
+  }, [])
+
+  const clearCurrentLocation = useCallback(() => {
+    setQuery('')
+    setReview(null)
+    setHasSearched(false)
+    setIsSearchOpen(true)
+    setActiveTab('property')
+    setError('')
+    setShowReferences(false)
+    setSuggestions([])
+    setShowSuggestions(false)
+    setCacheActionMessage('')
+    clearSearchFromUrl()
+  }, [clearSearchFromUrl])
+
+  const clearCacheAndRecentSearches = useCallback(() => {
+    clearReviewCache()
+    saveRecentSearches([])
+    setRecentSearches([])
+    setCacheLocationCount(0)
+    clearCurrentLocation()
+    setCacheActionMessage('Cache cleared.')
+    setSaveStatus('Cache cleared')
+  }, [clearCurrentLocation])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -442,8 +477,11 @@ function App() {
               settings={settings}
               providerReady={providerReady}
               saveStatus={saveStatus}
+              cacheLocationCount={cacheLocationCount}
+              cacheActionMessage={cacheActionMessage}
               onUpdate={updateSettings}
-              onClearCache={() => setRecentSearches([])}
+              onClearCache={clearCacheAndRecentSearches}
+              onClearCurrentLocation={clearCurrentLocation}
             />
           )}
         </div>

@@ -47,6 +47,22 @@ export const setCachedReview = (query: string, review: Review) => {
   }
 }
 
+export const clearReviewCache = () => {
+  window.localStorage.removeItem(REVIEW_CACHE_KEY)
+}
+
+export const getReviewCacheCount = () => {
+  const cache = loadReviewCache()
+  const now = Date.now()
+  const validEntries = Object.entries(cache).filter(([, entry]) => now - entry.cachedAt <= REVIEW_CACHE_TTL_MS)
+
+  if (validEntries.length !== Object.keys(cache).length) {
+    window.localStorage.setItem(REVIEW_CACHE_KEY, JSON.stringify(Object.fromEntries(validEntries)))
+  }
+
+  return validEntries.length
+}
+
 export const loadSettings = <T>(storageKey: string, defaults: T): T => {
   try {
     const raw = window.localStorage.getItem(storageKey)

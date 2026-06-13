@@ -1,15 +1,26 @@
 import type { LlmSettings, ProviderKind } from '../types'
-import { RECENT_SEARCHES_KEY, REVIEW_CACHE_KEY } from '../services/cache'
 
 type Props = {
   settings: LlmSettings
   providerReady: boolean
   saveStatus: string
+  cacheLocationCount: number
+  cacheActionMessage: string
   onUpdate: (next: LlmSettings) => void
   onClearCache: () => void
+  onClearCurrentLocation: () => void
 }
 
-export const SettingsPanel = ({ settings, providerReady, saveStatus, onUpdate, onClearCache }: Props) => (
+export const SettingsPanel = ({
+  settings,
+  providerReady,
+  saveStatus,
+  cacheLocationCount,
+  cacheActionMessage,
+  onUpdate,
+  onClearCache,
+  onClearCurrentLocation,
+}: Props) => (
   <section className="settings-card" aria-label="LLM settings" role="dialog" aria-modal="true">
     <div className="settings-header">
       <div>
@@ -94,16 +105,23 @@ export const SettingsPanel = ({ settings, providerReady, saveStatus, onUpdate, o
     )}
 
     <div className="settings-footer">
+      <div className="cache-status" aria-live="polite">
+        <strong>Cache:</strong> {cacheLocationCount} saved {cacheLocationCount === 1 ? 'location' : 'locations'}
+        {cacheActionMessage && <span>{cacheActionMessage}</span>}
+      </div>
       <button
         type="button"
         className="clear-cache-button"
-        onClick={() => {
-          window.localStorage.removeItem(RECENT_SEARCHES_KEY)
-          window.localStorage.removeItem(REVIEW_CACHE_KEY)
-          onClearCache()
-        }}
+        onClick={onClearCache}
       >
         Clear cache &amp; recent searches
+      </button>
+      <button
+        type="button"
+        className="clear-cache-button"
+        onClick={onClearCurrentLocation}
+      >
+        Clear current location
       </button>
     </div>
   </section>
