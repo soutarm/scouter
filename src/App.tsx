@@ -42,6 +42,7 @@ type Review = {
   exists?: boolean
   suburb: string
   state: string
+  postcode?: string
   generatedAt: string
   summary: string
   notFoundReason?: string
@@ -411,6 +412,7 @@ JSON shape:
   "exists": true,
   "suburb": "Suburb name",
   "state": "State abbreviation",
+  "postcode": "4-digit Australian postcode",
   "generatedAt": "ISO timestamp",
   "summary": "Top-level practical assessment in 2-4 sentences.",
   "notFoundReason": "Only present when exists is false.",
@@ -704,9 +706,10 @@ const LocationPinIcon = () => (
 // Search type icons
 const IconAllListings = () => (
   <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="7" width="16" height="11" rx="2" />
-    <path d="M5 7V5.5A2.5 2.5 0 0 1 7.5 3h5A2.5 2.5 0 0 1 15 5.5V7" />
-    <path d="M10 11v4M8 13h4" />
+    <rect x="2" y="2" width="7" height="7" rx="1.5" />
+    <rect x="11" y="2" width="7" height="7" rx="1.5" />
+    <rect x="2" y="11" width="7" height="7" rx="1.5" />
+    <rect x="11" y="11" width="7" height="7" rx="1.5" />
   </svg>
 )
 
@@ -1511,32 +1514,42 @@ function App() {
                     <div className="listing-links">
                       <p className="eyebrow">Search listings</p>
                       <div className="listing-link-grid">
-                        {([
-                          {
-                            Logo: LogoRealEstate,
-                            links: [
-                              { href: `https://www.realestate.com.au/buy/in-${review.suburb.toLowerCase().replace(/\s+/g, '-')},+${review.state}/list-1`, label: 'All listings', Icon: IconAllListings },
-                              { href: `https://www.realestate.com.au/buy/property-house-in-${review.suburb.toLowerCase().replace(/\s+/g, '-')},+${review.state}/list-1`, label: 'Houses', Icon: IconHouse },
-                              { href: `https://www.realestate.com.au/buy/property-unit+townhouse-in-${review.suburb.toLowerCase().replace(/\s+/g, '-')},+${review.state}/list-1`, label: 'Units & Townhouses', Icon: IconUnit },
-                            ],
-                          },
-                          {
-                            Logo: LogoDomain,
-                            links: [
-                              { href: `https://www.domain.com.au/sale/${review.suburb.toLowerCase().replace(/\s+/g, '-')}-${review.state.toLowerCase()}/`, label: 'All listings', Icon: IconAllListings },
-                              { href: `https://www.domain.com.au/sale/${review.suburb.toLowerCase().replace(/\s+/g, '-')}-${review.state.toLowerCase()}/?ptype=house`, label: 'Houses', Icon: IconHouse },
-                              { href: `https://www.domain.com.au/sale/${review.suburb.toLowerCase().replace(/\s+/g, '-')}-${review.state.toLowerCase()}/?ptype=unit+flat,apartment,studio,semi-detached`, label: 'Units & Townhouses', Icon: IconUnit },
-                            ],
-                          },
-                          {
-                            Logo: LogoHomely,
-                            links: [
-                              { href: `https://www.homely.com.au/buy/${review.suburb.toLowerCase().replace(/\s+/g, '-')}-${review.state.toLowerCase()}`, label: 'All listings', Icon: IconAllListings },
-                              { href: `https://www.homely.com.au/buy/${review.suburb.toLowerCase().replace(/\s+/g, '-')}-${review.state.toLowerCase()}?propertyTypes=house`, label: 'Houses', Icon: IconHouse },
-                              { href: `https://www.homely.com.au/buy/${review.suburb.toLowerCase().replace(/\s+/g, '-')}-${review.state.toLowerCase()}?propertyTypes=unit`, label: 'Units & Townhouses', Icon: IconUnit },
-                            ],
-                          },
-                        ] as const).map(({ Logo, links }) => (
+                        {(() => {
+                          const slug = review.suburb.toLowerCase().replace(/\s+/g, '-')
+                          const slugPlus = review.suburb.toLowerCase().replace(/\s+/g, '+')
+                          const stateUp = review.state.toUpperCase()
+                          const stateLow = review.state.toLowerCase()
+                          const pc = review.postcode ?? ''
+                          const domainSlug = `${slug}-${stateLow}${pc ? `-${pc}` : ''}`
+                          const homelySlug = `${slug}-${stateLow}${pc ? `-${pc}` : ''}`
+                          const reaLocation = `${slugPlus},+${stateUp}${pc ? `+${pc}` : ''}`
+                          return ([
+                            {
+                              Logo: LogoRealEstate,
+                              links: [
+                                { href: `https://www.realestate.com.au/buy/in-${reaLocation}/list-1`, label: 'All listings', Icon: IconAllListings },
+                                { href: `https://www.realestate.com.au/buy/property-house-in-${reaLocation}/list-1`, label: 'Houses', Icon: IconHouse },
+                                { href: `https://www.realestate.com.au/buy/property-townhouse-in-${reaLocation}/list-1`, label: 'Townhouses', Icon: IconUnit },
+                              ],
+                            },
+                            {
+                              Logo: LogoDomain,
+                              links: [
+                                { href: `https://www.domain.com.au/sale/${domainSlug}/`, label: 'All listings', Icon: IconAllListings },
+                                { href: `https://www.domain.com.au/sale/${domainSlug}/house/`, label: 'Houses', Icon: IconHouse },
+                                { href: `https://www.domain.com.au/sale/${domainSlug}/town-house/`, label: 'Townhouses', Icon: IconUnit },
+                              ],
+                            },
+                            {
+                              Logo: LogoHomely,
+                              links: [
+                                { href: `https://www.homely.com.au/for-sale/${homelySlug}/real-estate`, label: 'All listings', Icon: IconAllListings },
+                                { href: `https://www.homely.com.au/for-sale/${homelySlug}/houses`, label: 'Houses', Icon: IconHouse },
+                                { href: `https://www.homely.com.au/for-sale/${homelySlug}/real-estate?propertytype=units,townhouses`, label: 'Units & Townhouses', Icon: IconUnit },
+                              ],
+                            },
+                          ])
+                        })().map(({ Logo, links }) => (
                           <div key={Logo.name} className="listing-site-card">
                             <Logo />
                             <div className="listing-site-divider" aria-hidden="true" />
