@@ -618,14 +618,15 @@ button:focus-visible {
 
 .button-spinner {
   animation: spin 0.8s linear infinite;
-  aspect-ratio: 1;
   border: 2.5px solid rgba(251, 255, 247, 0.35);
   border-radius: 50%;
   border-top-color: #fbfff7;
   box-sizing: border-box;
-  display: block;
+  display: inline-block;
   flex-shrink: 0;
   height: 18px;
+  min-height: 18px;
+  min-width: 18px;
   width: 18px;
 }
 
