@@ -802,13 +802,18 @@ button:focus-visible {
 }
 
 .tabs button {
+  align-items: center;
   background: transparent;
   border: 0;
   border-radius: 999px;
   color: #385542;
+  display: flex;
   flex: 1;
+  flex-direction: column;
   font-weight: 900;
-  padding: 11px;
+  gap: 4px;
+  justify-content: center;
+  padding: 9px 6px;
 }
 
 .tabs button.active {
