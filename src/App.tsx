@@ -131,6 +131,7 @@ function App() {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const suggestionsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const autoSearchStartedRef = useRef(false)
+  const reviewRef = useRef<HTMLElement | null>(null)
 
   const providerReady = useMemo(() => {
     if (settings.provider === 'azure') return Boolean(settings.azureEndpoint && settings.azureDeployment && settings.azureApiKey)
@@ -272,6 +273,16 @@ function App() {
     void runSearch(initialSearch.place, initialState)
   }, [runSearch, selectedState])
 
+  // Scroll to review section when a new result arrives
+  useEffect(() => {
+    if (!review || !reviewRef.current) return
+    // Small delay so the DOM has painted the review card before scrolling
+    const id = setTimeout(() => {
+      reviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 80)
+    return () => clearTimeout(id)
+  }, [review])
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const parsedQuery = splitLocation(query)
@@ -377,9 +388,11 @@ function App() {
     }
   }
 
+  const isSticky = hasSearched && !isSearchOpen
+
   return (
     <main className="app-shell">
-      <header className="topbar">
+      <header className={isSticky ? 'topbar is-sticky' : 'topbar'}>
         <h1 className="brand-wordmark" aria-label="Scouter">
           <span className="brand-letter brand-letter-s" aria-hidden="true">S</span>
           <span className="brand-letter" aria-hidden="true">C</span>
@@ -389,128 +402,148 @@ function App() {
           <span className="brand-letter" aria-hidden="true">E</span>
           <span className="brand-letter brand-letter-r" aria-hidden="true">R</span>
         </h1>
-        <button
-          className="settings-button"
-          type="button"
-          onClick={() => setShowSettings((open) => !open)}
-          aria-label="LLM settings"
-          aria-expanded={showSettings}
-          title="LLM settings"
-        >
-          <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-            <path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.6 7.6 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.5A7.6 7.6 0 0 0 7 6.5l-2.4-1-2 3.5 2 1.5A8.9 8.9 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.6 7.6 0 0 0 2.6 1.5l.4 2.5h4l.4-2.5a7.6 7.6 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5Z" />
-            <circle cx="12" cy="12" r="3.2" />
-          </svg>
-        </button>
-      </header>
 
-      {showSettings && (
-        <SettingsPanel
-          settings={settings}
-          providerReady={providerReady}
-          saveStatus={saveStatus}
-          onUpdate={updateSettings}
-          onClearCache={() => setRecentSearches([])}
-        />
-      )}
-
-      <section className={hasSearched && !isSearchOpen ? 'hero-panel collapsed' : 'hero-panel'}>
-        {hasSearched && !isSearchOpen ? (
-          <button className="search-accordion-button" type="button" onClick={() => setIsSearchOpen(true)} aria-expanded={isSearchOpen}>
-            <span>
-              <span className="eyebrow">Suburb search</span>
-              <strong>{composedQuery || 'Search another suburb'}</strong>
+        {isSticky && (
+          <button
+            className="topbar-search-pill"
+            type="button"
+            onClick={() => setIsSearchOpen(true)}
+            aria-label="Open suburb search"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" />
+            </svg>
+            <span className="topbar-search-pill-text">
+              {isLoading ? 'Scouting…' : (composedQuery || 'Search')}
             </span>
             {isLoading
               ? <span className="button-spinner accordion-spinner" aria-label="Scouting" />
-              : <span>{review && !locationNotFound ? 'Scout again' : 'Change search'}</span>
+              : <span className="topbar-search-pill-action">{review && !locationNotFound ? 'Scout again' : 'Change'}</span>
             }
           </button>
-        ) : (
-          <>
-            <div className="hero-copy">
-              <span className="pill">Property, climate, crime, logistics</span>
-              <h2>Scout a location before you make your move.</h2>
-              <p>Enter a location and state and let us scout it out.</p>
-            </div>
-            <svg className="hero-contours" aria-hidden="true" viewBox="0 0 260 220" focusable="false">
-              <path d="M231 13c-38 4-72 16-101 37-28 20-46 43-83 49-21 4-37 1-56-5" />
-              <path d="M251 62c-36 7-66 20-91 39-32 24-50 53-95 57-25 2-43-5-65-18" />
-              <path d="M243 118c-27 2-50 11-70 26-24 18-39 41-73 48-24 5-50 0-76-16" />
-              <path d="M202 11c-16 23-23 45-20 66 4 28 24 49 21 82-2 19-11 34-27 48" />
+        )}
+
+        <div className="settings-anchor">
+          <button
+            className="settings-button"
+            type="button"
+            onClick={() => setShowSettings((open) => !open)}
+            aria-label="LLM settings"
+            aria-expanded={showSettings}
+            aria-haspopup="true"
+            title="LLM settings"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+              <path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.6 7.6 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.5A7.6 7.6 0 0 0 7 6.5l-2.4-1-2 3.5 2 1.5A8.9 8.9 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.6 7.6 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5Z" />
+              <circle cx="12" cy="12" r="3.2" />
             </svg>
-            <form className="search-card" onSubmit={handleSubmit}>
-              <div className="search-card-heading"><span>Suburb search</span></div>
-              <label htmlFor="suburb-query">Location</label>
-              <div className="search-input-wrap">
-                <div className="search-row">
-                  <input
-                    id="suburb-query"
-                    placeholder="Hobart"
-                    value={query}
-                    onChange={(e) => { setQuery(e.target.value); fetchSuggestions(e.target.value) }}
-                    onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                    onFocus={() => { setQuery(''); setSuggestions([]); setShowSuggestions(false) }}
-                    autoComplete="off"
-                    disabled={isLoading}
-                  />
-                  <button
-                    type="submit"
-                    className={isLoading ? 'is-loading' : undefined}
-                    disabled={isLoading || !query.trim()}
-                    aria-label={isLoading ? 'Scouting location' : undefined}
-                  >
-                    {isLoading ? <span className="button-spinner" aria-label="Scouting" /> : 'Scout'}
-                  </button>
-                </div>
-                {showSuggestions && suggestions.length > 0 && (
-                  <ul className="suggestions-list" role="listbox" aria-label="Location suggestions">
-                    {suggestions.map((s) => (
-                      <li
-                        key={`${s.name}-${s.state}`}
-                        role="option"
-                        aria-selected={false}
-                        className="suggestions-item"
-                        onMouseDown={(e) => {
-                          e.preventDefault()
-                          setSuggestions([])
-                          setShowSuggestions(false)
-                          void runSearch(s.name, s.state)
-                        }}
-                      >
-                        <span className="suggestions-name">{s.name}</span>
-                        <span className="suggestions-meta">{s.state}{s.postcode ? ` · ${s.postcode}` : ''}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+          </button>
+
+          {showSettings && (
+            <SettingsPanel
+              settings={settings}
+              providerReady={providerReady}
+              saveStatus={saveStatus}
+              onUpdate={updateSettings}
+              onClearCache={() => setRecentSearches([])}
+              onClose={() => setShowSettings(false)}
+            />
+          )}
+        </div>
+      </header>
+
+      {showSettings && (
+        <div
+          className="settings-backdrop"
+          aria-hidden="true"
+          onClick={() => setShowSettings(false)}
+        />
+      )}
+
+      {!isSticky && (
+        <section className="hero-panel">
+          <div className="hero-copy">
+            <span className="pill">Property, climate, crime, logistics</span>
+            <h2>Scout a location before you make your move.</h2>
+            <p>Enter a location and state and let us scout it out.</p>
+          </div>
+          <svg className="hero-contours" aria-hidden="true" viewBox="0 0 260 220" focusable="false">
+            <path d="M231 13c-38 4-72 16-101 37-28 20-46 43-83 49-21 4-37 1-56-5" />
+            <path d="M251 62c-36 7-66 20-91 39-32 24-50 53-95 57-25 2-43-5-65-18" />
+            <path d="M243 118c-27 2-50 11-70 26-24 18-39 41-73 48-24 5-50 0-76-16" />
+            <path d="M202 11c-16 23-23 45-20 66 4 28 24 49 21 82-2 19-11 34-27 48" />
+          </svg>
+          <form className="search-card" onSubmit={handleSubmit}>
+            <div className="search-card-heading"><span>Suburb search</span></div>
+            <label htmlFor="suburb-query">Location</label>
+            <div className="search-input-wrap">
+              <div className="search-row">
+                <input
+                  id="suburb-query"
+                  placeholder="Hobart"
+                  value={query}
+                  onChange={(e) => { setQuery(e.target.value); fetchSuggestions(e.target.value) }}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  onFocus={() => { setQuery(''); setSuggestions([]); setShowSuggestions(false) }}
+                  autoComplete="off"
+                  disabled={isLoading}
+                />
+                <button
+                  type="submit"
+                  className={isLoading ? 'is-loading' : undefined}
+                  disabled={isLoading || !query.trim()}
+                  aria-label={isLoading ? 'Scouting location' : undefined}
+                >
+                  {isLoading ? <span className="button-spinner" aria-label="Scouting" /> : 'Scout'}
+                </button>
               </div>
-              {quickLocationTags.length > 0 && (
-                <div className="quick-location-grid" aria-label="Quick location selections">
-                  {quickLocationTags.map((search) => (
-                    <a
-                      key={search}
-                      className="quick-location-tag"
-                      href={toSearchHref(search, selectedState)}
-                      onClick={(e) => {
+              {showSuggestions && suggestions.length > 0 && (
+                <ul className="suggestions-list" role="listbox" aria-label="Location suggestions">
+                  {suggestions.map((s) => (
+                    <li
+                      key={`${s.name}-${s.state}`}
+                      role="option"
+                      aria-selected={false}
+                      className="suggestions-item"
+                      onMouseDown={(e) => {
                         e.preventDefault()
                         setSuggestions([])
                         setShowSuggestions(false)
-                        const parsed = splitLocation(search)
-                        if (!parsed.place) return
-                        void runSearch(parsed.place, parsed.state ?? selectedState)
+                        void runSearch(s.name, s.state)
                       }}
                     >
-                      <LocationPinIcon />
-                      <span>{search}</span>
-                    </a>
+                      <span className="suggestions-name">{s.name}</span>
+                      <span className="suggestions-meta">{s.state}{s.postcode ? ` · ${s.postcode}` : ''}</span>
+                    </li>
                   ))}
-                </div>
+                </ul>
               )}
-            </form>
-          </>
-        )}
-      </section>
+            </div>
+            {quickLocationTags.length > 0 && (
+              <div className="quick-location-grid" aria-label="Quick location selections">
+                {quickLocationTags.map((search) => (
+                  <a
+                    key={search}
+                    className="quick-location-tag"
+                    href={toSearchHref(search, selectedState)}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      setSuggestions([])
+                      setShowSuggestions(false)
+                      const parsed = splitLocation(search)
+                      if (!parsed.place) return
+                      void runSearch(parsed.place, parsed.state ?? selectedState)
+                    }}
+                  >
+                    <LocationPinIcon />
+                    <span>{search}</span>
+                  </a>
+                ))}
+              </div>
+            )}
+          </form>
+        </section>
+      )}
 
       {isLoading && (
         <section className="busy-card" aria-live="polite">
@@ -522,7 +555,7 @@ function App() {
       {error && <div className="error-card">{error}</div>}
 
       {review && (
-        <section className="review-wrap">
+        <section className="review-wrap" ref={reviewRef}>
           <div className={showReferences ? 'references-drawer open' : 'references-drawer'}>
             <button
               type="button"

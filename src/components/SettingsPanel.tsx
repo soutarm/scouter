@@ -7,27 +7,41 @@ type Props = {
   saveStatus: string
   onUpdate: (next: LlmSettings) => void
   onClearCache: () => void
+  onClose: () => void
 }
 
-export const SettingsPanel = ({ settings, providerReady, saveStatus, onUpdate, onClearCache }: Props) => (
-  <section className="settings-card" aria-label="LLM settings">
+export const SettingsPanel = ({ settings, providerReady, saveStatus, onUpdate, onClearCache, onClose }: Props) => (
+  <section className="settings-card" aria-label="LLM settings" role="dialog" aria-modal="true">
     <div className="settings-header">
       <div>
+        <p className="eyebrow">Configuration</p>
         <h2>Provider settings</h2>
         <p>Stored locally in this browser. Do not use public/shared API keys.</p>
       </div>
-      <div className="settings-controls">
-        <span className={providerReady ? 'status-pill ready' : 'status-pill'}>
-          {providerReady ? `Ready, ${saveStatus}` : saveStatus}
-        </span>
-        <select
-          value={settings.provider}
-          onChange={(e) => onUpdate({ ...settings, provider: e.target.value as ProviderKind })}
+      <div className="settings-header-right">
+        <div className="settings-controls">
+          <span className={providerReady ? 'status-pill ready' : 'status-pill'}>
+            {providerReady ? `Ready · ${saveStatus}` : saveStatus}
+          </span>
+          <select
+            value={settings.provider}
+            onChange={(e) => onUpdate({ ...settings, provider: e.target.value as ProviderKind })}
+          >
+            <option value="azure">Azure OpenAI</option>
+            <option value="openai">OpenAI compatible</option>
+            <option value="gemini">Google Gemini</option>
+          </select>
+        </div>
+        <button
+          type="button"
+          className="settings-close-button"
+          onClick={onClose}
+          aria-label="Close settings"
         >
-          <option value="azure">Azure OpenAI</option>
-          <option value="openai">OpenAI compatible</option>
-          <option value="gemini">Google Gemini</option>
-        </select>
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
       </div>
     </div>
 
