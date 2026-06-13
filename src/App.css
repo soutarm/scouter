@@ -297,6 +297,30 @@ input:disabled {
   margin: 0;
 }
 
+.settings-footer {
+  border-top: 1px solid rgba(74, 111, 81, 0.12);
+  margin-top: 6px;
+  padding-top: 14px;
+}
+
+.clear-cache-button {
+  background: none;
+  border: 1px solid rgba(74, 111, 81, 0.22);
+  border-radius: 999px;
+  color: #5e7561;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 6px 14px;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.clear-cache-button:hover {
+  background: #f1f8ed;
+  border-color: rgba(74, 111, 81, 0.35);
+  color: #2f5139;
+}
+
 label {
   color: #395440;
   display: grid;

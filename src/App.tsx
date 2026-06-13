@@ -1358,6 +1358,19 @@ function App() {
               </label>
             </div>
           )}
+          <div className="settings-footer">
+            <button
+              type="button"
+              className="clear-cache-button"
+              onClick={() => {
+                window.localStorage.removeItem(RECENT_SEARCHES_KEY)
+                window.localStorage.removeItem(REVIEW_CACHE_KEY)
+                setRecentSearches([])
+              }}
+            >
+              Clear cache &amp; recent searches
+            </button>
+          </div>
         </section>
       )}
 
