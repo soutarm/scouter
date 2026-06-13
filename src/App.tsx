@@ -647,14 +647,42 @@ const friendlyRequestError = (caught: unknown) => {
   return caught instanceof Error ? caught.message : 'Review generation failed.'
 }
 
+const repairTruncatedJson = (s: string): string => {
+  // Walk backwards from the end to find the last position where the JSON
+  // was still structurally valid by closing open braces/brackets.
+  const stack: string[] = []
+  let inString = false
+  let escape = false
+  for (const ch of s) {
+    if (escape) { escape = false; continue }
+    if (ch === '\\' && inString) { escape = true; continue }
+    if (ch === '"') { inString = !inString; continue }
+    if (inString) continue
+    if (ch === '{' || ch === '[') stack.push(ch === '{' ? '}' : ']')
+    else if (ch === '}' || ch === ']') stack.pop()
+  }
+  if (stack.length === 0) return s
+  // Trim to after the last complete comma-separated value by chopping at
+  // the last ',' or valid closing character, then close all open scopes.
+  let trimmed = s.trimEnd()
+  // Remove trailing incomplete fragment (unclosed string or partial key/value)
+  trimmed = trimmed.replace(/,?\s*"[^"]*$/, '').replace(/,\s*$/, '')
+  return trimmed + stack.reverse().join('')
+}
+
 const parseReview = (content: string): Review => {
   const stripped = stripJsonFence(content)
   let parsed: Review
   try {
     parsed = JSON.parse(stripped) as Review
   } catch (e) {
-    const snippet = stripped.slice(0, 300).replace(/\n/g, ' ')
-    throw new Error(`The model returned invalid JSON. Parse error: ${e instanceof Error ? e.message : e}. Content preview: ${snippet}`)
+    // Attempt to recover truncated JSON before giving up
+    try {
+      parsed = JSON.parse(repairTruncatedJson(stripped)) as Review
+    } catch {
+      const snippet = stripped.slice(0, 300).replace(/\n/g, ' ')
+      throw new Error(`The model returned invalid JSON. Parse error: ${e instanceof Error ? e.message : e}. Content preview: ${snippet}`)
+    }
   }
   // Handle legacy string crime field from cached/old responses
   if (typeof parsed.crime === 'string') {
@@ -694,7 +722,7 @@ const callLlm = async (settings: LlmSettings, query: string, homelyContext?: str
             input: [{ role: 'user', content: prompt }],
             text: { format: { type: 'json_object' }, verbosity: 'low' },
             reasoning: { effort: 'low' },
-            max_output_tokens: 2600,
+            max_output_tokens: 4000,
           }),
           signal: controller.signal,
         },
@@ -737,7 +765,7 @@ const callLlm = async (settings: LlmSettings, query: string, homelyContext?: str
             generationConfig: {
               temperature: 0.2,
               responseMimeType: 'application/json',
-              maxOutputTokens: 2600,
+              maxOutputTokens: 4000,
             },
           }),
           signal: controller.signal,
@@ -772,7 +800,7 @@ const callLlm = async (settings: LlmSettings, query: string, homelyContext?: str
         temperature: 0.2,
         messages: [{ role: 'user', content: prompt }],
         response_format: { type: 'json_object' },
-        max_completion_tokens: 2600,
+        max_completion_tokens: 4000,
       }),
       signal: controller.signal,
     })
