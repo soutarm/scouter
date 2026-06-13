@@ -809,11 +809,11 @@ button:focus-visible {
   color: #385542;
   display: flex;
   flex: 1;
-  flex-direction: column;
+  flex-direction: row;
   font-weight: 900;
-  gap: 4px;
+  gap: 6px;
   justify-content: center;
-  padding: 9px 6px;
+  padding: 11px 8px;
 }
 
 .tabs button.active {
