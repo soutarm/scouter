@@ -1562,9 +1562,10 @@ td {
   border: 1px solid rgba(74, 111, 81, 0.14);
   border-radius: 14px;
   display: flex;
-  flex: 1 1 0;
+  flex: 1 1 110px;
   flex-direction: column;
   gap: 2px;
+  max-width: 160px;
   min-width: 90px;
   padding: 14px 12px 12px;
   text-align: center;
