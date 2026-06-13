@@ -13,6 +13,7 @@ export const CrimeBar = ({ label, level }: Props) => {
   return (
     <div className="crime-bar-row">
       <span className="crime-bar-label">{label}</span>
+      <span className="crime-bar-level" style={{ color: CRIME_LEVEL_COLORS[level] }}>{level}</span>
       <div className="crime-bar-track" aria-label={`${label}: ${level}`}>
         {([1, 2, 3, 4] as const).map((step) => (
           <span
@@ -23,7 +24,6 @@ export const CrimeBar = ({ label, level }: Props) => {
           />
         ))}
       </div>
-      <span className="crime-bar-level" style={{ color: CRIME_LEVEL_COLORS[level] }}>{level}</span>
     </div>
   )
 }

@@ -2172,7 +2172,8 @@ td {
   align-items: center;
   display: grid;
   gap: 10px;
-  grid-template-columns: minmax(80px, 1fr) auto minmax(0, auto);
+  /* label | level text (fixed) | dots */
+  grid-template-columns: minmax(80px, 1fr) 5.5rem auto;
   min-width: 0;
 }
 
@@ -2199,8 +2200,7 @@ td {
   font-size: 0.76rem;
   font-weight: 900;
   letter-spacing: 0.04em;
-  min-width: 0;
-  text-align: right;
+  text-align: left;
   text-transform: uppercase;
   white-space: nowrap;
 }
