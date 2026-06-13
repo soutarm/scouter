@@ -110,22 +110,7 @@ p {
 }
 
 .brand-letter-r {
-  position: relative;
   transform: rotate(0.75deg) scaleX(0.99);
-}
-
-.brand-letter-r::after {
-  background: currentColor;
-  border-radius: 999px;
-  bottom: 0.02em;
-  content: '';
-  height: 0.055em;
-  opacity: 0.9;
-  position: absolute;
-  right: -0.025em;
-  transform: rotate(-28deg);
-  transform-origin: right center;
-  width: 0.24em;
 }
 
 h2 {
