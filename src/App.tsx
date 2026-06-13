@@ -725,29 +725,17 @@ const IconUnit = () => (
   </svg>
 )
 
-// Site logo wordmarks as inline SVG
+// Site logos using real favicons
 const LogoRealEstate = () => (
-  <svg aria-label="realestate.com.au" viewBox="0 0 140 22" fill="none" xmlns="http://www.w3.org/2000/svg" className="listing-site-logo">
-    <rect x="0" y="2" width="18" height="18" rx="3" fill="#e8001c" />
-    <path d="M5 15V7h5.5a2.5 2.5 0 0 1 0 5H9l3.5 3H10l-3-3v3H5Zm2-5h3a.5.5 0 0 0 0-1H7v1Z" fill="#fff" />
-    <text x="22" y="15.5" fontFamily="system-ui, sans-serif" fontSize="9.5" fontWeight="700" fill="#1a1a1a" letterSpacing="-0.2">realestate.com.au</text>
-  </svg>
+  <img src="./logo-rea.png" alt="realestate.com.au" className="listing-site-logo" />
 )
 
 const LogoDomain = () => (
-  <svg aria-label="domain.com.au" viewBox="0 0 120 22" fill="none" xmlns="http://www.w3.org/2000/svg" className="listing-site-logo">
-    <rect x="0" y="2" width="18" height="18" rx="3" fill="#1c1c1c" />
-    <path d="M5 15V7h3.5a4 4 0 0 1 0 8H5Zm2-1.5h1.5a2.5 2.5 0 0 0 0-5H7v5Z" fill="#fff" />
-    <text x="22" y="15.5" fontFamily="system-ui, sans-serif" fontSize="9.5" fontWeight="700" fill="#1a1a1a" letterSpacing="-0.2">domain.com.au</text>
-  </svg>
+  <img src="./logo-domain.png" alt="domain.com.au" className="listing-site-logo" />
 )
 
 const LogoHomely = () => (
-  <svg aria-label="homely.com.au" viewBox="0 0 120 22" fill="none" xmlns="http://www.w3.org/2000/svg" className="listing-site-logo">
-    <rect x="0" y="2" width="18" height="18" rx="3" fill="#f26722" />
-    <path d="M9 5.5 4 9.5V16h4v-3.5h2V16h4V9.5L9 5.5Z" fill="#fff" />
-    <text x="22" y="15.5" fontFamily="system-ui, sans-serif" fontSize="9.5" fontWeight="700" fill="#1a1a1a" letterSpacing="-0.2">homely.com.au</text>
-  </svg>
+  <img src="./logo-homely.png" alt="homely.com.au" className="listing-site-logo" />
 )
 
 const DemographicPieChart = ({ title, data }: { title: string; data: DemographicDatum[] | undefined }) => {
@@ -1550,14 +1538,12 @@ function App() {
                           },
                         ] as const).map(({ Logo, links }) => (
                           <div key={Logo.name} className="listing-site-card">
-                            <div className="listing-site-header">
-                              <Logo />
-                            </div>
+                            <Logo />
+                            <div className="listing-site-divider" aria-hidden="true" />
                             <div className="listing-link-row">
                               {links.map(({ href, label, Icon }) => (
-                                <a key={label} href={href} target="_blank" rel="noreferrer" className="listing-link">
+                                <a key={label} href={href} target="_blank" rel="noreferrer" className="listing-link" aria-label={label} title={label}>
                                   <Icon />
-                                  <span>{label}</span>
                                 </a>
                               ))}
                             </div>

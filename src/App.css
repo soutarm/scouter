@@ -1355,56 +1355,63 @@ td {
 }
 
 .listing-site-card {
+  align-items: center;
   background: #fff;
   border: 1px solid rgba(74, 111, 81, 0.13);
-  border-radius: 16px;
+  border-radius: 14px;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px 14px 12px;
-}
-
-.listing-site-header {
-  border-bottom: 1px solid rgba(74, 111, 81, 0.1);
-  padding-bottom: 10px;
+  flex-direction: row;
+  gap: 12px;
+  padding: 10px 14px;
 }
 
 .listing-site-logo {
+  border-radius: 8px;
   display: block;
-  height: 22px;
-  width: auto;
+  flex-shrink: 0;
+  height: 36px;
+  object-fit: contain;
+  width: 36px;
+}
+
+.listing-site-divider {
+  background: rgba(74, 111, 81, 0.15);
+  flex-shrink: 0;
+  height: 24px;
+  width: 1px;
 }
 
 .listing-link-row {
+  align-items: center;
   display: flex;
-  flex-direction: column;
-  gap: 7px;
+  flex-direction: row;
+  gap: 6px;
 }
 
 .listing-link {
   align-items: center;
   background: #f1f8ed;
   border: 1px solid rgba(74, 111, 81, 0.14);
-  border-radius: 999px;
+  border-radius: 10px;
   color: #244b31;
   display: flex;
-  font-size: 0.84rem;
-  font-weight: 700;
-  gap: 7px;
-  padding: 7px 12px;
+  justify-content: center;
+  padding: 7px;
   text-decoration: none;
-  transition: background 160ms ease, border-color 160ms ease;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
 }
 
 .listing-link svg {
+  display: block;
   flex-shrink: 0;
-  height: 15px;
-  width: 15px;
+  height: 18px;
+  width: 18px;
 }
 
 .listing-link:hover {
   background: #e3f4dc;
-  border-color: rgba(74, 111, 81, 0.28);
+  border-color: rgba(74, 111, 81, 0.3);
+  color: #1a3d25;
 }
 
 /* Safety / Crime / Insurance */
