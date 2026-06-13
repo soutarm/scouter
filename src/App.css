@@ -1631,6 +1631,22 @@ td {
   gap: 8px;
 }
 
+.infra-station-list-inline {
+  background: #f1f8ed;
+  border-radius: 14px;
+  gap: 0;
+  overflow: hidden;
+}
+
+.infra-station-list-inline .infra-station-row {
+  border-radius: 0;
+  border-bottom: 1px solid rgba(74, 111, 81, 0.1);
+}
+
+.infra-station-list-inline .infra-station-row:last-child {
+  border-bottom: none;
+}
+
 .infra-station-row {
   align-items: center;
   background: #fff;

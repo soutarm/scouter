@@ -1895,20 +1895,20 @@ function App() {
                        ))}
                      </div>
 
-                     {/* Train stations list */}
+                     {/* Train station names inline under the stat chips */}
                      {review.infrastructure.trainStations && review.infrastructure.trainStations.length > 0 && (
-                       <div className="infra-card">
-                         <h3>Train Stations</h3>
-                         <div className="infra-station-list">
-                           {review.infrastructure.trainStations.map((st) => (
-                             <div key={st.name} className="infra-station-row">
-                               <span className="infra-station-name">{st.name}</span>
-                               <span className="infra-station-lines">{st.lines}</span>
-                             </div>
-                           ))}
-                         </div>
+                       <div className="infra-station-list infra-station-list-inline">
+                         {review.infrastructure.trainStations.map((st) => (
+                           <div key={st.name} className="infra-station-row">
+                             <span className="infra-station-name">🚉 {st.name}</span>
+                             <span className="infra-station-lines">{st.lines}</span>
+                           </div>
+                         ))}
                          {review.infrastructure.tramStops && (
-                           <p className="infra-tram-note">{review.infrastructure.tramStops}</p>
+                           <div className="infra-station-row">
+                             <span className="infra-station-name">🚋 Tram stops</span>
+                             <span className="infra-station-lines">{review.infrastructure.tramStops}</span>
+                           </div>
                          )}
                        </div>
                      )}
