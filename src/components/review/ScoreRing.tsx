@@ -111,6 +111,13 @@ export const ScoreRing = ({ scores, onCategoryClick }: Props) => {
           const val = scores[key]
           const colour = scoreColour(val)
           const tabKey = key === 'safety' ? 'crime' : key
+          // Mini arc maths (same technique as main ring, scaled to r=13)
+          const r = 13, sw = 3
+          const circ = 2 * Math.PI * r
+          const arcLen = 0.75 * circ
+          const offset = arcLen - (val / 10) * arcLen
+          const chipSize = (r + sw / 2 + 2) * 2
+          const c = chipSize / 2
           return (
             <button
               key={key}
@@ -119,10 +126,27 @@ export const ScoreRing = ({ scores, onCategoryClick }: Props) => {
               role="listitem"
               onClick={() => onCategoryClick?.(tabKey)}
               title={`${label}: ${val}/10`}
-              style={{ '--cat-colour': colour } as React.CSSProperties}
             >
+              {/* Mini arc with score number inside */}
+              <div className="score-ring-cat-dial">
+                <svg viewBox={`0 0 ${chipSize} ${chipSize}`} aria-hidden="true"
+                  style={{ width: chipSize, height: chipSize }}>
+                  {/* Track */}
+                  <circle cx={c} cy={c} r={r} fill="none"
+                    stroke="rgba(255,255,255,0.13)" strokeWidth={sw}
+                    strokeDasharray={`${arcLen} ${circ}`} strokeDashoffset={0}
+                    strokeLinecap="round" transform={`rotate(135 ${c} ${c})`} />
+                  {/* Fill */}
+                  <circle cx={c} cy={c} r={r} fill="none"
+                    stroke={colour} strokeWidth={sw}
+                    strokeDasharray={`${arcLen} ${circ}`} strokeDashoffset={offset}
+                    strokeLinecap="round" transform={`rotate(135 ${c} ${c})`}
+                    style={{ filter: `drop-shadow(0 0 3px ${colour}99)` }} />
+                </svg>
+                <span className="score-ring-cat-score">{val}</span>
+              </div>
+              {/* Icon below the ring */}
               <span className="score-ring-cat-icon"><Icon /></span>
-              <span className="score-ring-cat-score">{val}</span>
             </button>
           )
         })}

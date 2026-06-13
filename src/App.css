@@ -907,14 +907,14 @@ button:focus-visible {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  color: var(--cat-colour, #f7fff2);
+  color: #f7fff2;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   gap: 3px;
-  padding: 7px 6px 6px;
+  padding: 6px 5px 7px;
   transition: background 160ms ease, transform 160ms ease;
-  width: 46px;
+  width: 52px;
 }
 
 .score-ring-cat:hover {
@@ -922,21 +922,31 @@ button:focus-visible {
   transform: translateY(-2px);
 }
 
-.score-ring-cat-icon {
+/* Dial wrapper: SVG ring + icon overlaid in centre */
+.score-ring-cat-dial {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
+.score-ring-cat-icon {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+}
+
 .score-ring-cat-icon svg {
-  height: 16px;
-  width: 16px;
+  height: 14px;
+  opacity: 0.75;
+  stroke: #f7fff2;
   stroke-width: 2;
+  width: 14px;
 }
 
 .score-ring-cat-score {
   color: #f7fff2;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 900;
   line-height: 1;
 }
