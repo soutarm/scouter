@@ -364,6 +364,7 @@ const tabs: Array<{ key: ReviewSectionKey; label: string }> = [
   { key: 'infrastructure', label: 'Infrastructure' },
   { key: 'demographics', label: 'Demographics' },
   { key: 'environment', label: 'Environment' },
+  { key: 'map', label: 'Map' },
 ]
 
 const loadSettings = (): LlmSettings => {
@@ -1682,21 +1683,14 @@ function App() {
                     <button
                       key={tab.key}
                       type="button"
-                      className={activeTab === tab.key ? 'active' : ''}
+                      className={`${activeTab === tab.key ? 'active' : ''}${tab.key === 'map' ? ' tab-map-btn' : ''}`}
                       onClick={() => setActiveTab(tab.key)}
+                      aria-label={tab.key === 'map' ? 'Map' : undefined}
+                      title={tab.key === 'map' ? 'Map' : undefined}
                     >
-                      {tab.label}
+                      {tab.key === 'map' ? <MapIcon /> : tab.label}
                     </button>
                   ))}
-                  <button
-                    type="button"
-                    className={`tab-map-btn${activeTab === 'map' ? ' active' : ''}`}
-                    onClick={() => setActiveTab('map')}
-                    aria-label="Map"
-                    title="Map"
-                  >
-                    <MapIcon />
-                  </button>
                 </nav>
 
                 {activeTab === 'property' && (
