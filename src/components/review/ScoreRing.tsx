@@ -21,13 +21,19 @@ const R = 72          // circle radius
 const STROKE = 11     // stroke width
 const CIRCUMFERENCE = 2 * Math.PI * R
 
-// The arc starts at 12 o'clock (-90°) and sweeps 270° (leaving a 90° gap at the bottom)
-const ARC_SWEEP = 0.75   // fraction of full circle
-const GAP_OFFSET_DEG = 135  // rotate so gap sits at bottom-centre
+// The arc sweeps 270° (leaving a 90° gap at the bottom-centre)
+const ARC_SWEEP = 0.75
+const ARC_LENGTH = ARC_SWEEP * CIRCUMFERENCE   // total drawable arc length
+const GAP_OFFSET_DEG = 135  // rotate so the gap sits at the bottom
 
-// Converts a 1-10 score to the dashoffset that draws the correct arc length
+// Standard "draw-on" technique:
+//   dasharray  = "ARC_LENGTH  CIRCUMFERENCE"  (one dash of ARC_LENGTH, then invisible gap)
+//   dashoffset = ARC_LENGTH - filledLength     (hides the tail of the dash)
+//
+// score 10/10  → filledLength = ARC_LENGTH  → offset = 0          (fully filled)
+// score  0/10  → filledLength = 0           → offset = ARC_LENGTH (fully hidden)
 const scoreToOffset = (score: number) =>
-  CIRCUMFERENCE - (score / 10) * ARC_SWEEP * CIRCUMFERENCE
+  ARC_LENGTH - (score / 10) * ARC_LENGTH
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -41,10 +47,10 @@ export const ScoreRing = ({ scores, onCategoryClick }: Props) => {
   useEffect(() => {
     const el = arcRef.current
     if (!el) return
-    // Start fully empty, then transition to target
-    el.style.strokeDashoffset = String(CIRCUMFERENCE * ARC_SWEEP + CIRCUMFERENCE * (1 - ARC_SWEEP) / 2 + CIRCUMFERENCE * (1 - ARC_SWEEP) / 2)
+    // Start fully hidden (offset = ARC_LENGTH), animate to target
     el.style.transition = 'none'
-    // Force reflow so the starting state registers
+    el.style.strokeDashoffset = String(ARC_LENGTH)
+    // Force reflow so the starting state registers before the transition kicks in
     void el.getBoundingClientRect()
     el.style.transition = 'stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1)'
     el.style.strokeDashoffset = String(targetOffset)
@@ -64,25 +70,25 @@ export const ScoreRing = ({ scores, onCategoryClick }: Props) => {
           viewBox={`0 0 ${size} ${size}`}
           aria-hidden="true"
         >
-          {/* Track (background circle) */}
+          {/* Track (background circle — always shows the full 270° arc) */}
           <circle
             cx={cx} cy={cy} r={R}
             fill="none"
             stroke="rgba(255,255,255,0.12)"
             strokeWidth={STROKE}
-            strokeDasharray={`${ARC_SWEEP * CIRCUMFERENCE} ${CIRCUMFERENCE}`}
+            strokeDasharray={`${ARC_LENGTH} ${CIRCUMFERENCE}`}
             strokeDashoffset={0}
             strokeLinecap="round"
             transform={`rotate(${GAP_OFFSET_DEG} ${cx} ${cy})`}
           />
-          {/* Fill arc — animated via ref */}
+          {/* Fill arc — dashoffset reveals the correct proportion; animated via ref */}
           <circle
             ref={arcRef}
             cx={cx} cy={cy} r={R}
             fill="none"
             stroke={overallColour}
             strokeWidth={STROKE}
-            strokeDasharray={`${ARC_SWEEP * CIRCUMFERENCE} ${CIRCUMFERENCE}`}
+            strokeDasharray={`${ARC_LENGTH} ${CIRCUMFERENCE}`}
             strokeDashoffset={targetOffset}
             strokeLinecap="round"
             transform={`rotate(${GAP_OFFSET_DEG} ${cx} ${cy})`}
