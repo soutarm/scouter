@@ -341,19 +341,7 @@ button:focus-visible {
   position: relative;
 }
 
-.hero-panel::after {
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.48), rgba(255, 255, 255, 0.08)),
-    linear-gradient(135deg, rgba(214, 120, 93, 0.14), rgba(36, 75, 49, 0.08));
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  border-radius: 42% 58% 48% 52% / 50% 44% 56% 50%;
-  content: '';
-  height: 290px;
-  position: absolute;
-  right: -88px;
-  top: -112px;
-  width: 330px;
-}
+
 
 .hero-panel.collapsed {
   display: block;

@@ -747,15 +747,6 @@ const callLlm = async (settings: LlmSettings, query: string, homelyContext?: str
   }
 }
 
-const ScouterMark = ({ className = '' }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 74 74" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <g transform="rotate(-6 37 37)">
-      <path className="brand-mark-road brand-mark-road-light" d="M57 13C52 4 28 6 24 17C20 27 32 30 42 32C58 36 62 48 50 58C40 66 24 62 20 51" />
-      <path className="brand-mark-road brand-mark-road-mid" d="M58 21C53 12 31 14 26 25C23 34 35 38 44 40C60 44 64 55 51 65C42 72 27 68 22 58" />
-      <path className="brand-mark-road brand-mark-road-dark" d="M59 29C54 20 34 22 29 32C26 41 38 45 47 47C61 51 64 61 52 69C44 74 31 72 25 65" />
-    </g>
-  </svg>
-)
 
 const ThermometerRange = ({ label, description }: { label: string; description: string }) => {
   const profile = extractTemperatureProfile(description)
@@ -1238,20 +1229,15 @@ function App() {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <div className="brand-lockup">
-          <ScouterMark className="brand-mark" />
-          <div className="brand-copy">
-            <h1 className="brand-wordmark" aria-label="Scouter">
-              <span className="brand-letter brand-letter-s" aria-hidden="true">S</span>
-              <span className="brand-letter" aria-hidden="true">C</span>
-              <span className="brand-letter" aria-hidden="true">O</span>
-              <span className="brand-letter" aria-hidden="true">U</span>
-              <span className="brand-letter" aria-hidden="true">T</span>
-              <span className="brand-letter" aria-hidden="true">E</span>
-              <span className="brand-letter brand-letter-r" aria-hidden="true">R</span>
-            </h1>
-          </div>
-        </div>
+        <h1 className="brand-wordmark" aria-label="Scouter">
+          <span className="brand-letter brand-letter-s" aria-hidden="true">S</span>
+          <span className="brand-letter" aria-hidden="true">C</span>
+          <span className="brand-letter" aria-hidden="true">O</span>
+          <span className="brand-letter" aria-hidden="true">U</span>
+          <span className="brand-letter" aria-hidden="true">T</span>
+          <span className="brand-letter" aria-hidden="true">E</span>
+          <span className="brand-letter brand-letter-r" aria-hidden="true">R</span>
+        </h1>
         <button
           className="settings-button"
           type="button"
@@ -1421,7 +1407,11 @@ function App() {
                       fetchSuggestions(event.target.value)
                     }}
                     onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                    onFocus={() => { if (suggestions.length) setShowSuggestions(true) }}
+                    onFocus={() => {
+                      setQuery('')
+                      setSuggestions([])
+                      setShowSuggestions(false)
+                    }}
                     autoComplete="off"
                     disabled={isLoading}
                   />
