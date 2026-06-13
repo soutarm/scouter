@@ -1247,21 +1247,16 @@ button:focus-visible {
 }
 
 .demographic-panel {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 18px;
-  /* Copy + first chart side-by-side; extra charts flow below full-width */
-  grid-template-columns: minmax(0, 1.08fr) minmax(260px, 0.92fr);
-}
-
-/* Charts beyond the first two fill the full row */
-.demographic-panel > .demographic-chart-card:nth-child(n+3) {
-  grid-column: 1 / -1;
 }
 
 .demographic-copy,
 .demographic-chart-card {
   background: #f1f8ed;
   border-radius: 18px;
+  flex: 0 1 auto;
   padding: 18px;
 }
 
@@ -1277,9 +1272,7 @@ button:focus-visible {
 .demographic-stats {
   display: grid;
   gap: 10px;
-  /* Population and Median Age stacked vertically */
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto;
   margin-top: 4px;
 }
 
@@ -1290,9 +1283,28 @@ button:focus-visible {
   padding: 14px;
 }
 
-/* Population sits at the top, Median Age always last (bottom) */
-.demographic-stats-pop  { order: 1; }
-.demographic-stats-age  { order: 2; }
+/* Median Age footer stat — sits at the bottom of the Age Profile card */
+.demographic-chart-footer-stat {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(74, 111, 81, 0.12);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.demographic-chart-footer-stat span {
+  color: #637568;
+  display: block;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+.demographic-chart-footer-stat strong {
+  color: #1b3b28;
+  font-size: 1.3rem;
+}
 
 .demographic-stats span {
   color: #637568;

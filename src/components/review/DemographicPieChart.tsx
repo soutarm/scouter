@@ -13,9 +13,9 @@ const normalizeDemographicData = (data: DemographicDatum[] | undefined) => {
   }))
 }
 
-type Props = { title: string; data: DemographicDatum[] | undefined }
+type Props = { title: string; data: DemographicDatum[] | undefined; footerStat?: { label: string; value: string } }
 
-export const DemographicPieChart = ({ title, data }: Props) => {
+export const DemographicPieChart = ({ title, data, footerStat }: Props) => {
   const segments = normalizeDemographicData(data)
 
   if (!segments.length) {
@@ -58,6 +58,12 @@ export const DemographicPieChart = ({ title, data }: Props) => {
           ))}
         </ul>
       </div>
+      {footerStat && (
+        <div className="demographic-chart-footer-stat">
+          <span>{footerStat.label}</span>
+          <strong>{footerStat.value}</strong>
+        </div>
+      )}
     </div>
   )
 }

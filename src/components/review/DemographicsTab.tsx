@@ -15,30 +15,24 @@ export const DemographicsTab = ({ review }: Props) => {
         <p className="eyebrow">Resident profile</p>
         <h3>Demographic snapshot</h3>
         <p>{demographicSummary}</p>
-        {/* Population stat — full width above Median Age */}
-        {(review.demographics?.population || review.demographics?.medianAge) && (
+        {review.demographics?.population && (
           <div className="demographic-stats">
-            {review.demographics?.population && (
-              <div className="demographic-stats-pop">
-                <span>Population</span>
-                <strong>{review.demographics.population}</strong>
-              </div>
-            )}
-            {review.demographics?.medianAge && (
-              <div className="demographic-stats-age">
-                <span>Median age</span>
-                <strong>{review.demographics.medianAge}</strong>
-              </div>
-            )}
+            <div>
+              <span>Population</span>
+              <strong>{review.demographics.population}</strong>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Age profile */}
+      {/* Age profile — Median Age appears as footer stat inside this card */}
       {ageData?.length ? (
         <DemographicPieChart
           title={review.demographics?.ageGroups?.length ? 'Age profile' : 'Household mix'}
           data={ageData}
+          footerStat={review.demographics?.medianAge
+            ? { label: 'Median age', value: review.demographics.medianAge }
+            : undefined}
         />
       ) : null}
 
