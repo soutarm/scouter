@@ -62,6 +62,12 @@ export const parseReview = (content: string): Review => {
   if (typeof parsed.crime === 'string') {
     parsed.crime = { narrative: parsed.crime as unknown as string, insuranceImpact: '' }
   }
+  // Always compute overall from the five sub-scores rather than trusting the LLM value
+  if (parsed.scores) {
+    const { property, safety, infrastructure, demographics, environment } = parsed.scores
+    const avg = (property + safety + infrastructure + demographics + environment) / 5
+    parsed.scores.overall = Math.round(avg * 10) / 10
+  }
   if (parsed.exists === false && parsed.summary) {
     return parsed
   }

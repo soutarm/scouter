@@ -35,7 +35,7 @@ export type SuburbSuggestion = {
 }
 
 export type ReviewScores = {
-  overall: number        // 1–10
+  overall: number        // computed client-side: average of the five sub-scores
   property: number
   safety: number
   infrastructure: number

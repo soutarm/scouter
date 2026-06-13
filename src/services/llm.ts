@@ -199,7 +199,6 @@ JSON shape:
     ]
   },
   "scores": {
-    "overall": 7,
     "property": 7,
     "safety": 8,
     "infrastructure": 7,
@@ -211,7 +210,6 @@ JSON shape:
 }
 
 Scoring guide (integer 1–10, higher = better for liveability):
-- overall: weighted composite of the five category scores
 - property: value for money, growth prospects, rental yield quality
 - safety: low crime, low insurance loading, community safety feel
 - infrastructure: transit access, schools, amenities, CBD connectivity

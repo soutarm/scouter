@@ -40,17 +40,9 @@ const scoreToOffset = (score: number) =>
 
 type Props = { scores: ReviewScores; onCategoryClick?: (key: string) => void }
 
-// Derive a 1-decimal overall from the five sub-scores for extra precision
-const subScoreDecimal = (scores: ReviewScores): string => {
-  const avg =
-    (scores.property + scores.safety + scores.infrastructure + scores.demographics + scores.environment) / 5
-  const decimal = Math.round((avg % 1) * 10)
-  return `.${decimal}`
-}
-
 export const ScoreRing = ({ scores, onCategoryClick }: Props) => {
   const arcRef = useRef<SVGCircleElement>(null)
-  const targetOffset = scoreToOffset(Math.max(1, Math.min(10, scores.overall)))
+  const targetOffset = scoreToOffset(Math.max(0, Math.min(10, scores.overall)))
 
   // Animate the arc fill on mount / score change
   useEffect(() => {
@@ -105,14 +97,19 @@ export const ScoreRing = ({ scores, onCategoryClick }: Props) => {
           />
         </svg>
 
-        {/* Centre label */}
-        <div className="score-ring-centre">
-          <div className="score-ring-number-wrap">
-            <span className="score-ring-number">{scores.overall}</span>
-            <span className="score-ring-decimal">{subScoreDecimal(scores)}</span>
-          </div>
-          <span className="score-ring-label">Overall</span>
-        </div>
+        {/* Centre label — overall is a computed float e.g. 7.4 */}
+        {(() => {
+          const [whole, dec] = scores.overall.toFixed(1).split('.')
+          return (
+            <div className="score-ring-centre">
+              <div className="score-ring-number-wrap">
+                <span className="score-ring-number">{whole}</span>
+                <span className="score-ring-decimal">.{dec}</span>
+              </div>
+              <span className="score-ring-label">Overall</span>
+            </div>
+          )
+        })()}
       </div>
 
       {/* Category row */}
