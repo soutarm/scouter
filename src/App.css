@@ -1438,7 +1438,8 @@ td {
 /* Noise section */
 .noise-panel {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
   gap: 14px;
 }
 
@@ -1447,11 +1448,10 @@ td {
   background: #f1f8ed;
   border-radius: 18px;
   display: flex;
+  flex: 1 1 0;
   flex-direction: column;
   gap: 10px;
-  max-width: 50%;
   padding: 18px;
-  width: 50%;
 }
 
 .noise-bars-card {
@@ -1504,11 +1504,10 @@ td {
   border: 1px solid rgba(74, 111, 81, 0.13);
   border-radius: 18px;
   display: flex;
+  flex: 1 1 0;
   flex-direction: column;
   gap: 0;
-  max-width: 50%;
   overflow: hidden;
-  width: 50%;
 }
 
 .noise-factor-row {
@@ -1947,8 +1946,7 @@ td {
 
   .noise-rating-card,
   .noise-factors {
-    max-width: 100%;
-    width: 100%;
+    flex: 1 1 100%;
   }
 
   .infra-narrative-grid {
