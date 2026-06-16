@@ -874,10 +874,8 @@ function App() {
                       type="button"
                       className={`${activeTab === tab.key ? 'active' : ''}${tab.key === 'map' ? ' tab-map-btn' : ''}`}
                       onClick={() => setActiveTab(tab.key)}
-                      aria-label={tab.key === 'map' ? 'Map' : undefined}
-                      title={tab.key === 'map' ? 'Map' : undefined}
                     >
-                      {tab.key === 'map' ? <MapIcon /> : <>{TAB_ICONS[tab.key]}{tab.label}</>}
+                      {TAB_ICONS[tab.key]}{tab.label}
                     </button>
                   ))}
                 </nav>

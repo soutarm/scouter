@@ -2820,6 +2820,23 @@ td {
     flex: 1 1 44%;
   }
 
+  .tab-map-btn {
+    background: transparent !important;
+    border-radius: 999px !important;
+    box-shadow: none !important;
+    color: #385542 !important;
+    flex: 1 1 44% !important;
+    height: auto !important;
+    padding: 11px 8px !important;
+    width: auto !important;
+  }
+
+  .tab-map-btn.active {
+    background: #ffffff !important;
+    box-shadow: 0 8px 20px rgba(33, 64, 40, 0.1) !important;
+    color: #17351f !important;
+  }
+
   .references-drawer {
     --references-panel-width: min(340px, calc(100vw - 58px));
     --references-tab-width: 34px;
