@@ -68,10 +68,23 @@ export const PropertyTab = ({ review }: Props) => {
     <section className="tab-panel">
       <h3>Property Market &amp; Rental Realities</h3>
       <p>{review.marketNarrative}</p>
-      {review.stateMedianGrowth && (
+      {(review.stateMedianGrowth || review.capitalCityGrowth) && (
         <div className="state-benchmark-banner">
-          <span className="state-benchmark-label">{stateUp} state median growth (12-month)</span>
-          <span className="state-benchmark-value">{review.stateMedianGrowth}</span>
+          {review.stateMedianGrowth && (
+            <div className="state-benchmark-item">
+              <span className="state-benchmark-label">{stateUp} state</span>
+              <span className="state-benchmark-value">{review.stateMedianGrowth}</span>
+            </div>
+          )}
+          {review.stateMedianGrowth && review.capitalCityGrowth && (
+            <div className="state-benchmark-divider" aria-hidden="true" />
+          )}
+          {review.capitalCityGrowth && (
+            <div className="state-benchmark-item">
+              <span className="state-benchmark-label">Capital city</span>
+              <span className="state-benchmark-value">{review.capitalCityGrowth}</span>
+            </div>
+          )}
         </div>
       )}
       <div className="table-wrap">

@@ -56,6 +56,7 @@ export type Review = {
   marketNarrative: string
   marketRows: MarketRow[]
   stateMedianGrowth?: string
+  capitalCityGrowth?: string
   climate: {
     summerAverages: string
     winterAverages: string

@@ -95,6 +95,7 @@ JSON shape:
     { "propertyType": "Units / Townhouses", "medianPrice": "AUD $...", "twelveMonthGrowth": "...%", "medianWeeklyRent": "AUD $...", "grossYield": "...%" }
   ],
   "stateMedianGrowth": "The current 12-month median property price growth for the state (e.g. '+2.5%'). Use the latest available data for the state this suburb is in. This is used as the benchmark midpoint for scoring the suburb's growth relative to the state average.",
+  "capitalCityGrowth": "The current 12-month median property price growth for the capital city / greater metro region of the state (e.g. 'Greater Sydney +3.1%', 'Greater Melbourne +1.8%', 'Greater Brisbane +11.2%'). Include the city region name followed by the growth figure. For ACT use 'Greater Canberra'; for NT use 'Greater Darwin'; for TAS use 'Greater Hobart'.",
   "climate": {
     "summerAverages": "Average high and low temperatures plus seasonal behaviour.",
     "winterAverages": "Average high and low temperatures plus rainfall/cloud/frost behaviour.",
