@@ -1445,46 +1445,39 @@ button:focus-visible {
   width: 100%;
 }
 
-.state-benchmark-banner {
-  align-items: center;
+.state-benchmark-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.state-benchmark-pill {
+  align-items: baseline;
   background: rgba(237, 248, 232, 0.7);
   border: 1px solid rgba(74, 111, 81, 0.18);
   border-radius: 10px;
   display: flex;
-  gap: 0;
-  margin-top: 14px;
-  padding: 10px 18px;
-}
-
-.state-benchmark-item {
-  align-items: baseline;
-  display: flex;
-  flex: 1;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.state-benchmark-item:last-child {
-  justify-content: flex-end;
-}
-
-.state-benchmark-divider {
-  background: rgba(74, 111, 81, 0.2);
-  flex-shrink: 0;
-  height: 28px;
-  margin: 0 16px;
-  width: 1px;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 16px;
+  width: 50%;
 }
 
 .state-benchmark-label {
   color: #4a6f51;
-  font-size: 0.83rem;
+  font-size: 0.8rem;
 }
 
 .state-benchmark-value {
   color: #1f4d36;
-  font-size: 0.93rem;
-  font-weight: 650;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.th-sub {
+  color: #6a8f72;
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
 .table-wrap {
@@ -1522,6 +1515,10 @@ td {
   display: grid;
   gap: 16px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.climate-panel--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .feature-grid div,
@@ -1936,6 +1933,10 @@ td {
   display: flex;
   flex-wrap: wrap;
   gap: 18px;
+}
+
+.wind-climate-card {
+  align-items: center;
 }
 
 .wind-rose-wrap {
@@ -2744,6 +2745,7 @@ td {
   .not-found-card,
   .split-panel,
   .climate-panel,
+  .climate-panel--three,
   .demographic-chart-layout,
   .feature-grid,
   .empty-state {

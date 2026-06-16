@@ -9,7 +9,7 @@ export const EnvironmentTab = ({ review }: Props) => (
   <section className="tab-panel environment-panel">
     <div className="environment-section">
       <p className="eyebrow">Climate</p>
-      <div className="climate-panel">
+      <div className={`climate-panel${review.climate.wind ? ' climate-panel--three' : ''}`}>
         <div className="climate-card">
           <h3>Summer Averages</h3>
           <ThermometerRange label="Summer min / max" description={review.climate.summerAverages} />
@@ -20,6 +20,19 @@ export const EnvironmentTab = ({ review }: Props) => (
           <ThermometerRange label="Winter min / max" description={review.climate.winterAverages} />
           <p>{review.climate.winterAverages}</p>
         </div>
+        {review.climate.wind && (
+          <div className="climate-card wind-climate-card">
+            <h3>Wind</h3>
+            {review.climate.wind.directions?.length > 0 && (
+              <WindRoseChart
+                directions={review.climate.wind.directions}
+                predominantDirection={review.climate.wind.predominantDirection}
+                averageSpeedKmh={review.climate.wind.averageSpeedKmh}
+              />
+            )}
+            <p className="wind-seasonal">{review.climate.wind.seasonalVariation}</p>
+          </div>
+        )}
       </div>
     </div>
 
@@ -63,25 +76,6 @@ export const EnvironmentTab = ({ review }: Props) => (
           { icon: '🏭', label: 'Industrial zones', value: review.climate.noise.industrialZones },
         ]}
       />
-    )}
-
-    {review.climate.wind && (
-      <div className="environment-section">
-        <p className="eyebrow">Wind</p>
-        <p className="environment-summary">{review.climate.wind.overallSummary}</p>
-        <div className="wind-section">
-          {review.climate.wind.directions?.length > 0 && (
-            <WindRoseChart
-              directions={review.climate.wind.directions}
-              predominantDirection={review.climate.wind.predominantDirection}
-              averageSpeedKmh={review.climate.wind.averageSpeedKmh}
-            />
-          )}
-          <div className="wind-detail">
-            <p className="wind-seasonal">{review.climate.wind.seasonalVariation}</p>
-          </div>
-        </div>
-      </div>
     )}
   </section>
 )

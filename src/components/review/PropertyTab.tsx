@@ -33,6 +33,14 @@ export const PropertyTab = ({ review }: Props) => {
   const stateUp = review.state.toUpperCase()
   const stateLow = review.state.toLowerCase()
   const pc = review.postcode ?? ''
+
+  const growthPeriodLabel = (() => {
+    try {
+      const d = new Date(review.generatedAt)
+      if (isNaN(d.getTime())) return null
+      return d.toLocaleDateString('en-AU', { month: 'short', year: 'numeric' })
+    } catch { return null }
+  })()
   const domainSlug = `${slug}-${stateLow}${pc ? `-${pc}` : ''}`
   const homelySlug = `${slug}-${stateLow}${pc ? `-${pc}` : ''}`
   const reaLocation = `${slugPlus},+${stateUp}${pc ? `+${pc}` : ''}`
@@ -69,19 +77,16 @@ export const PropertyTab = ({ review }: Props) => {
       <h3>Property Market &amp; Rental Realities</h3>
       <p>{review.marketNarrative}</p>
       {(review.stateMedianGrowth || review.capitalCityGrowth) && (
-        <div className="state-benchmark-banner">
+        <div className="state-benchmark-row">
           {review.stateMedianGrowth && (
-            <div className="state-benchmark-item">
-              <span className="state-benchmark-label">{stateUp} state</span>
+            <div className="state-benchmark-pill">
+              <span className="state-benchmark-label">{stateUp} state (12-month)</span>
               <span className="state-benchmark-value">{review.stateMedianGrowth}</span>
             </div>
           )}
-          {review.stateMedianGrowth && review.capitalCityGrowth && (
-            <div className="state-benchmark-divider" aria-hidden="true" />
-          )}
           {review.capitalCityGrowth && (
-            <div className="state-benchmark-item">
-              <span className="state-benchmark-label">Capital city</span>
+            <div className="state-benchmark-pill">
+              <span className="state-benchmark-label">Capital city (12-month)</span>
               <span className="state-benchmark-value">{review.capitalCityGrowth}</span>
             </div>
           )}
@@ -93,7 +98,7 @@ export const PropertyTab = ({ review }: Props) => {
             <tr>
               <th>Property Type</th>
               <th>Median Price</th>
-              <th>12-Month Growth</th>
+              <th>12-Month Growth{growthPeriodLabel ? <><br /><span className="th-sub">to {growthPeriodLabel}</span></> : ''}</th>
               <th>Median Weekly Rent</th>
               <th>Gross Yield</th>
             </tr>
