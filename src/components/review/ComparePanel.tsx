@@ -6,9 +6,10 @@ type Props = {
   reviews: Review[]
   onDetails: (review: Review) => void
   onCategoryClick: (review: Review, tabKey: string) => void
+  onRemove: (key: string) => void
 }
 
-export const ComparePanel = ({ reviews, onDetails, onCategoryClick }: Props) => {
+export const ComparePanel = ({ reviews, onDetails, onCategoryClick, onRemove }: Props) => {
   const [collapsed, setCollapsed] = useState(false)
 
   return (
@@ -46,6 +47,16 @@ export const ComparePanel = ({ reviews, onDetails, onCategoryClick }: Props) => 
         <div className={`compare-grid${reviews.length === 4 ? ' compare-grid--4' : reviews.length >= 5 ? ' compare-grid--3col' : ''}`}>
           {reviews.map((review) => (
             <div key={`${review.suburb}-${review.state}`} className="compare-card">
+              <button
+                type="button"
+                className="compare-card-remove"
+                aria-label={`Remove ${review.suburb}, ${review.state} from comparison`}
+                onClick={() => onRemove(`${review.suburb}, ${review.state}`.toLowerCase())}
+              >
+                <svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                  <line x1="3" y1="3" x2="13" y2="13" /><line x1="13" y1="3" x2="3" y2="13" />
+                </svg>
+              </button>
               {review.scores ? (
                 <ScoreRing
                   scores={review.scores}

@@ -786,6 +786,7 @@ function App() {
             onCategoryClick={(r, tabKey) => {
               void runSearch(r.suburb, r.state as import('./types').AustralianState, { updateQueryString: true, tab: tabKey })
             }}
+            onRemove={(key) => setCompareKeys((prev) => prev.filter((k) => k !== key))}
           />
         </div>
       )}

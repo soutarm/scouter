@@ -867,7 +867,7 @@ button:focus-visible {
   flex: 0 0 auto;
   fill: none;
   height: 15px;
-  stroke: #244b31;
+  stroke: currentColor;
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.9;
@@ -2569,6 +2569,30 @@ td {
   flex-direction: column;
   gap: 18px;
   padding: 22px;
+  position: relative;
+}
+
+.compare-card-remove {
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  border-radius: 999px;
+  color: rgba(247, 255, 242, 0.7);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  padding: 0;
+  position: absolute;
+  right: 14px;
+  top: 14px;
+  transition: background 140ms ease, color 140ms ease;
+  width: 24px;
+}
+
+.compare-card-remove:hover {
+  background: rgba(255, 255, 255, 0.24);
+  color: #f7fff2;
 }
 
 .compare-card .score-ring-wrap {
