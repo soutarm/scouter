@@ -16,7 +16,16 @@ export const ComparePanel = ({ reviews, onDetails, onCategoryClick }: Props) => 
       <div className="compare-panel-header">
         <div>
           <p className="eyebrow">Comparing {reviews.length} location{reviews.length !== 1 ? 's' : ''}</p>
-          <h2>Side-by-side summary</h2>
+          <h2>Location Comparison</h2>
+          {collapsed && (
+            <div className="compare-collapsed-names">
+              {reviews.map((r, i) => (
+                <span key={`${r.suburb}-${r.state}`} className="compare-collapsed-name">
+                  {r.suburb}, {r.state}{i < reviews.length - 1 ? '' : ''}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         <button
           type="button"

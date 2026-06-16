@@ -2405,6 +2405,23 @@ td {
   margin-bottom: 0;
 }
 
+.compare-collapsed-names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.compare-collapsed-name {
+  background: rgba(36, 75, 49, 0.08);
+  border: 1px solid rgba(36, 75, 49, 0.14);
+  border-radius: 999px;
+  color: #244b31;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 10px;
+}
+
 .compare-collapse-btn {
   align-items: center;
   background: rgba(36, 75, 49, 0.08);
