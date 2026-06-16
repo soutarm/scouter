@@ -532,7 +532,7 @@ input:disabled {
   color: #7a887c;
   font-size: 0.72rem;
   line-height: 1.35;
-  margin: 0;
+  margin: 10px 0 0;
 }
 
 .clear-cache-button {

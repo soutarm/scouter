@@ -153,6 +153,10 @@ export const SettingsPanel = ({
       </div>
     )}
 
+    <p className="settings-storage-note">
+      Stored locally in this browser. Do not use public/shared API keys.
+    </p>
+
     <div className="settings-footer">
       <div className="settings-footer-buttons">
         <button
@@ -170,9 +174,6 @@ export const SettingsPanel = ({
           Clear current location
         </button>
       </div>
-      <p className="settings-storage-note">
-        Stored locally in this browser. Do not use public/shared API keys.
-      </p>
       <div className="cache-pill-wrap" aria-live="polite">
         <ProviderIcon ready={providerReady} label={providerReady ? `Ready · ${saveStatus}` : saveStatus} />
         <CacheIcon status={cacheStatus} />
