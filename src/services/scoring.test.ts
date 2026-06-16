@@ -32,16 +32,16 @@ describe('computePropertyScore', () => {
     expect(computePropertyScore(baseReview)).toBe(5)
   })
 
-  // ── Blended mode (stateMedianGrowth present): 60% absolute + 40% relative ──
+  // ── Blended mode (benchmark present): 55% absolute + 45% relative ─────────
 
-  it('blended: suburb at state average scores on absolute component only', () => {
-    // avg=2.5%, state=2.5% → relScore=5; absScore=1+(4.5/12)*9=4.375
-    // blend = 0.6*4.375 + 0.4*5 = 4.6
+  it('blended: suburb at state average still gets a fair absolute score', () => {
+    // avg=2.5%, benchmark=2.5% → relScore=5; absScore=1+(7.5/15)*9=5.5
+    // blend = 0.55*5.5 + 0.45*5 = 5.3
     const r = { ...baseReview,
       stateMedianGrowth: '+2.5%',
       marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+2.5%', medianWeeklyRent: '$450', grossYield: '3%' }],
     }
-    expect(computePropertyScore(r)).toBeCloseTo(4.6, 1)
+    expect(computePropertyScore(r)).toBeCloseTo(5.3, 1)
   })
 
   it('blended: strong absolute growth (10%) scores 10 regardless of relative', () => {
@@ -72,14 +72,14 @@ describe('computePropertyScore', () => {
     expect(computePropertyScore(r)).toBe(1)
   })
 
-  it('blended: +3pp above state average → ~6.8', () => {
-    // avg=5%, state=2% → relScore=5+(3/5)*4.5=7.7; absScore=1+(7/12)*9=6.25
-    // blend = 0.6*6.25 + 0.4*7.7 = 6.83 → 6.8
+  it('blended: +3pp above state average → ~7.6', () => {
+    // avg=5%, benchmark=2% → relScore=5+(3/4)*4.5=8.375; absScore=1+(10/15)*9=7
+    // blend = 0.55*7 + 0.45*8.375 = 7.62 → 7.6
     const r = { ...baseReview,
       stateMedianGrowth: '+2%',
       marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+5%', medianWeeklyRent: '$450', grossYield: '3%' }],
     }
-    expect(computePropertyScore(r)).toBeCloseTo(6.8, 1)
+    expect(computePropertyScore(r)).toBeCloseTo(7.6, 1)
   })
 
   it('blended: clamps below 1 when far below average', () => {
@@ -90,9 +90,9 @@ describe('computePropertyScore', () => {
     expect(computePropertyScore(r)).toBe(1)
   })
 
-  it('blended: Narooma-like (6.5% avg, 5% state) → ~7.0', () => {
-    // avg=6.5%, state=5% → relScore=5+(1.5/5)*4.5=6.35; absScore=1+(8.5/12)*9=7.375
-    // blend = 0.6*7.375 + 0.4*6.35 = 7.0
+  it('blended: Narooma-like (6.5% avg, 5% state) → ~7.4', () => {
+    // avg=6.5%, benchmark=5% → relScore=5+(1.5/4)*4.5=6.6875; absScore=1+(11.5/15)*9=7.9
+    // blend = 0.55*7.9 + 0.45*6.6875 = 7.35 → 7.4
     const r = { ...baseReview,
       stateMedianGrowth: '+5%',
       marketRows: [
@@ -100,7 +100,25 @@ describe('computePropertyScore', () => {
         { propertyType: 'Units',  medianPrice: '$400k', twelveMonthGrowth: '+5.5%', medianWeeklyRent: '$300', grossYield: '3.9%' },
       ],
     }
-    expect(computePropertyScore(r)).toBeCloseTo(7.0, 1)
+    expect(computePropertyScore(r)).toBeCloseTo(7.4, 1)
+  })
+
+  it('blended: Port Welshpool-like outperformance vs state and capital city trends', () => {
+    // avg=(4%+3%)/2 = 3.5%
+    // benchmark avg=(2%+1.6%)/2 = 1.8%
+    // abs=1+((3.5+5)/15)*9 = 6.1
+    // rel=5+((3.5-1.8)/4)*4.5 = 6.9125
+    // blend=0.55*6.1 + 0.45*6.9125 = 6.47 → 6.5
+    const r = {
+      ...baseReview,
+      stateMedianGrowth: '+2%',
+      capitalCityGrowth: '+1.6%',
+      marketRows: [
+        { propertyType: 'Houses', medianPrice: '$550k', twelveMonthGrowth: '+4%', medianWeeklyRent: '$430', grossYield: '4.1%' },
+        { propertyType: 'Units', medianPrice: '$390k', twelveMonthGrowth: '+3%', medianWeeklyRent: '$330', grossYield: '4.4%' },
+      ],
+    }
+    expect(computePropertyScore(r)).toBeCloseTo(6.5, 1)
   })
 
   // ── Fallback mode (no stateMedianGrowth) ──────────────────────────────────

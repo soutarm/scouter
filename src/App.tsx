@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { jsPDF } from 'jspdf'
 import './App.css'
 
-import type { AustralianState, LlmSettings, Review, ReviewSectionKey, SuburbSuggestion } from './types'
+import type { AustralianState, DemographicDatum, LlmSettings, Review, ReviewSectionKey, SuburbSuggestion } from './types'
 import {
    STORAGE_KEY, MAX_RECENT_SEARCHES,
   clearReviewCache, removeCachedReview, getCachedReview, getCachedReviewKeys, getReviewCacheCount, setCachedReview,
@@ -26,6 +26,7 @@ import { MapTab } from './components/review/MapTab'
 import { ScoreRing } from './components/review/ScoreRing'
 import { ComparePanel } from './components/review/ComparePanel'
 import { PropertyIcon, SafetyIcon, InfrastructureIcon, DemographicsIcon, EnvironmentIcon, MapIcon } from './components/TabIcons'
+import { extractTemperatureProfile } from './components/review/ThermometerRange'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -42,6 +43,20 @@ const defaultSettings: LlmSettings = {
   openAiApiKey: '',
   geminiModel: 'gemini-2.5-flash',
   geminiApiKey: '',
+}
+
+const LEVEL_STEPS: Record<'Low' | 'Medium' | 'High' | 'Very High', number> = {
+  Low: 1,
+  Medium: 2,
+  High: 3,
+  'Very High': 4,
+}
+
+const LEVEL_COLORS: Record<'Low' | 'Medium' | 'High' | 'Very High', [number, number, number]> = {
+  Low: [79, 143, 102],
+  Medium: [212, 168, 67],
+  High: [192, 112, 59],
+  'Very High': [176, 48, 32],
 }
 
 const loadSettings = (): LlmSettings => {
@@ -403,76 +418,253 @@ function App() {
       const maxWidth = pageWidth - margin * 2
       let y = 18
 
+      const paintPageBackground = () => {
+        pdf.setFillColor(248, 251, 244)
+        pdf.rect(0, 0, pageWidth, pageHeight, 'F')
+      }
+
       const ensureSpace = (height: number) => {
-        if (y + height > pageHeight - margin) { pdf.addPage(); y = margin }
+        if (y + height > pageHeight - margin) {
+          pdf.addPage()
+          paintPageBackground()
+          y = margin
+        }
       }
 
       const write = (text: string, size = 10, style: 'normal' | 'bold' = 'normal', gap = 5) => {
         pdf.setFont('helvetica', style)
         pdf.setFontSize(size)
-        const lines = pdf.splitTextToSize(text, maxWidth) as string[]
-        const height = lines.length * (size * 0.42) + gap
-        ensureSpace(height)
-        pdf.text(lines, margin, y)
-        y += height
+        const lineHeight = size * 0.42
+        const allLines = pdf.splitTextToSize(text || '', maxWidth) as string[]
+        const lines = allLines.length ? allLines : ['']
+
+        let cursor = 0
+        while (cursor < lines.length) {
+          const availableHeight = pageHeight - margin - y
+          const linesThatFit = Math.max(1, Math.floor(availableHeight / lineHeight))
+          const chunk = lines.slice(cursor, cursor + linesThatFit)
+          pdf.text(chunk, margin, y)
+          y += chunk.length * lineHeight
+          cursor += chunk.length
+          if (cursor < lines.length) ensureSpace(lineHeight)
+        }
+        y += gap
       }
 
       const section = (heading: string, body: string) => {
         y += 2
         write(heading, 13, 'bold', 4)
-        write(body, 10, 'normal', 7)
+        if (body.trim()) write(body, 10, 'normal', 7)
       }
 
-      pdf.setFillColor(248, 251, 244)
-      pdf.rect(0, 0, pageWidth, pageHeight, 'F')
-      write(`${review.suburb}, ${review.state} Profile`, 20, 'bold', 7)
-      write(review.summary, 11, 'normal', 8)
+      const scoreColor = (s: number): [number, number, number] =>
+        s >= 8 ? [127, 212, 154] : s >= 6 ? [168, 201, 160] : s >= 4 ? [212, 168, 67] : [192, 112, 96]
 
-      // ── Scores block ─────────────────────────────────────────────────────────
-      if (review.scores) {
+      const drawArcRing = (cx: number, cy: number, radius: number, width: number, score: number, color: [number, number, number]) => {
+        const startDeg = 135
+        const sweepDeg = 270
+        const step = 3
+
+        pdf.setDrawColor(222, 231, 220)
+        pdf.setLineWidth(width)
+        for (let deg = startDeg; deg < startDeg + sweepDeg; deg += step) {
+          const a1 = (deg * Math.PI) / 180
+          const a2 = ((deg + step) * Math.PI) / 180
+          pdf.line(cx + Math.cos(a1) * radius, cy + Math.sin(a1) * radius, cx + Math.cos(a2) * radius, cy + Math.sin(a2) * radius)
+        }
+
+        const filledTo = startDeg + (Math.max(0, Math.min(10, score)) / 10) * sweepDeg
+        pdf.setDrawColor(color[0], color[1], color[2])
+        for (let deg = startDeg; deg < filledTo; deg += step) {
+          const a1 = (deg * Math.PI) / 180
+          const a2 = ((Math.min(deg + step, filledTo)) * Math.PI) / 180
+          pdf.line(cx + Math.cos(a1) * radius, cy + Math.sin(a1) * radius, cx + Math.cos(a2) * radius, cy + Math.sin(a2) * radius)
+        }
+      }
+
+      const drawMainScoreRing = () => {
+        if (!review.scores) return false
+        const blockHeight = 58
+        ensureSpace(blockHeight + 2)
+
         const s = review.scores
-        const scoreRowH = 20
-        ensureSpace(scoreRowH + 4)
-        pdf.setFillColor(36, 75, 49)
-        pdf.roundedRect(margin, y, maxWidth, scoreRowH, 3, 3, 'F')
+        const centerX = margin + 28
+        const centerY = y + 28
+        const overallColor = scoreColor(s.overall)
 
-        // Overall — large centred
+        pdf.setFillColor(244, 248, 240)
+        pdf.roundedRect(margin, y, maxWidth, blockHeight, 4, 4, 'F')
+
+        drawArcRing(centerX, centerY, 14, 3.2, s.overall, overallColor)
+        pdf.setTextColor(36, 75, 49)
         pdf.setFont('helvetica', 'bold')
-        pdf.setTextColor(247, 255, 242)
-        pdf.setFontSize(15)
-        pdf.text(`${s.overall}`, pageWidth / 2, y + 7.5, { align: 'center' })
+        pdf.setFontSize(14)
+        pdf.text(`${s.overall.toFixed(1)}`, centerX, centerY + 1.7, { align: 'center' })
         pdf.setFontSize(7)
         pdf.setFont('helvetica', 'normal')
-        pdf.text('OVERALL', pageWidth / 2, y + 12.5, { align: 'center' })
+        pdf.text('OVERALL', centerX, centerY + 7.5, { align: 'center' })
 
-        // 4 sub-scores evenly spread left / right of centre
-        const subs = [
-          { label: 'PROPERTY',       val: s.property },
-          { label: 'SAFETY',         val: s.safety },
-          { label: 'INFRASTRUCTURE', val: s.infrastructure },
-          { label: 'ENVIRONMENT',    val: s.environment },
+        const chips: Array<{ label: string; val: number }> = [
+          { label: 'PROPERTY', val: s.property },
+          { label: 'SAFETY', val: s.safety },
+          { label: 'INFRA', val: s.infrastructure },
+          { label: 'ENV', val: s.environment },
         ]
-        const colW = maxWidth / 5          // 5 columns: 4 subs + 1 centre
-        const xs = [
-          margin + colW * 0.5,             // col 0 — Property
-          margin + colW * 1.5,             // col 1 — Safety
-          // col 2 = centre (Overall)
-          margin + colW * 3.5,             // col 3 — Infrastructure
-          margin + colW * 4.5,             // col 4 — Environment
-        ]
-        subs.forEach(({ label, val }, i) => {
-          const x = xs[i]
+        const startX = margin + 62
+        const chipGap = (maxWidth - 70) / 4
+
+        chips.forEach((chip, i) => {
+          const x = startX + i * chipGap
+          const c = scoreColor(chip.val)
+          drawArcRing(x, centerY - 2, 7.2, 2, chip.val, c)
           pdf.setFont('helvetica', 'bold')
-          pdf.setFontSize(12)
-          pdf.text(`${val}`, x, y + 7.5, { align: 'center' })
+          pdf.setFontSize(8)
+          pdf.setTextColor(36, 75, 49)
+          pdf.text(String(chip.val), x, centerY - 1, { align: 'center' })
           pdf.setFont('helvetica', 'normal')
-          pdf.setFontSize(5.5)
-          pdf.text(label, x, y + 12.5, { align: 'center' })
+          pdf.setFontSize(6.2)
+          pdf.text(chip.label, x, centerY + 10, { align: 'center' })
         })
 
         pdf.setTextColor(0, 0, 0)
-        y += scoreRowH + 6
+        y += blockHeight + 5
+        return true
       }
+
+      const drawTemperatureSlider = (label: string, description: string) => {
+        const profile = extractTemperatureProfile(description)
+        if (!profile) return false
+
+        const cardHeight = 22
+        ensureSpace(cardHeight + 2)
+
+        const trackX = margin + 22
+        const trackY = y + 12
+        const trackW = maxWidth - 44
+
+        const toPos = (value: number) => {
+          const clamped = Math.min(50, Math.max(-10, value))
+          return ((clamped + 10) / 60) * trackW
+        }
+
+        const minX = trackX + toPos(profile.min)
+        const maxX = trackX + toPos(profile.max)
+        const peakX = profile.peak != null ? trackX + toPos(profile.peak) : null
+
+        pdf.setFont('helvetica', 'bold')
+        pdf.setFontSize(9)
+        pdf.text(label, margin, y + 4)
+
+        pdf.setDrawColor(210, 219, 208)
+        pdf.setLineWidth(1.8)
+        pdf.line(trackX, trackY, trackX + trackW, trackY)
+
+        pdf.setDrawColor(79, 143, 102)
+        pdf.setLineWidth(2.8)
+        pdf.line(minX, trackY, maxX, trackY)
+
+        pdf.setFillColor(79, 143, 102)
+        pdf.circle(minX, trackY, 1.2, 'F')
+        pdf.circle(maxX, trackY, 1.2, 'F')
+
+        if (peakX != null) {
+          pdf.setFillColor(176, 48, 32)
+          pdf.circle(peakX, trackY, 1.1, 'F')
+          pdf.setFont('helvetica', 'bold')
+          pdf.setFontSize(6)
+          pdf.text('HW', peakX, trackY - 2.2, { align: 'center' })
+        }
+
+        pdf.setFont('helvetica', 'normal')
+        pdf.setFontSize(7)
+        pdf.text('-10°C', trackX, trackY + 4.4)
+        pdf.text('50°C', trackX + trackW, trackY + 4.4, { align: 'right' })
+
+        const peakText = profile.peak != null ? ` · HW ${Math.round(profile.peak)}°C` : ''
+        pdf.text(`${Math.round(profile.min)}°C → ${Math.round(profile.max)}°C${peakText}`, margin, y + 19)
+
+        y += cardHeight
+        return true
+      }
+
+      const drawLevelDots = (title: string, rows: Array<{ label: string; level: 'Low' | 'Medium' | 'High' | 'Very High' }>) => {
+        if (!rows.length) return false
+        const rowH = 6.2
+        const boxHeight = 8 + rows.length * rowH
+        ensureSpace(boxHeight + 2)
+
+        pdf.setFillColor(244, 248, 240)
+        pdf.roundedRect(margin, y, maxWidth, boxHeight, 2.5, 2.5, 'F')
+
+        pdf.setFont('helvetica', 'bold')
+        pdf.setFontSize(9)
+        pdf.text(title, margin + 3, y + 4.5)
+
+        rows.forEach((row, index) => {
+          const rowY = y + 8.5 + index * rowH
+          const dotXStart = margin + maxWidth - 29
+          const filled = LEVEL_STEPS[row.level]
+          const color = LEVEL_COLORS[row.level]
+
+          pdf.setFont('helvetica', 'normal')
+          pdf.setFontSize(8)
+          pdf.text(row.label, margin + 3, rowY)
+
+          pdf.setTextColor(color[0], color[1], color[2])
+          pdf.text(row.level, margin + maxWidth - 35, rowY, { align: 'right' })
+
+          for (let step = 1; step <= 4; step += 1) {
+            if (step <= filled) pdf.setFillColor(color[0], color[1], color[2])
+            else pdf.setFillColor(219, 226, 216)
+            pdf.circle(dotXStart + (step - 1) * 4.8, rowY - 1.2, 1.25, 'F')
+          }
+        })
+
+        pdf.setTextColor(0, 0, 0)
+        y += boxHeight + 2
+        return true
+      }
+
+      const drawDemographicBars = (title: string, data: DemographicDatum[] | undefined) => {
+        if (!data?.length) return false
+        const rows = data.slice(0, 6)
+        const rowH = 6.5
+        const boxHeight = 10 + rows.length * rowH
+        ensureSpace(boxHeight + 2)
+
+        const maxVal = Math.max(...rows.map((d) => d.value), 1)
+        const barX = margin + 56
+        const barW = maxWidth - 68
+
+        pdf.setFillColor(244, 248, 240)
+        pdf.roundedRect(margin, y, maxWidth, boxHeight, 2.5, 2.5, 'F')
+        pdf.setFont('helvetica', 'bold')
+        pdf.setFontSize(9)
+        pdf.text(title, margin + 3, y + 5)
+
+        rows.forEach((d, i) => {
+          const rowY = y + 10 + i * rowH
+          const width = (Math.max(0, d.value) / maxVal) * barW
+          pdf.setFont('helvetica', 'normal')
+          pdf.setFontSize(7.5)
+          pdf.text(d.label.slice(0, 24), margin + 3, rowY)
+          pdf.setFillColor(208, 220, 203)
+          pdf.roundedRect(barX, rowY - 3.2, barW, 3.5, 1.2, 1.2, 'F')
+          pdf.setFillColor(79, 143, 102)
+          pdf.roundedRect(barX, rowY - 3.2, Math.max(1.5, width), 3.5, 1.2, 1.2, 'F')
+          pdf.setFontSize(7)
+          pdf.text(`${d.value}%`, barX + barW + 1.5, rowY, { align: 'left' })
+        })
+
+        y += boxHeight + 2
+        return true
+      }
+
+      paintPageBackground()
+      write(`${review.suburb}, ${review.state} Profile`, 20, 'bold', 7)
+      write(review.summary, 11, 'normal', 8)
+
+      drawMainScoreRing()
 
       section('Property Market & Rental Realities', review.marketNarrative)
       review.marketRows.forEach((row) => {
@@ -488,7 +680,33 @@ function App() {
         review.climate.noise
           ? `\nNoise & Amenity (${review.climate.noise.overallRating}): ${review.climate.noise.overallSummary}\nFlight paths: ${review.climate.noise.flightPath}\nRail: ${review.climate.noise.railNoise}\nRoad: ${review.climate.noise.roadNoise}\nIndustrial: ${review.climate.noise.industrialZones}`
           : '',
-      ].filter(Boolean).join('\n\n'))
+        ].filter(Boolean).join('\n\n'))
+
+      y += 1
+      write('Climate visuals', 11, 'bold', 3)
+      const drewSummer = drawTemperatureSlider('Summer temperature range', review.climate.summerAverages)
+      const drewWinter = drawTemperatureSlider('Winter temperature range', review.climate.winterAverages)
+      if (!drewSummer && !drewWinter) write('Temperature range unavailable.', 8.5, 'normal', 4)
+
+      if (review.climate.airQuality) {
+        drawLevelDots('Air quality level meters', [
+          { label: 'Particulate matter', level: review.climate.airQuality.particulateMatterLevel },
+          { label: 'Ozone', level: review.climate.airQuality.ozoneLevel },
+          { label: 'Pollen', level: review.climate.airQuality.pollenLevel },
+          { label: 'Industrial pollution', level: review.climate.airQuality.industrialPollutionLevel },
+          { label: 'Overall', level: review.climate.airQuality.overallRating },
+        ])
+      }
+
+      if (review.climate.noise) {
+        drawLevelDots('Noise level meters', [
+          { label: 'Flight paths', level: review.climate.noise.flightPathLevel },
+          { label: 'Rail noise', level: review.climate.noise.railNoiseLevel },
+          { label: 'Road noise', level: review.climate.noise.roadNoiseLevel },
+          { label: 'Industrial zones', level: review.climate.noise.industrialZonesLevel },
+          { label: 'Overall', level: review.climate.noise.overallRating },
+        ])
+      }
 
       section('Safety & Insurance', [
         review.crime.narrative,
@@ -497,6 +715,10 @@ function App() {
           ? `\nEstimated annual premiums:\n${Object.entries(review.crime.estimatedAnnualPremiums).map(([k, v]) => `  ${k}: ${v}`).join('\n')}`
           : '',
       ].filter(Boolean).join('\n\n'))
+
+      if (review.crime.crimeTypes?.length) {
+        drawLevelDots('Crime type levels', review.crime.crimeTypes.map((ct) => ({ label: ct.label, level: ct.level })))
+      }
 
       section('Infrastructure, Education & Logistics', [
         review.infrastructure.cbdDistanceKm != null ? `CBD distance: ${review.infrastructure.cbdDistanceKm} km (${review.infrastructure.cbdCommuteMinutes ?? '?'} min commute)` : '',
@@ -519,6 +741,14 @@ function App() {
           review.demographics.householdTypes?.length ? `Household types: ${review.demographics.householdTypes.map((i) => `${i.label} ${i.value}%`).join(', ')}` : '',
           review.demographics.countryOfOrigin?.length ? `Country of origin: ${review.demographics.countryOfOrigin.map((i) => `${i.label} ${i.value}%`).join(', ')}` : '',
         ].filter(Boolean).join('\n\n'))
+
+        const ageData = review.demographics.ageGroups?.length
+          ? review.demographics.ageGroups
+          : review.demographics.householdTypes
+        drawDemographicBars(review.demographics.ageGroups?.length ? 'Age profile' : 'Household mix', ageData)
+        drawDemographicBars('Who lives here', review.demographics.residentProfiles)
+        drawDemographicBars('Housing tenure', review.demographics.tenureTypes)
+        drawDemographicBars('Country of origin', review.demographics.countryOfOrigin)
       }
 
       if (review.caveats?.length) section('Caveats', review.caveats.map((c) => `- ${c}`).join('\n'))

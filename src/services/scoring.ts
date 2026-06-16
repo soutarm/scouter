@@ -25,13 +25,14 @@ const levelScore = (level: string | undefined) =>
 const round1 = (n: number) => Math.round(n * 10) / 10
 
 // ── Property score ────────────────────────────────────────────────────────────
-// Blended score when stateMedianGrowth is available:
-//   - 60% absolute component: -2% → 1, 10% → 10  (rewards strong raw growth)
-//   - 40% relative component: suburb at state avg → 5, ±5pp → ±4.5
-//   This ensures a suburb with solid absolute growth (e.g. 7%) scores well
-//   even if the state benchmark is also high.
+// Blended score when a benchmark is available (state and/or capital city):
+//   - 55% absolute component: -5% → 1, 10% → 10
+//   - 45% relative component: suburb at benchmark avg → 5, ±4pp → ±4.5
 //
-// Falls back to pure absolute scale when stateMedianGrowth is missing:
+// If both stateMedianGrowth and capitalCityGrowth exist, benchmark = their average.
+// This better rewards suburbs that outperform both broad state and metro trend lines.
+//
+// Falls back to pure absolute scale when no benchmark is available:
 //   -5% → 1, 10% → 10
 
 export const computePropertyScore = (review: Review): number => {
@@ -43,14 +44,18 @@ export const computePropertyScore = (review: Review): number => {
 
   const avg = growths.reduce((a, b) => a + b, 0) / growths.length
 
-  // Absolute component: -2% → 1, 10% → 10
-  const absScore = clamp(1 + ((avg + 2) / 12) * 9, 1, 10)
+  // Absolute component: -5% → 1, 10% → 10
+  const absScore = clamp(1 + ((avg + 5) / 15) * 9, 1, 10)
 
-  const stateGrowth = review.stateMedianGrowth != null ? parsePercent(review.stateMedianGrowth) : null
-  if (stateGrowth != null) {
-    // Relative component: suburb at state avg → 5, ±5pp → ±4.5
-    const relScore = clamp(5 + ((avg - stateGrowth) / 5) * 4.5, 1, 10)
-    return round1(0.6 * absScore + 0.4 * relScore)
+  const benchmarkGrowths = [review.stateMedianGrowth, review.capitalCityGrowth]
+    .map((g) => (g != null ? parsePercent(g) : null))
+    .filter((g): g is number => g !== null)
+
+  if (benchmarkGrowths.length) {
+    const benchmarkAvg = benchmarkGrowths.reduce((a, b) => a + b, 0) / benchmarkGrowths.length
+    // Relative component: suburb at benchmark avg → 5, ±4pp → ±4.5
+    const relScore = clamp(5 + ((avg - benchmarkAvg) / 4) * 4.5, 1, 10)
+    return round1(0.55 * absScore + 0.45 * relScore)
   }
 
   // Fallback: pure absolute scale -5% → 1, 10% → 10
