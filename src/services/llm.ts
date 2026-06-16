@@ -198,23 +198,11 @@ JSON shape:
       { "label": "Other", "value": 5 }
     ]
   },
-  "scores": {
-    "property": 7,
-    "safety": 8,
-    "infrastructure": 7,
-    "demographics": 6,
-    "environment": 8
-  },
   "caveats": ["Any uncertainty, unavailable fresh data, or source limitation."],
   "references": ["Named data source, publication, or public agency used or recommended for verification, including a URL when available."]
 }
 
-Scoring guide (integer 1–10, higher = better for liveability):
-- property: value for money, growth prospects, rental yield quality
-- safety: low crime, low insurance loading, community safety feel
-- infrastructure: transit access, schools, amenities, CBD connectivity
-- demographics: community diversity, stability, age mix suitability
-- environment: air quality, noise, green space, climate liveability`
+`
 
 export const callLlm = async (settings: LlmSettings, query: string, homelyContext?: string): Promise<Review> => {
   const prompt = buildPrompt(query, homelyContext)

@@ -35,12 +35,11 @@ export type SuburbSuggestion = {
 }
 
 export type ReviewScores = {
-  overall: number        // computed client-side: average of the five sub-scores
-  property: number
-  safety: number
-  infrastructure: number
-  demographics: number
-  environment: number
+  overall: number        // computed client-side: average of the four sub-scores
+  property: number       // based on 12-month growth rates
+  safety: number         // based on crime type levels (Assault/B&E weighted 2x)
+  infrastructure: number // based on transit/services/amenity buckets
+  environment: number    // based on air quality + noise levels (50/50)
 }
 
 export type Review = {

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 import type { ReviewScores } from '../../types'
-import { PropertyIcon, SafetyIcon, InfrastructureIcon, DemographicsIcon, EnvironmentIcon } from '../TabIcons'
+import { PropertyIcon, SafetyIcon, InfrastructureIcon, EnvironmentIcon } from '../TabIcons'
 
 // ── Category config ──────────────────────────────────────────────────────────
 
@@ -8,7 +8,6 @@ const CATEGORIES: Array<{ key: keyof Omit<ReviewScores, 'overall'>; label: strin
   { key: 'property',       label: 'Property',       Icon: PropertyIcon },
   { key: 'safety',         label: 'Safety',          Icon: SafetyIcon },
   { key: 'infrastructure', label: 'Infrastructure',  Icon: InfrastructureIcon },
-  { key: 'demographics',   label: 'Demographics',    Icon: DemographicsIcon },
   { key: 'environment',    label: 'Environment',     Icon: EnvironmentIcon },
 ]
 
