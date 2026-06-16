@@ -1,4 +1,5 @@
 import type { Review, ReviewScores } from '../types'
+import { extractTemperatureProfile } from '../components/review/ThermometerRange'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -215,8 +216,41 @@ export const computeInfrastructureScore = (review: Review): number => {
 }
 
 // ── Environment score ─────────────────────────────────────────────────────────
-// 50% air quality + 50% noise.
-// Within each group, equal weight across 4 sources. Missing → 5 (neutral/Medium).
+// Equal thirds: air quality + noise + climate comfort.
+// Climate comfort: avg of summer-max score + winter-min score. Missing → 5.
+//
+// Summer max (°C):  ≤25→10, 28→9, 31→7, 34→5, 37→3, 40→2, ≥43→1
+// Winter min (°C):  ≥10→10,  7→9,  4→7,  1→5, -2→3, -5→2, ≤-8→1
+
+const summerMaxScore = (tempC: number): number => {
+  if (tempC <= 25) return 10
+  if (tempC <= 28) return 9
+  if (tempC <= 31) return 7
+  if (tempC <= 34) return 5
+  if (tempC <= 37) return 3
+  if (tempC <= 40) return 2
+  return 1
+}
+
+const winterMinScore = (tempC: number): number => {
+  if (tempC >= 10) return 10
+  if (tempC >= 7)  return 9
+  if (tempC >= 4)  return 7
+  if (tempC >= 1)  return 5
+  if (tempC >= -2) return 3
+  if (tempC >= -5) return 2
+  return 1
+}
+
+export const computeClimateScore = (review: Review): number => {
+  const summerProfile = extractTemperatureProfile(review.climate.summerAverages)
+  const winterProfile = extractTemperatureProfile(review.climate.winterAverages)
+
+  const summerScore = summerProfile != null ? summerMaxScore(summerProfile.max) : 5
+  const winterScore = winterProfile != null ? winterMinScore(winterProfile.min) : 5
+
+  return round1(clamp((summerScore + winterScore) / 2, 1, 10))
+}
 
 export const computeEnvironmentScore = (review: Review): number => {
   const aq = review.climate.airQuality
@@ -236,7 +270,9 @@ export const computeEnvironmentScore = (review: Review): number => {
        levelScore(noise.industrialZonesLevel)) / 4
     : 5
 
-  return round1(clamp((airScore + noiseScore) / 2, 1, 10))
+  const climateScore = computeClimateScore(review)
+
+  return round1(clamp((airScore + noiseScore + climateScore) / 3, 1, 10))
 }
 
 // ── Overall ───────────────────────────────────────────────────────────────────

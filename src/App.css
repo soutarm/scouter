@@ -1495,19 +1495,18 @@ td {
 }
 
 .thermometer-track {
-  background: linear-gradient(90deg, #d9edf5, #e9f5e6 48%, #f7dfc8);
+  background: linear-gradient(90deg, #b8d9f0, #e8f0ea 48%, #f0b8b8);
   border-radius: 999px;
-  box-shadow: inset 0 1px 4px rgba(31, 77, 54, 0.18);
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.12);
   height: 16px;
   position: relative;
 }
 
 .thermometer-track::before,
 .thermometer-track::after {
-  background: #d9edf5;
-  border: 3px solid #f8fbf4;
+  border: 3px solid #f8fbff;
   border-radius: 999px;
-  box-shadow: 0 2px 8px rgba(31, 77, 54, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   content: '';
   height: 26px;
   position: absolute;
@@ -1517,16 +1516,17 @@ td {
 }
 
 .thermometer-track::before {
+  background: #4a90c4;
   left: -4px;
 }
 
 .thermometer-track::after {
-  background: #f7dfc8;
+  background: #c44a4a;
   right: -4px;
 }
 
 .thermometer-fill {
-  background: linear-gradient(90deg, #9fd7a8, #4f8f66, #d9925d);
+  background: linear-gradient(90deg, #4a90c4, #a0c8a0, #c44a4a);
   border-radius: 999px;
   height: 100%;
   min-width: 8px;
@@ -1535,8 +1535,8 @@ td {
 }
 
 .thermometer-marker {
-  background: #fbfff7;
-  border: 3px solid #244b31;
+  background: #eaf4fb;
+  border: 3px solid #2a6496;
   border-radius: 999px;
   height: 22px;
   position: absolute;
@@ -1547,13 +1547,14 @@ td {
 }
 
 .thermometer-marker.max {
-  border-color: #a95d31;
+  background: #fbeaea;
+  border-color: #962a2a;
 }
 
 .thermometer-marker.peak {
-  background: #fff7ef;
-  border-color: #c0563b;
-  box-shadow: 0 0 0 5px rgba(192, 86, 59, 0.12);
+  background: #fde8e8;
+  border-color: #c0363b;
+  box-shadow: 0 0 0 5px rgba(192, 54, 59, 0.14);
 }
 
 .thermometer-scale {

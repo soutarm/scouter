@@ -8,7 +8,7 @@ export const REVIEW_CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 1 day
 export const MAX_RECENT_SEARCHES = 12
 
 // Increment when the scoring model changes so cached scores are recomputed on read.
-const SCORES_VERSION = 5
+const SCORES_VERSION = 6
 
 type ReviewCacheEntry = {
   review: Review

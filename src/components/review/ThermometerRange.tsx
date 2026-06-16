@@ -4,7 +4,7 @@ const CLIMATE_SCALE_MAX = 50
 const clampNumber = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max)
 const formatTemperature = (value: number) => `${Math.round(value)}°C`
 
-const collectTemperatures = (text: string) => {
+export const collectTemperatures = (text: string) => {
   const temperatures: number[] = []
   let textWithoutRanges = text
   textWithoutRanges = textWithoutRanges.replace(
@@ -22,7 +22,7 @@ const collectTemperatures = (text: string) => {
   return temperatures
 }
 
-const extractTemperatureProfile = (description: string) => {
+export const extractTemperatureProfile = (description: string) => {
   const sentences = description.split(/(?<=[.!?])\s+/).filter(Boolean)
   const averageTemperatures: number[] = []
   const peakTemperatures: number[] = []

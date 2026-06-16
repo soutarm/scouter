@@ -4,6 +4,7 @@ import {
   computeSafetyScore,
   computeInfrastructureScore,
   computeEnvironmentScore,
+  computeClimateScore,
   computeScores,
 } from './scoring'
 import type { Review } from '../types'
@@ -253,7 +254,7 @@ describe('computeEnvironmentScore', () => {
     expect(computeEnvironmentScore(baseReview)).toBe(5)
   })
 
-  it('scores 10 when all Low (clean and quiet)', () => {
+  it('scores 8.3 when all Low and no climate data (air=10, noise=10, climate=5 missing → 8.3)', () => {
     const r = { ...baseReview,
       climate: {
         summerAverages: '', winterAverages: '',
@@ -273,10 +274,11 @@ describe('computeEnvironmentScore', () => {
         },
       }
     }
-    expect(computeEnvironmentScore(r)).toBe(10)
+    // (10+10+5) / 3 = 8.3
+    expect(computeEnvironmentScore(r)).toBeCloseTo(8.3, 1)
   })
 
-  it('scores 1 when all Very High', () => {
+  it('scores 2.3 when all Very High and no climate data (air=1, noise=1, climate=5 → 2.3)', () => {
     const r = { ...baseReview,
       climate: {
         summerAverages: '', winterAverages: '',
@@ -296,10 +298,11 @@ describe('computeEnvironmentScore', () => {
         },
       }
     }
-    expect(computeEnvironmentScore(r)).toBe(1)
+    // (1+1+5) / 3 = 2.3
+    expect(computeEnvironmentScore(r)).toBeCloseTo(2.3, 1)
   })
 
-  it('returns 5 for air quality only when noise missing (50/50 split)', () => {
+  it('returns 6.7 for all-Low air quality only, noise and climate missing', () => {
     const r = { ...baseReview,
       climate: {
         summerAverages: '', winterAverages: '',
@@ -312,8 +315,50 @@ describe('computeEnvironmentScore', () => {
         },
       }
     }
-    // air=10, noise=5 (missing) → (10+5)/2 = 7.5
-    expect(computeEnvironmentScore(r)).toBe(7.5)
+    // air=10, noise=5 (missing), climate=5 (missing) → (10+5+5)/3 = 6.7
+    expect(computeEnvironmentScore(r)).toBeCloseTo(6.7, 1)
+  })
+})
+
+// ── Climate score ─────────────────────────────────────────────────────────────
+
+describe('computeClimateScore', () => {
+  it('returns 5 when summer and winter strings are empty', () => {
+    expect(computeClimateScore(baseReview)).toBe(5)
+  })
+
+  it('mild climate: summer max 28°C, winter min 8°C → both score 9, avg 9', () => {
+    const r = { ...baseReview, climate: {
+      summerAverages: 'Summers average 20–28°C.',
+      winterAverages: 'Winters average 8–16°C.',
+    } }
+    expect(computeClimateScore(r)).toBe(9)
+  })
+
+  it('harsh summer: max 42°C → summer score 1', () => {
+    const r = { ...baseReview, climate: {
+      summerAverages: 'Summers are brutal, averaging 30–42°C.',
+      winterAverages: 'Winters average 10–18°C.',
+    } }
+    // summer=1, winter=10 → 5.5
+    expect(computeClimateScore(r)).toBeCloseTo(5.5, 1)
+  })
+
+  it('harsh winter: min -6°C → winter score 1', () => {
+    const r = { ...baseReview, climate: {
+      summerAverages: 'Summers average 20–25°C.',
+      winterAverages: 'Winters are cold, averaging -6–5°C.',
+    } }
+    // summer=10, winter=1 → 5.5
+    expect(computeClimateScore(r)).toBeCloseTo(5.5, 1)
+  })
+
+  it('extreme both ends: summer 43°C, winter -10°C → score 1', () => {
+    const r = { ...baseReview, climate: {
+      summerAverages: 'Max 43°C in summer.',
+      winterAverages: 'Min -10°C in winter.',
+    } }
+    expect(computeClimateScore(r)).toBe(1)
   })
 })
 
