@@ -118,7 +118,7 @@ export const ScoreRing = ({ scores, onCategoryClick }: Props) => {
           const colour = scoreColour(val)
           const tabKey = key === 'safety' ? 'crime' : key
           // Mini arc maths (same technique as main ring, scaled to r=13)
-          const r = 13, sw = 3
+          const r = 17, sw = 3
           const circ = 2 * Math.PI * r
           const arcLen = 0.75 * circ
           const offset = arcLen - (val / 10) * arcLen

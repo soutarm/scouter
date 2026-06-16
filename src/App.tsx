@@ -391,6 +391,52 @@ function App() {
       write(`${review.suburb}, ${review.state} Profile`, 20, 'bold', 7)
       write(review.summary, 11, 'normal', 8)
 
+      // ── Scores block ─────────────────────────────────────────────────────────
+      if (review.scores) {
+        const s = review.scores
+        const scoreRowH = 20
+        ensureSpace(scoreRowH + 4)
+        pdf.setFillColor(36, 75, 49)
+        pdf.roundedRect(margin, y, maxWidth, scoreRowH, 3, 3, 'F')
+
+        // Overall — large centred
+        pdf.setFont('helvetica', 'bold')
+        pdf.setTextColor(247, 255, 242)
+        pdf.setFontSize(15)
+        pdf.text(`${s.overall}`, pageWidth / 2, y + 7.5, { align: 'center' })
+        pdf.setFontSize(7)
+        pdf.setFont('helvetica', 'normal')
+        pdf.text('OVERALL', pageWidth / 2, y + 12.5, { align: 'center' })
+
+        // 4 sub-scores evenly spread left / right of centre
+        const subs = [
+          { label: 'PROPERTY',       val: s.property },
+          { label: 'SAFETY',         val: s.safety },
+          { label: 'INFRASTRUCTURE', val: s.infrastructure },
+          { label: 'ENVIRONMENT',    val: s.environment },
+        ]
+        const colW = maxWidth / 5          // 5 columns: 4 subs + 1 centre
+        const xs = [
+          margin + colW * 0.5,             // col 0 — Property
+          margin + colW * 1.5,             // col 1 — Safety
+          // col 2 = centre (Overall)
+          margin + colW * 3.5,             // col 3 — Infrastructure
+          margin + colW * 4.5,             // col 4 — Environment
+        ]
+        subs.forEach(({ label, val }, i) => {
+          const x = xs[i]
+          pdf.setFont('helvetica', 'bold')
+          pdf.setFontSize(12)
+          pdf.text(`${val}`, x, y + 7.5, { align: 'center' })
+          pdf.setFont('helvetica', 'normal')
+          pdf.setFontSize(5.5)
+          pdf.text(label, x, y + 12.5, { align: 'center' })
+        })
+
+        pdf.setTextColor(0, 0, 0)
+        y += scoreRowH + 6
+      }
+
       section('Property Market & Rental Realities', review.marketNarrative)
       review.marketRows.forEach((row) => {
         write(`${row.propertyType}: ${row.medianPrice}, ${row.twelveMonthGrowth} growth, ${row.medianWeeklyRent} rent, ${row.grossYield} yield`, 9, 'normal', 3)
