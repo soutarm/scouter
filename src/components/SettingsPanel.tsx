@@ -154,20 +154,22 @@ export const SettingsPanel = ({
     )}
 
     <div className="settings-footer">
-      <button
-        type="button"
-        className="clear-cache-button"
-        onClick={onClearCache}
-      >
-        Clear cache &amp; recent searches
-      </button>
-      <button
-        type="button"
-        className="clear-cache-button"
-        onClick={onClearCurrentLocation}
-      >
-        Clear current location
-      </button>
+      <div className="settings-footer-buttons">
+        <button
+          type="button"
+          className="clear-cache-button"
+          onClick={onClearCache}
+        >
+          Clear cache &amp; recent searches
+        </button>
+        <button
+          type="button"
+          className="clear-cache-button"
+          onClick={onClearCurrentLocation}
+        >
+          Clear current location
+        </button>
+      </div>
       <p className="settings-storage-note">
         Stored locally in this browser. Do not use public/shared API keys.
       </p>

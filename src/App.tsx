@@ -432,6 +432,7 @@ function App() {
           review.demographics.population ? `Population: ${review.demographics.population}` : '',
           review.demographics.medianAge ? `Median age: ${review.demographics.medianAge}` : '',
           review.demographics.ageGroups?.length ? `Age groups: ${review.demographics.ageGroups.map((i) => `${i.label} ${i.value}%`).join(', ')}` : '',
+          review.demographics.residentProfiles?.length ? `Who lives here: ${review.demographics.residentProfiles.map((i) => `${i.label} ${i.value}%`).join(', ')}` : '',
           review.demographics.householdTypes?.length ? `Household types: ${review.demographics.householdTypes.map((i) => `${i.label} ${i.value}%`).join(', ')}` : '',
           review.demographics.countryOfOrigin?.length ? `Country of origin: ${review.demographics.countryOfOrigin.map((i) => `${i.label} ${i.value}%`).join(', ')}` : '',
         ].filter(Boolean).join('\n\n'))

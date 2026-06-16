@@ -39,8 +39,13 @@ export const repairTruncatedJson = (s: string): string => {
   if (stack.length === 0 && !inString) return s
 
   // Trim back to the last character that was safely outside a string,
-  // then strip any trailing comma or partial key before closing.
+  // then strip any trailing comma, colon, or dangling "key": fragment before closing.
   let trimmed = s.slice(0, lastSafeOutsideString + 1).trimEnd()
+  // Remove trailing comma
+  trimmed = trimmed.replace(/,\s*$/, '')
+  // Remove dangling "key": (a string followed by a colon with no value yet)
+  trimmed = trimmed.replace(/,?\s*"[^"]*"\s*:\s*$/, '')
+  // Remove trailing comma again in case stripping the key exposed one
   trimmed = trimmed.replace(/,\s*$/, '')
 
   return trimmed + stack.reverse().join('')

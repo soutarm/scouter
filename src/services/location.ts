@@ -61,8 +61,9 @@ export const splitLocation = (value: string) => {
   }
 }
 
-export const readSearchFromQueryString = () => {
-  const params = new URLSearchParams(window.location.search)
+/** Pure parser — accepts a query string directly, making it testable without window. */
+export const parseSearchParams = (qs: string) => {
+  const params = new URLSearchParams(qs)
   const rawSearch = (params.get('search') ?? '').trim()
   const rawState = params.get('state')
   const rawTab = params.get('tab') ?? undefined
@@ -74,6 +75,8 @@ export const readSearchFromQueryString = () => {
     tab: rawTab,
   }
 }
+
+export const readSearchFromQueryString = () => parseSearchParams(window.location.search)
 
 export const writeSearchToQueryString = (place: string, state: AustralianState, tab?: string) => {
   const params = new URLSearchParams(window.location.search)

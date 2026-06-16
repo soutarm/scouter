@@ -1,4 +1,5 @@
 import type { Review } from '../types'
+import { computeScores } from './scoring'
 
 export const STORAGE_KEY = 'scouter.llm-settings'
 export const RECENT_SEARCHES_KEY = 'scouter.recent-searches'
@@ -6,9 +7,13 @@ export const REVIEW_CACHE_KEY = 'scouter.review-cache'
 export const REVIEW_CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 1 day
 export const MAX_RECENT_SEARCHES = 12
 
+// Increment when the scoring model changes so cached scores are recomputed on read.
+const SCORES_VERSION = 2
+
 type ReviewCacheEntry = {
   review: Review
   cachedAt: number
+  scoresVersion?: number
 }
 
 type ReviewCache = Record<string, ReviewCacheEntry>
@@ -33,13 +38,20 @@ export const getCachedReview = (query: string): Review | null => {
     window.localStorage.setItem(REVIEW_CACHE_KEY, JSON.stringify(rest))
     return null
   }
+  // Re-score silently if the entry was cached before the current scoring model
+  if ((entry.scoresVersion ?? 0) < SCORES_VERSION && entry.review.exists !== false) {
+    entry.review.scores = computeScores(entry.review)
+    entry.scoresVersion = SCORES_VERSION
+    cache[key] = entry
+    try { window.localStorage.setItem(REVIEW_CACHE_KEY, JSON.stringify(cache)) } catch { /* quota */ }
+  }
   return entry.review
 }
 
 export const setCachedReview = (query: string, review: Review) => {
   const key = query.trim().toLowerCase()
   const cache = loadReviewCache()
-  cache[key] = { review, cachedAt: Date.now() }
+  cache[key] = { review, cachedAt: Date.now(), scoresVersion: SCORES_VERSION }
   try {
     window.localStorage.setItem(REVIEW_CACHE_KEY, JSON.stringify(cache))
   } catch {
