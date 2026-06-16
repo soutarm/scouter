@@ -1222,12 +1222,16 @@ button:focus-visible {
 
 .tab-map-btn {
   align-items: center;
+  background: #244b31 !important;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(36, 75, 49, 0.25);
+  color: #ffffff !important;
   display: flex;
   flex: 0 0 auto !important;
+  height: 44px;
   justify-content: center;
   padding: 0 !important;
   width: 44px;
-  height: 44px;
 }
 
 .tab-panel,

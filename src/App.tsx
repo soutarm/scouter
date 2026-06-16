@@ -791,7 +791,7 @@ function App() {
                       aria-label={tab.key === 'map' ? 'Map' : undefined}
                       title={tab.key === 'map' ? 'Map' : undefined}
                     >
-                      {TAB_ICONS[tab.key]}{tab.label}
+                      {tab.key === 'map' ? <MapIcon /> : <>{TAB_ICONS[tab.key]}{tab.label}</>}
                     </button>
                   ))}
                 </nav>
