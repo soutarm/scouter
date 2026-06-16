@@ -68,27 +68,56 @@ export const computeSafetyScore = (review: Review): number => {
 }
 
 // ── Infrastructure score ──────────────────────────────────────────────────────
-// Three equal buckets, each scored 1–10, averaged.
+// Three equal buckets (Transit, Services, Amenity), each scored 1–10, averaged.
+//
+// Thresholds scale by population tier so small suburbs aren't penalised for
+// lacking metro-scale infrastructure.
+//
+// Population tiers (parsed from LLM string, e.g. "~12,000"):
+//   Small:  < 8,000   — 1 train station = excellent
+//   Medium: 8k–40k    — 2 train stations = excellent  (default when unknown)
+//   Large:  > 40,000  — 3+ train stations = excellent
 //
 // Transit bucket:
-//   trainStations count:  0→0pts, 1→4pts, 2→7pts, 3+→10pts
-//   busAvailability:      Excellent→10, Good→7, Limited→3, None→0, missing→5
-//   bucket = (train + bus) / 2
+//   trainStations: Small→[0,4,10], Medium→[0,4,7,10], Large→[0,2,5,10] (by count)
+//   busAvailability: Excellent→10, Good→7, Limited→3, None→0, missing→5
 //
-// Services bucket:
-//   primarySchools:    scale 0→0, 1→4, 2→7, 3+→10
-//   secondarySchools:  scale 0→0, 1→6, 2+→10
-//   medicalCentres:    scale 0→0, 1→5, 2→8, 3+→10
-//   shoppingPrecincts: scale 0→0, 1→5, 2→8, 3+→10
-//   bucket = avg of present fields, floor 3
+// Services bucket (per tier):
+//   Small  — 1 primary school = 10, 1 medical = 10, 1 shopping = 10
+//   Medium — 2 primary = 10, 1 secondary = 7 / 2 = 10, 2 medical = 10
+//   Large  — 3+ primary = 10, 2+ secondary = 10, 3+ medical = 10
 //
-// Amenity bucket:
-//   parks:            scale 0→0, 1-2→4, 3-4→7, 5+→10
-//   pointsOfInterest: scale 0→0, 1-2→4, 3-5→7, 6+→10
-//   bucket = avg of present fields, floor 3
+// Amenity bucket (per tier):
+//   Small  — 1 park = 10, 2 POIs = 10
+//   Medium — 3 parks = 10, 4 POIs = 10
+//   Large  — 5 parks = 10, 6 POIs = 10
+
+type PopTier = 'small' | 'medium' | 'large'
+
+/** Parse LLM population string → numeric estimate. Returns null if unparseable. */
+const parsePopulation = (pop: string | undefined): number | null => {
+  if (!pop) return null
+  // Strip commas, spaces, tildes, "approx", "approximately", "~"
+  const cleaned = pop.replace(/[~,\s]/g, '').replace(/approx(?:imately)?/i, '')
+  // Match patterns like "12000", "12k", "1.2m"
+  const m = cleaned.match(/(\d+(?:\.\d+)?)\s*([km]?)/i)
+  if (!m) return null
+  const n = parseFloat(m[1])
+  const unit = m[2].toLowerCase()
+  if (unit === 'k') return n * 1_000
+  if (unit === 'm') return n * 1_000_000
+  return n
+}
+
+const popTier = (pop: string | undefined): PopTier => {
+  const n = parsePopulation(pop)
+  if (n === null) return 'medium'
+  if (n < 8_000) return 'small'
+  if (n < 40_000) return 'medium'
+  return 'large'
+}
 
 const steppedScore = (n: number, steps: [number, number][]): number => {
-  // steps: [[threshold, score], ...] in ascending order
   let result = 0
   for (const [threshold, score] of steps) {
     if (n >= threshold) result = score
@@ -102,25 +131,69 @@ const busScore = (bus: string | undefined): number => {
   return { Excellent: 10, Good: 7, Limited: 3, None: 0 }[bus] ?? 5
 }
 
+// Per-tier stepped tables
+const TRAIN_STEPS: Record<PopTier, [number, number][]> = {
+  small:  [[0, 0], [1, 10]],
+  medium: [[0, 0], [1, 4], [2, 7], [3, 10]],
+  large:  [[0, 0], [1, 2], [2, 5], [3, 8], [4, 10]],
+}
+
+const PRIMARY_STEPS: Record<PopTier, [number, number][]> = {
+  small:  [[0, 0], [1, 10]],
+  medium: [[0, 0], [1, 4], [2, 7], [3, 10]],
+  large:  [[0, 0], [1, 2], [2, 5], [3, 8], [4, 10]],
+}
+
+const SECONDARY_STEPS: Record<PopTier, [number, number][]> = {
+  small:  [[0, 0], [1, 10]],
+  medium: [[0, 0], [1, 6], [2, 10]],
+  large:  [[0, 0], [1, 4], [2, 7], [3, 10]],
+}
+
+const MEDICAL_STEPS: Record<PopTier, [number, number][]> = {
+  small:  [[0, 0], [1, 10]],
+  medium: [[0, 0], [1, 5], [2, 8], [3, 10]],
+  large:  [[0, 0], [1, 3], [2, 6], [3, 9], [4, 10]],
+}
+
+const SHOPPING_STEPS: Record<PopTier, [number, number][]> = {
+  small:  [[0, 0], [1, 10]],
+  medium: [[0, 0], [1, 5], [2, 8], [3, 10]],
+  large:  [[0, 0], [1, 3], [2, 6], [3, 9], [4, 10]],
+}
+
+const PARKS_STEPS: Record<PopTier, [number, number][]> = {
+  small:  [[0, 0], [1, 7], [2, 10]],
+  medium: [[0, 0], [1, 4], [3, 7], [5, 10]],
+  large:  [[0, 0], [1, 2], [3, 5], [5, 7], [8, 10]],
+}
+
+const POI_STEPS: Record<PopTier, [number, number][]> = {
+  small:  [[0, 0], [1, 7], [2, 10]],
+  medium: [[0, 0], [1, 4], [3, 7], [6, 10]],
+  large:  [[0, 0], [1, 2], [3, 5], [6, 8], [9, 10]],
+}
+
 export const computeInfrastructureScore = (review: Review): number => {
   const infra = review.infrastructure
+  const tier = popTier(review.demographics?.population)
 
   // Transit
   const trainCount = infra.trainStations?.length ?? 0
-  const trainPts = steppedScore(trainCount, [[0, 0], [1, 4], [2, 7], [3, 10]])
+  const trainPts = steppedScore(trainCount, TRAIN_STEPS[tier])
   const busPts = busScore(infra.busAvailability)
   const transitScore = (trainPts + busPts) / 2
 
   // Services
   const serviceInputs: number[] = []
   if (infra.primarySchools != null)
-    serviceInputs.push(steppedScore(infra.primarySchools, [[0, 0], [1, 4], [2, 7], [3, 10]]))
+    serviceInputs.push(steppedScore(infra.primarySchools, PRIMARY_STEPS[tier]))
   if (infra.secondarySchools != null)
-    serviceInputs.push(steppedScore(infra.secondarySchools, [[0, 0], [1, 6], [2, 10]]))
+    serviceInputs.push(steppedScore(infra.secondarySchools, SECONDARY_STEPS[tier]))
   if (infra.medicalCentres != null)
-    serviceInputs.push(steppedScore(infra.medicalCentres, [[0, 0], [1, 5], [2, 8], [3, 10]]))
+    serviceInputs.push(steppedScore(infra.medicalCentres, MEDICAL_STEPS[tier]))
   if (infra.shoppingPrecincts != null)
-    serviceInputs.push(steppedScore(infra.shoppingPrecincts, [[0, 0], [1, 5], [2, 8], [3, 10]]))
+    serviceInputs.push(steppedScore(infra.shoppingPrecincts, SHOPPING_STEPS[tier]))
   const servicesScore = serviceInputs.length
     ? Math.max(3, serviceInputs.reduce((a, b) => a + b, 0) / serviceInputs.length)
     : 5
@@ -128,9 +201,9 @@ export const computeInfrastructureScore = (review: Review): number => {
   // Amenity
   const amenityInputs: number[] = []
   if (infra.parks != null)
-    amenityInputs.push(steppedScore(infra.parks, [[0, 0], [1, 4], [3, 7], [5, 10]]))
+    amenityInputs.push(steppedScore(infra.parks, PARKS_STEPS[tier]))
   if (infra.pointsOfInterest != null)
-    amenityInputs.push(steppedScore(infra.pointsOfInterest.length, [[0, 0], [1, 4], [3, 7], [6, 10]]))
+    amenityInputs.push(steppedScore(infra.pointsOfInterest.length, POI_STEPS[tier]))
   const amenityScore = amenityInputs.length
     ? Math.max(3, amenityInputs.reduce((a, b) => a + b, 0) / amenityInputs.length)
     : 5

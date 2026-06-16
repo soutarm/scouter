@@ -131,20 +131,9 @@ describe('computeSafetyScore', () => {
 // ── Infrastructure score ──────────────────────────────────────────────────────
 
 describe('computeInfrastructureScore', () => {
-  it('returns ~4.2 when all data missing (transit has no trains so (0+5)/2=2.5, services+amenity neutral=5)', () => {
-    // transit: no trains(0) + bus missing(5) = 2.5; services: 5 (missing); amenity: 5 (missing)
-    // avg = (2.5 + 5 + 5) / 3 = 4.2
+  it('returns ~4.2 when all data missing (medium tier default)', () => {
+    // transit: no trains(0) + bus missing(5) = 2.5; services: 5; amenity: 5
     expect(computeInfrastructureScore(baseReview)).toBeCloseTo(4.2, 1)
-  })
-
-  it('boosts transit score with train stations', () => {
-    const r = { ...baseReview, infrastructure: {
-      ...baseReview.infrastructure,
-      trainStations: [{ name: 'Central', lines: 'Metro' }, { name: 'North', lines: 'Metro' }],
-      busAvailability: 'Excellent' as const,
-    } }
-    // transit: (7+10)/2 = 8.5, services: 5 (missing), amenity: 5 → avg = 6.2
-    expect(computeInfrastructureScore(r)).toBeCloseTo(6.2, 1)
   })
 
   it('floors services bucket at 3 when counts are all 0', () => {
@@ -155,24 +144,82 @@ describe('computeInfrastructureScore', () => {
       medicalCentres: 0,
       shoppingPrecincts: 0,
     } }
-    // transit: (0+5)/2=2.5, services: max(3,0)=3, amenity: 5 → avg ≈ 3.5
     expect(computeInfrastructureScore(r)).toBeCloseTo(3.5, 1)
   })
 
-  it('scores well with good data', () => {
-    const r = { ...baseReview, infrastructure: {
-      ...baseReview.infrastructure,
-      trainStations: [{ name: 'A', lines: 'X' }, { name: 'B', lines: 'Y' }, { name: 'C', lines: 'Z' }],
-      busAvailability: 'Excellent' as const,
-      primarySchools: 3,
-      secondarySchools: 2,
-      medicalCentres: 3,
-      shoppingPrecincts: 3,
-      parks: 6,
-      pointsOfInterest: [1,2,3,4,5,6].map(i => ({ icon: '🏛', label: `POI ${i}` })),
-    } }
-    // transit: (10+10)/2=10, services: (10+10+10+10)/4=10, amenity: (10+10)/2=10 → 10
+  it('small suburb: 1 train station scores 10 for transit train component', () => {
+    const r = {
+      ...baseReview,
+      demographics: { summary: '', population: '4,000' },
+      infrastructure: {
+        ...baseReview.infrastructure,
+        trainStations: [{ name: 'Local', lines: 'Regional' }],
+        busAvailability: 'Good' as const,
+      }
+    }
+    // small tier: 1 train → 10pts, bus Good → 7 → transit = (10+7)/2 = 8.5
+    expect(computeInfrastructureScore(r)).toBeGreaterThan(6)
+  })
+
+  it('large suburb: 1 train station scores low for transit train component', () => {
+    const r = {
+      ...baseReview,
+      demographics: { summary: '', population: '80,000' },
+      infrastructure: {
+        ...baseReview.infrastructure,
+        trainStations: [{ name: 'One', lines: 'Metro' }],
+        busAvailability: 'Good' as const,
+      }
+    }
+    // large tier: 1 train → 2pts, bus Good → 7 → transit = (2+7)/2 = 4.5
+    const small = {
+      ...baseReview,
+      demographics: { summary: '', population: '4,000' },
+      infrastructure: {
+        ...baseReview.infrastructure,
+        trainStations: [{ name: 'One', lines: 'Metro' }],
+        busAvailability: 'Good' as const,
+      }
+    }
+    expect(computeInfrastructureScore(r)).toBeLessThan(computeInfrastructureScore(small))
+  })
+
+  it('medium suburb scores 10 with good all-round data', () => {
+    const r = {
+      ...baseReview,
+      demographics: { summary: '', population: '20,000' },
+      infrastructure: {
+        ...baseReview.infrastructure,
+        trainStations: [{ name: 'A', lines: 'X' }, { name: 'B', lines: 'Y' }, { name: 'C', lines: 'Z' }],
+        busAvailability: 'Excellent' as const,
+        primarySchools: 3,
+        secondarySchools: 2,
+        medicalCentres: 3,
+        shoppingPrecincts: 3,
+        parks: 5,
+        pointsOfInterest: [1,2,3,4,5,6].map(i => ({ icon: '🏛', label: `POI ${i}` })),
+      }
+    }
     expect(computeInfrastructureScore(r)).toBe(10)
+  })
+
+  it('parses population strings: "~4,500", "12k", "80000"', () => {
+    const make = (population: string) => ({
+      ...baseReview,
+      demographics: { summary: '', population },
+      infrastructure: {
+        ...baseReview.infrastructure,
+        trainStations: [{ name: 'X', lines: 'Y' }],
+      }
+    })
+    // ~4,500 → small → 1 station = 10 train pts
+    // 12k → medium → 1 station = 4 train pts
+    // 80000 → large → 1 station = 2 train pts
+    const small = computeInfrastructureScore(make('~4,500'))
+    const medium = computeInfrastructureScore(make('12k'))
+    const large = computeInfrastructureScore(make('80000'))
+    expect(small).toBeGreaterThan(medium)
+    expect(medium).toBeGreaterThan(large)
   })
 })
 
