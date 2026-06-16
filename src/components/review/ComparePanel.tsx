@@ -13,7 +13,7 @@ export const ComparePanel = ({ reviews, onDetails, onCategoryClick }: Props) => 
       <p className="eyebrow">Comparing {reviews.length} location{reviews.length !== 1 ? 's' : ''}</p>
       <h2>Side-by-side summary</h2>
     </div>
-    <div className="compare-grid">
+    <div className={`compare-grid${reviews.length === 4 ? ' compare-grid--4' : ''}`}>
       {reviews.map((review) => (
         <div key={`${review.suburb}-${review.state}`} className="compare-card">
           {review.scores ? (
