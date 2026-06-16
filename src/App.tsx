@@ -5,7 +5,7 @@ import './App.css'
 import type { AustralianState, LlmSettings, Review, ReviewSectionKey, SuburbSuggestion } from './types'
 import {
    STORAGE_KEY, MAX_RECENT_SEARCHES,
-  clearReviewCache, removeCachedReview, getCachedReview, getReviewCacheCount, setCachedReview,
+  clearReviewCache, removeCachedReview, getCachedReview, getCachedReviewKeys, getReviewCacheCount, setCachedReview,
   loadRecentSearches, saveRecentSearches,
 } from './services/cache'
 import {
@@ -146,11 +146,20 @@ function App() {
 
     if (uniqueRecentSearches.length >= featuredQuickLocations.length) return uniqueRecentSearches
 
+    // Pad with featured locations first, then any other cached-but-not-recent keys
+    const cachedKeys = getCachedReviewKeys()
+    const cachedExtras = cachedKeys
+      .filter((k) => !seen.has(k) && !featuredQuickLocations.some((f) => f.toLowerCase() === k))
+      // Capitalise each word for display (cache keys are lowercase)
+      .map((k) => k.replace(/\b\w/g, (c) => c.toUpperCase()))
+
     return [
       ...uniqueRecentSearches,
       ...featuredQuickLocations.filter((s) => !seen.has(s.toLowerCase())),
+      ...cachedExtras,
     ].slice(0, featuredQuickLocations.length)
-  }, [recentSearches])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recentSearches, cacheLocationCount])
 
   const composedQuery = query.trim() ? `${query.trim()}, ${selectedState}` : ''
 
@@ -672,7 +681,7 @@ function App() {
                     const isSelected = compareKeys.includes(key)
                     const isCached = getCachedReview(key) !== null
                     const isDisabled = compareMode && !isSelected && compareKeys.length >= 6
-                    const isRecent = recentSearches.some((s) => s.trim().toLowerCase() === key)
+                    const isRecent = recentSearches.some((s) => s.trim().toLowerCase() === key) || isCached
                     if (compareMode) {
                       return (
                         <button

@@ -791,19 +791,19 @@ button:focus-visible {
 
 .quick-location-remove {
   align-items: center;
-  background: rgba(36, 75, 49, 0.1);
+  background: none;
   border: none;
-  border-radius: 999px;
-  color: #244b31;
+  color: rgba(36, 75, 49, 0.45);
   cursor: pointer;
   display: none;
   height: 20px;
   justify-content: center;
+  padding: 0;
   position: absolute;
-  right: 6px;
+  right: 8px;
   top: 50%;
   transform: translateY(-50%);
-  width: 20px;
+  width: 16px;
 }
 
 .quick-location-tag-wrap.is-recent:hover .quick-location-remove {
@@ -811,7 +811,8 @@ button:focus-visible {
 }
 
 .quick-location-remove:hover {
-  background: rgba(36, 75, 49, 0.2);
+  background: none;
+  color: rgba(36, 75, 49, 0.85);
 }
 
 .quick-location-tag-wrap.is-recent .quick-location-tag {
@@ -1441,6 +1442,29 @@ button:focus-visible {
   display: block;
   height: 420px;
   width: 100%;
+}
+
+.state-benchmark-banner {
+  align-items: center;
+  background: rgba(237, 248, 232, 0.7);
+  border: 1px solid rgba(74, 111, 81, 0.18);
+  border-radius: 10px;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding: 10px 16px;
+}
+
+.state-benchmark-label {
+  color: #4a6f51;
+  font-size: 0.84rem;
+}
+
+.state-benchmark-value {
+  color: #1f4d36;
+  font-size: 0.95rem;
+  font-weight: 650;
 }
 
 .table-wrap {

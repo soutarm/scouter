@@ -8,7 +8,7 @@ export const REVIEW_CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 1 day
 export const MAX_RECENT_SEARCHES = 12
 
 // Increment when the scoring model changes so cached scores are recomputed on read.
-const SCORES_VERSION = 7
+const SCORES_VERSION = 8
 
 type ReviewCacheEntry = {
   review: Review
@@ -69,6 +69,15 @@ export const removeCachedReview = (query: string) => {
   if (!(key in cache)) return
   const { [key]: _removed, ...rest } = cache
   window.localStorage.setItem(REVIEW_CACHE_KEY, JSON.stringify(rest))
+}
+
+/** Returns all non-expired cache keys (lowercase). */
+export const getCachedReviewKeys = (): string[] => {
+  const cache = loadReviewCache()
+  const now = Date.now()
+  return Object.entries(cache)
+    .filter(([, entry]) => now - entry.cachedAt <= REVIEW_CACHE_TTL_MS)
+    .map(([key]) => key)
 }
 
 export const getReviewCacheCount = () => {

@@ -25,14 +25,14 @@ const levelScore = (level: string | undefined) =>
 const round1 = (n: number) => Math.round(n * 10) / 10
 
 // ── Property score ────────────────────────────────────────────────────────────
-// Relative to state median growth (stateMedianGrowth) when available.
-//   - Suburb at state average → 5/10
-//   - +7.5pp above average → 10/10
-//   - -7.5pp below average → 1/10
-//   score = 5 + (suburbGrowth - stateGrowth) / 7.5 * 4.5
+// Blended score when stateMedianGrowth is available:
+//   - 60% absolute component: -2% → 1, 10% → 10  (rewards strong raw growth)
+//   - 40% relative component: suburb at state avg → 5, ±5pp → ±4.5
+//   This ensures a suburb with solid absolute growth (e.g. 7%) scores well
+//   even if the state benchmark is also high.
 //
-// Falls back to absolute scale when stateMedianGrowth is missing:
-//   -5% → 1/10, 10% → 10/10
+// Falls back to pure absolute scale when stateMedianGrowth is missing:
+//   -5% → 1, 10% → 10
 
 export const computePropertyScore = (review: Review): number => {
   const growths = review.marketRows
@@ -43,13 +43,17 @@ export const computePropertyScore = (review: Review): number => {
 
   const avg = growths.reduce((a, b) => a + b, 0) / growths.length
 
+  // Absolute component: -2% → 1, 10% → 10
+  const absScore = clamp(1 + ((avg + 2) / 12) * 9, 1, 10)
+
   const stateGrowth = review.stateMedianGrowth != null ? parsePercent(review.stateMedianGrowth) : null
   if (stateGrowth != null) {
-    const score = 5 + ((avg - stateGrowth) / 7.5) * 4.5
-    return round1(clamp(score, 1, 10))
+    // Relative component: suburb at state avg → 5, ±5pp → ±4.5
+    const relScore = clamp(5 + ((avg - stateGrowth) / 5) * 4.5, 1, 10)
+    return round1(0.6 * absScore + 0.4 * relScore)
   }
 
-  // Fallback: absolute scale -5% → 1, 10% → 10
+  // Fallback: pure absolute scale -5% → 1, 10% → 10
   const score = 1 + ((avg + 5) / 15) * 9
   return round1(clamp(score, 1, 10))
 }

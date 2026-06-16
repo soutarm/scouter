@@ -32,26 +32,29 @@ describe('computePropertyScore', () => {
     expect(computePropertyScore(baseReview)).toBe(5)
   })
 
-  // ── Relative mode (stateMedianGrowth present) ──────────────────────────────
+  // ── Blended mode (stateMedianGrowth present): 60% absolute + 40% relative ──
 
-  it('relative: suburb at state average → 5', () => {
+  it('blended: suburb at state average scores on absolute component only', () => {
+    // avg=2.5%, state=2.5% → relScore=5; absScore=1+(4.5/12)*9=4.375
+    // blend = 0.6*4.375 + 0.4*5 = 4.6
     const r = { ...baseReview,
       stateMedianGrowth: '+2.5%',
       marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+2.5%', medianWeeklyRent: '$450', grossYield: '3%' }],
     }
-    expect(computePropertyScore(r)).toBe(5)
+    expect(computePropertyScore(r)).toBeCloseTo(4.6, 1)
   })
 
-  it('relative: +7.5pp above state average → 9.5 (clamp to 10 only beyond)', () => {
-    // score = 5 + (7.5/7.5)*4.5 = 9.5
+  it('blended: strong absolute growth (10%) scores 10 regardless of relative', () => {
+    // avg=10% → absScore=10 (clamped); relScore=clamp(5+(7.5/5)*4.5,1,10)=10
+    // blend = 10
     const r = { ...baseReview,
       stateMedianGrowth: '+2.5%',
       marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+10%', medianWeeklyRent: '$450', grossYield: '3%' }],
     }
-    expect(computePropertyScore(r)).toBeCloseTo(9.5, 1)
+    expect(computePropertyScore(r)).toBe(10)
   })
 
-  it('relative: ≥+7.5pp above state average clamps to 10', () => {
+  it('blended: extreme growth clamps to 10', () => {
     const r = { ...baseReview,
       stateMedianGrowth: '+2.5%',
       marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+20%', medianWeeklyRent: '$450', grossYield: '3%' }],
@@ -59,7 +62,9 @@ describe('computePropertyScore', () => {
     expect(computePropertyScore(r)).toBe(10)
   })
 
-  it('relative: -7.5pp below state average → 0.5 (clamps to 1)', () => {
+  it('blended: negative growth clamps to 1', () => {
+    // avg=-5% → absScore=clamp(1+(-3/12)*9,1,10)=1; relScore=clamp(5-7.5/5*4.5,1,10)=1
+    // blend = 1
     const r = { ...baseReview,
       stateMedianGrowth: '+2.5%',
       marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '-5%', medianWeeklyRent: '$450', grossYield: '3%' }],
@@ -67,8 +72,9 @@ describe('computePropertyScore', () => {
     expect(computePropertyScore(r)).toBe(1)
   })
 
-  it('relative: +3pp above state average → 6.8', () => {
-    // score = 5 + (3/7.5)*4.5 = 5 + 1.8 = 6.8
+  it('blended: +3pp above state average → ~6.8', () => {
+    // avg=5%, state=2% → relScore=5+(3/5)*4.5=7.7; absScore=1+(7/12)*9=6.25
+    // blend = 0.6*6.25 + 0.4*7.7 = 6.83 → 6.8
     const r = { ...baseReview,
       stateMedianGrowth: '+2%',
       marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+5%', medianWeeklyRent: '$450', grossYield: '3%' }],
@@ -76,12 +82,25 @@ describe('computePropertyScore', () => {
     expect(computePropertyScore(r)).toBeCloseTo(6.8, 1)
   })
 
-  it('relative: clamps below 1 when far below average', () => {
+  it('blended: clamps below 1 when far below average', () => {
     const r = { ...baseReview,
       stateMedianGrowth: '+5%',
       marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '-20%', medianWeeklyRent: '$450', grossYield: '3%' }],
     }
     expect(computePropertyScore(r)).toBe(1)
+  })
+
+  it('blended: Narooma-like (6.5% avg, 5% state) → ~7.0', () => {
+    // avg=6.5%, state=5% → relScore=5+(1.5/5)*4.5=6.35; absScore=1+(8.5/12)*9=7.375
+    // blend = 0.6*7.375 + 0.4*6.35 = 7.0
+    const r = { ...baseReview,
+      stateMedianGrowth: '+5%',
+      marketRows: [
+        { propertyType: 'Houses', medianPrice: '$600k', twelveMonthGrowth: '+7.5%', medianWeeklyRent: '$400', grossYield: '3.5%' },
+        { propertyType: 'Units',  medianPrice: '$400k', twelveMonthGrowth: '+5.5%', medianWeeklyRent: '$300', grossYield: '3.9%' },
+      ],
+    }
+    expect(computePropertyScore(r)).toBeCloseTo(7.0, 1)
   })
 
   // ── Fallback mode (no stateMedianGrowth) ──────────────────────────────────
