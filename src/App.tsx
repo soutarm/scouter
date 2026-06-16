@@ -82,8 +82,8 @@ const tabs: Array<{ key: ReviewSectionKey; label: string }> = [
   { key: 'property', label: 'Property' },
   { key: 'crime', label: 'Crime & Safety' },
   { key: 'infrastructure', label: 'Infrastructure' },
-  { key: 'demographics', label: 'Demographics' },
   { key: 'environment', label: 'Environment' },
+  { key: 'demographics', label: 'Demographics' },
   { key: 'map', label: 'Map' },
 ]
 
