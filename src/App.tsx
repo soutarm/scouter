@@ -214,7 +214,7 @@ function App() {
 
   const runSearch = useCallback(
     async (place: string, state: AustralianState, options: { updateQueryString?: boolean; tab?: string } = {}) => {
-      const trimmedPlace = place.trim()
+      const trimmedPlace = place.trim().replace(/\b\w/g, (c) => c.toUpperCase())
       const trimmedQuery = trimmedPlace ? `${trimmedPlace}, ${state}` : ''
       if (!trimmedQuery) return
 
