@@ -1942,12 +1942,13 @@ td {
 .wind-rose-wrap {
   align-items: center;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   flex-shrink: 0;
-  gap: 12px;
+  gap: 16px;
 }
 
 .wind-rose-svg {
+  flex-shrink: 0;
   height: 160px;
   width: 160px;
 }
@@ -1956,7 +1957,6 @@ td {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 160px;
 }
 
 .wind-rose-stat {
