@@ -2261,11 +2261,48 @@ td {
   user-select: none;
 }
 
-.compare-toggle-label input[type="checkbox"] {
-  accent-color: #244b31;
+.ios-toggle {
+  display: inline-flex;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.ios-toggle input[type="checkbox"] {
+  height: 0;
+  opacity: 0;
+  position: absolute;
+  width: 0;
+}
+
+.ios-toggle-track {
+  background: #c7d9cc;
+  border-radius: 999px;
   cursor: pointer;
-  height: 15px;
-  width: 15px;
+  display: block;
+  height: 22px;
+  transition: background 0.2s ease;
+  width: 38px;
+}
+
+.ios-toggle-track::after {
+  background: #fff;
+  border-radius: 999px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.22);
+  content: '';
+  height: 18px;
+  left: 2px;
+  position: absolute;
+  top: 2px;
+  transition: transform 0.2s ease;
+  width: 18px;
+}
+
+.ios-toggle input:checked + .ios-toggle-track {
+  background: #244b31;
+}
+
+.ios-toggle input:checked + .ios-toggle-track::after {
+  transform: translateX(16px);
 }
 
 .compare-count-badge {

@@ -539,8 +539,7 @@ function App() {
             <path d="M202 11c-16 23-23 45-20 66 4 28 24 49 21 82-2 19-11 34-27 48" />
           </svg>
           <form className="search-card" onSubmit={handleSubmit}>
-            <div className="search-card-heading"><span>Suburb search</span></div>
-            <label htmlFor="suburb-query">Location</label>
+            <div className="search-card-heading"><span>Location search</span></div>
             <div className="search-input-wrap">
               <div className="search-row">
                 <input
@@ -588,14 +587,17 @@ function App() {
               <>
                 <div className="compare-toggle-row">
                   <label className="compare-toggle-label">
-                    <input
-                      type="checkbox"
-                      checked={compareMode}
-                      onChange={(e) => {
-                        setCompareMode(e.target.checked)
-                        if (!e.target.checked) setCompareKeys([])
-                      }}
-                    />
+                    <span className="ios-toggle">
+                      <input
+                        type="checkbox"
+                        checked={compareMode}
+                        onChange={(e) => {
+                          setCompareMode(e.target.checked)
+                          if (!e.target.checked) setCompareKeys([])
+                        }}
+                      />
+                      <span className="ios-toggle-track" aria-hidden="true" />
+                    </span>
                     <span>Compare</span>
                   </label>
                   {compareMode && compareKeys.length > 0 && (
@@ -666,8 +668,6 @@ function App() {
               void runSearch(r.suburb, r.state as import('./types').AustralianState, { updateQueryString: true })
             }}
             onCategoryClick={(r, tabKey) => {
-              setCompareMode(false)
-              setCompareKeys([])
               void runSearch(r.suburb, r.state as import('./types').AustralianState, { updateQueryString: true, tab: tabKey })
             }}
           />
