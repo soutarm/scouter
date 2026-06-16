@@ -2828,6 +2828,14 @@ td {
     flex: 1 1 44%;
   }
 
+.tab-map-label {
+  display: none;
+}
+
+  .tab-map-label {
+    display: inline;
+  }
+
   .tab-map-btn {
     background: transparent !important;
     border-radius: 999px !important;

@@ -875,7 +875,7 @@ function App() {
                       className={`${activeTab === tab.key ? 'active' : ''}${tab.key === 'map' ? ' tab-map-btn' : ''}`}
                       onClick={() => setActiveTab(tab.key)}
                     >
-                      {TAB_ICONS[tab.key]}{tab.label}
+                      {TAB_ICONS[tab.key]}<span className={tab.key === 'map' ? 'tab-map-label' : ''}>{tab.label}</span>
                     </button>
                   ))}
                 </nav>
