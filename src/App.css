@@ -1503,9 +1503,9 @@ td {
 
 .thermometer-track::before,
 .thermometer-track::after {
-  border: 3px solid #f8fbff;
+  border: 3px solid #f4f9f5;
   border-radius: 999px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   content: '';
   height: 26px;
   position: absolute;
@@ -1515,12 +1515,12 @@ td {
 }
 
 .thermometer-track::before {
-  background: #4a90c4;
+  background: #b8d9f0;
   left: -4px;
 }
 
 .thermometer-track::after {
-  background: #c44a4a;
+  background: #f0b8b8;
   right: -4px;
 }
 
@@ -1534,8 +1534,8 @@ td {
 }
 
 .thermometer-marker {
-  background: #eaf4fb;
-  border: 3px solid #2a6496;
+  background: #daeef8;
+  border: 2.5px solid #90bcd8;
   border-radius: 999px;
   height: 22px;
   position: absolute;
@@ -1546,14 +1546,14 @@ td {
 }
 
 .thermometer-marker.max {
-  background: #fbeaea;
-  border-color: #962a2a;
+  background: #f8dada;
+  border-color: #d89090;
 }
 
 .thermometer-marker.peak {
-  background: #fde8e8;
-  border-color: #c0363b;
-  box-shadow: 0 0 0 5px rgba(192, 54, 59, 0.14);
+  background: #f8d5d5;
+  border-color: #d08080;
+  box-shadow: 0 0 0 4px rgba(208, 128, 128, 0.18);
 }
 
 .thermometer-scale {
