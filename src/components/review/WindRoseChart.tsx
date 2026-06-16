@@ -6,8 +6,6 @@ type WindDirection = {
 
 type Props = {
   directions: WindDirection[]
-  predominantDirection: string
-  averageSpeedKmh: number
 }
 
 const DIRECTION_ANGLES: Record<string, number> = {
@@ -22,7 +20,7 @@ const speedColour = (kmh: number): string => {
   return '#c07060'
 }
 
-export const WindRoseChart = ({ directions, predominantDirection, averageSpeedKmh }: Props) => {
+export const WindRoseChart = ({ directions }: Props) => {
   const cx = 80
   const cy = 80
   const maxRadius = 55
@@ -32,14 +30,13 @@ export const WindRoseChart = ({ directions, predominantDirection, averageSpeedKm
 
   return (
     <div className="wind-rose-wrap">
-      <div className="wind-rose-diagram">
-        <svg
+      <svg
         className="wind-rose-svg"
         viewBox="0 0 160 160"
         aria-label="Wind rose diagram showing frequency and speed by direction"
         role="img"
       >
-        {/* Concentric reference rings at 25%, 50%, 75%, 100% */}
+        {/* Concentric reference rings */}
         {[0.25, 0.5, 0.75, 1].map((frac) => (
           <circle
             key={frac}
@@ -73,11 +70,8 @@ export const WindRoseChart = ({ directions, predominantDirection, averageSpeedKm
           const rad = (angleDeg * Math.PI) / 180
           const barLen = innerRadius + (maxRadius - innerRadius) * (frequency / maxFreq)
           const barWidth = 10
-
-          // Bar drawn as a rectangle centred on the axis, rotated to angle
           const x = cx + Math.cos(rad) * (innerRadius + (barLen - innerRadius) / 2)
           const y = cy + Math.sin(rad) * (innerRadius + (barLen - innerRadius) / 2)
-
           return (
             <rect
               key={direction}
@@ -117,30 +111,19 @@ export const WindRoseChart = ({ directions, predominantDirection, averageSpeedKm
             </text>
           )
         })}
-        </svg>
+      </svg>
 
-        <div className="wind-rose-stats">
-          <div className="wind-rose-stat">
-            <span className="wind-rose-stat-value">{averageSpeedKmh}</span>
-            <span className="wind-rose-stat-label">avg km/h</span>
-          </div>
-          <div className="wind-rose-stat">
-            <span className="wind-rose-stat-value">{predominantDirection}</span>
-            <span className="wind-rose-stat-label">predominant</span>
-          </div>
-        </div>
-      </div>
-
+      {/* Horizontal colour key below diagram */}
       <div className="wind-rose-speed-key">
         {[
-          { label: '< 15', colour: '#7ecfdb' },
-          { label: '15–25', colour: '#7fd49a' },
-          { label: '25–35', colour: '#d4a843' },
-          { label: '35+',   colour: '#c07060' },
+          { label: '< 15 km/h', colour: '#7ecfdb' },
+          { label: '15–25',     colour: '#7fd49a' },
+          { label: '25–35',     colour: '#d4a843' },
+          { label: '35+',       colour: '#c07060' },
         ].map(({ label, colour }) => (
           <span key={label} className="wind-rose-key-item">
             <span className="wind-rose-key-dot" style={{ background: colour }} />
-            {label} km/h
+            {label}
           </span>
         ))}
       </div>

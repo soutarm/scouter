@@ -24,12 +24,9 @@ export const EnvironmentTab = ({ review }: Props) => (
           <div className="climate-card wind-climate-card">
             <h3>Wind</h3>
             {review.climate.wind.directions?.length > 0 && (
-              <WindRoseChart
-                directions={review.climate.wind.directions}
-                predominantDirection={review.climate.wind.predominantDirection}
-                averageSpeedKmh={review.climate.wind.averageSpeedKmh}
-              />
+              <WindRoseChart directions={review.climate.wind.directions} />
             )}
+            <p>{review.climate.wind.averageSpeedKmh} km/h average · Predominant direction: {review.climate.wind.predominantDirection}</p>
             <p className="wind-seasonal">{review.climate.wind.seasonalVariation}</p>
           </div>
         )}

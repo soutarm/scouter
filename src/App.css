@@ -1946,51 +1946,21 @@ td {
 .wind-rose-wrap {
   align-items: center;
   display: flex;
-  flex-direction: row;
-  flex-shrink: 0;
-  gap: 16px;
-}
-
-.wind-rose-diagram {
-  align-items: center;
-  display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
 .wind-rose-svg {
-  flex-shrink: 0;
   height: 160px;
   width: 160px;
 }
 
-.wind-rose-stats {
-  display: flex;
-  gap: 16px;
-}
-
-.wind-rose-stat {
-  align-items: baseline;
-  display: flex;
-  gap: 5px;
-}
-
-.wind-rose-stat-value {
-  color: #244b31;
-  font-size: 1.1rem;
-  font-weight: 900;
-}
-
-.wind-rose-stat-label {
-  color: #607264;
-  font-size: 0.75rem;
-}
-
 .wind-rose-speed-key {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-  margin-top: 2px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  justify-content: center;
 }
 
 .wind-rose-key-item {
