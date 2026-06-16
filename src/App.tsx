@@ -104,6 +104,7 @@ const LocationPinIcon = () => (
 
 function App() {
   const [query, setQuery] = useState('')
+  const [canonicalPlace, setCanonicalPlace] = useState<string | null>(null)
   const [selectedState, setSelectedState] = useState<AustralianState>('TAS')
   const [settings, setSettings] = useState<LlmSettings>(() => loadSettings())
   const [recentSearches, setRecentSearches] = useState<string[]>(() => loadRecentSearches())
@@ -214,11 +215,14 @@ function App() {
 
   const runSearch = useCallback(
     async (place: string, state: AustralianState, options: { updateQueryString?: boolean; tab?: string } = {}) => {
-      const trimmedPlace = place.trim().replace(/\b\w/g, (c) => c.toUpperCase())
+      const trimmedPlace = place.trim()
       const trimmedQuery = trimmedPlace ? `${trimmedPlace}, ${state}` : ''
       if (!trimmedQuery) return
 
-      setQuery(trimmedPlace)
+      // Use the canonical (autocomplete-provided) name if available, else raw input
+      const displayPlace = canonicalPlace ?? trimmedPlace
+      setQuery(displayPlace)
+      setCanonicalPlace(null)
       setSelectedState(state)
 
       if (options.updateQueryString !== false) writeSearchToQueryString(trimmedPlace, state, options.tab)
@@ -273,7 +277,7 @@ function App() {
         setIsLoading(false)
       }
     },
-    [providerReady, rememberSearch, settings],
+    [canonicalPlace, providerReady, rememberSearch, settings],
   )
 
   useEffect(() => {
@@ -592,7 +596,7 @@ function App() {
                   id="suburb-query"
                   placeholder="Hobart"
                   value={query}
-                  onChange={(e) => { setQuery(e.target.value); fetchSuggestions(e.target.value) }}
+                  onChange={(e) => { setQuery(e.target.value); setCanonicalPlace(null); fetchSuggestions(e.target.value) }}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                   onFocus={() => { setQuery(''); setSuggestions([]); setShowSuggestions(false) }}
                   autoComplete="off"
@@ -619,6 +623,7 @@ function App() {
                         e.preventDefault()
                         setSuggestions([])
                         setShowSuggestions(false)
+                        setCanonicalPlace(s.name)
                         void runSearch(s.name, s.state)
                       }}
                     >
