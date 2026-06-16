@@ -119,12 +119,35 @@ describe('computeSafetyScore', () => {
   })
 
   it('weights Assault and Break & Enter at 2x', () => {
-    // Theft=Low(10) weight 1, Assault=Very High(1) weight 2 → (10*1 + 1*2) / 3 = 4
+    // Theft=Low(10) w1, Assault=Very High(1) w2 → (10 + 2) / 3 = 4
     const r = { ...baseReview, crime: { ...baseReview.crime, crimeTypes: [
       { label: 'Theft', level: 'Low' as const },
       { label: 'Assault', level: 'Very High' as const },
     ] } }
     expect(computeSafetyScore(r)).toBeCloseTo(4, 1)
+  })
+
+  it('weights Vehicle theft at 1.5x', () => {
+    // Theft=Low(10) w1, Vehicle theft=Very High(1) w1.5 → (10 + 1.5) / 2.5 = 4.6
+    const r = { ...baseReview, crime: { ...baseReview.crime, crimeTypes: [
+      { label: 'Theft', level: 'Low' as const },
+      { label: 'Vehicle theft', level: 'Very High' as const },
+    ] } }
+    expect(computeSafetyScore(r)).toBeCloseTo(4.6, 1)
+  })
+
+  it('reproduces the 6-type example: all medium/low → ~7.9', () => {
+    // Theft:M(5)×1 + Assault:L(10)×2 + B&E:L(10)×2 + Vandalism:M(5)×1 + Drug:L(10)×1 + VehicleTheft:M(5)×1.5
+    // = 5+20+20+5+10+7.5 = 67.5 / (1+2+2+1+1+1.5) = 67.5/8.5 ≈ 7.9
+    const r = { ...baseReview, crime: { ...baseReview.crime, crimeTypes: [
+      { label: 'Theft', level: 'Medium' as const },
+      { label: 'Assault', level: 'Low' as const },
+      { label: 'Break & Enter', level: 'Low' as const },
+      { label: 'Vandalism', level: 'Medium' as const },
+      { label: 'Drug offences', level: 'Low' as const },
+      { label: 'Vehicle theft', level: 'Medium' as const },
+    ] } }
+    expect(computeSafetyScore(r)).toBeCloseTo(7.9, 1)
   })
 })
 

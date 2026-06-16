@@ -43,12 +43,14 @@ export const computePropertyScore = (review: Review): number => {
 }
 
 // ── Safety score ─────────────────────────────────────────────────────────────
-// Based on crimeTypes levels. Assault and Break & Enter are weighted 2x.
+// Based on crimeTypes levels.
+// Weights: Assault 2x, Break & Enter 2x, Vehicle theft 1.5x, others 1x.
 // Low → 10, Medium → 5, High → 2, Very High → 1. Missing → 5.
 
 const CRIME_WEIGHTS: Record<string, number> = {
   'Assault': 2,
   'Break & Enter': 2,
+  'Vehicle theft': 1.5,
 }
 const DEFAULT_CRIME_WEIGHT = 1
 
