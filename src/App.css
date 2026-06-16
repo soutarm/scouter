@@ -2394,12 +2394,35 @@ td {
 }
 
 .compare-panel-header {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
   margin-bottom: 24px;
 }
 
 .compare-panel-header h2 {
   font-size: clamp(1.4rem, 3vw, 2rem);
   margin-bottom: 0;
+}
+
+.compare-collapse-btn {
+  align-items: center;
+  background: rgba(36, 75, 49, 0.08);
+  border: 1px solid rgba(36, 75, 49, 0.15);
+  border-radius: 999px;
+  color: #244b31;
+  cursor: pointer;
+  display: flex;
+  flex-shrink: 0;
+  height: 34px;
+  justify-content: center;
+  margin-top: 4px;
+  transition: background 150ms ease;
+  width: 34px;
+}
+
+.compare-collapse-btn:hover {
+  background: rgba(36, 75, 49, 0.16);
 }
 
 .compare-grid {
