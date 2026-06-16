@@ -482,7 +482,7 @@ function App() {
             </span>
             {isLoading
               ? <span className="button-spinner accordion-spinner" aria-label="Scouting" />
-              : <span className="topbar-search-pill-action">{review && !locationNotFound ? 'Scout again' : 'Change'}</span>
+              : <svg className="topbar-search-pill-chevron" aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6"/></svg>
             }
           </button>
         )}

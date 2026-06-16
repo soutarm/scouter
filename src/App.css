@@ -92,14 +92,9 @@
   white-space: nowrap;
 }
 
-.topbar-search-pill-action {
-  background: #edf8e8;
-  border-radius: 999px;
+.topbar-search-pill-chevron {
   color: #315b3b;
-  font-size: 0.78rem;
-  font-weight: 900;
-  padding: 5px 10px;
-  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .brand-lockup {
@@ -2637,9 +2632,5 @@ td {
 
   .topbar-search-pill {
     margin: 0 6px;
-  }
-
-  .topbar-search-pill-action {
-    display: none;
   }
 }
