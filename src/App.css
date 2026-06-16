@@ -781,6 +781,43 @@ button:focus-visible {
   margin-top: 18px;
 }
 
+.quick-location-tag-wrap {
+  position: relative;
+}
+
+.quick-location-tag-wrap .quick-location-tag {
+  width: 100%;
+}
+
+.quick-location-remove {
+  align-items: center;
+  background: rgba(36, 75, 49, 0.1);
+  border: none;
+  border-radius: 999px;
+  color: #244b31;
+  cursor: pointer;
+  display: none;
+  height: 20px;
+  justify-content: center;
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+}
+
+.quick-location-tag-wrap.is-recent:hover .quick-location-remove {
+  display: flex;
+}
+
+.quick-location-remove:hover {
+  background: rgba(36, 75, 49, 0.2);
+}
+
+.quick-location-tag-wrap.is-recent .quick-location-tag {
+  padding-right: 32px;
+}
+
 .quick-location-tag {
   align-items: center;
   background: rgba(237, 248, 232, 0.88);

@@ -63,6 +63,14 @@ export const clearReviewCache = () => {
   window.localStorage.removeItem(REVIEW_CACHE_KEY)
 }
 
+export const removeCachedReview = (query: string) => {
+  const key = query.trim().toLowerCase()
+  const cache = loadReviewCache()
+  if (!(key in cache)) return
+  const { [key]: _removed, ...rest } = cache
+  window.localStorage.setItem(REVIEW_CACHE_KEY, JSON.stringify(rest))
+}
+
 export const getReviewCacheCount = () => {
   const cache = loadReviewCache()
   const now = Date.now()

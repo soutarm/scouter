@@ -4,8 +4,8 @@ import './App.css'
 
 import type { AustralianState, LlmSettings, Review, ReviewSectionKey, SuburbSuggestion } from './types'
 import {
-  STORAGE_KEY, MAX_RECENT_SEARCHES,
-  clearReviewCache, getCachedReview, getReviewCacheCount, setCachedReview,
+   STORAGE_KEY, MAX_RECENT_SEARCHES,
+  clearReviewCache, removeCachedReview, getCachedReview, getReviewCacheCount, setCachedReview,
   loadRecentSearches, saveRecentSearches,
 } from './services/cache'
 import {
@@ -324,7 +324,17 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
+  const removeLocation = useCallback((search: string) => {
+    const key = search.trim().toLowerCase()
+    removeCachedReview(key)
+    const next = recentSearches.filter((s) => s.trim().toLowerCase() !== key)
+    saveRecentSearches(next)
+    setRecentSearches(next)
+    setCacheLocationCount(getReviewCacheCount())
+  }, [recentSearches])
+
   const clearCurrentLocation = useCallback(() => {
+    if (composedQuery) removeLocation(composedQuery)
     setQuery('')
     setReview(null)
     setHasSearched(false)
@@ -335,8 +345,7 @@ function App() {
     setSuggestions([])
     setShowSuggestions(false)
     clearSearchFromUrl()
-    window.localStorage.removeItem('scouter.last-location')
-  }, [clearSearchFromUrl, openSearchPanel])
+  }, [clearSearchFromUrl, composedQuery, openSearchPanel, removeLocation])
 
   const clearCacheAndRecentSearches = useCallback(() => {
     clearReviewCache()
@@ -663,6 +672,7 @@ function App() {
                     const isSelected = compareKeys.includes(key)
                     const isCached = getCachedReview(key) !== null
                     const isDisabled = compareMode && !isSelected && compareKeys.length >= 6
+                    const isRecent = recentSearches.some((s) => s.trim().toLowerCase() === key)
                     if (compareMode) {
                       return (
                         <button
@@ -684,22 +694,38 @@ function App() {
                       )
                     }
                     return (
-                      <a
-                        key={search}
-                        className="quick-location-tag"
-                        href={toSearchHref(search, selectedState)}
-                        onClick={(e) => {
-                          e.preventDefault()
-                          setSuggestions([])
-                          setShowSuggestions(false)
-                          const parsed = splitLocation(search)
-                          if (!parsed.place) return
-                          void runSearch(parsed.place, parsed.state ?? selectedState)
-                        }}
-                      >
-                        <LocationPinIcon />
-                        <span>{search}</span>
-                      </a>
+                      <div key={search} className={`quick-location-tag-wrap${isRecent ? ' is-recent' : ''}`}>
+                        <a
+                          className="quick-location-tag"
+                          href={toSearchHref(search, selectedState)}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            setSuggestions([])
+                            setShowSuggestions(false)
+                            const parsed = splitLocation(search)
+                            if (!parsed.place) return
+                            void runSearch(parsed.place, parsed.state ?? selectedState)
+                          }}
+                        >
+                          <LocationPinIcon />
+                          <span>{search}</span>
+                        </a>
+                        {isRecent && (
+                          <button
+                            type="button"
+                            className="quick-location-remove"
+                            aria-label={`Remove ${search}`}
+                            onMouseDown={(e) => {
+                              e.preventDefault()
+                              removeLocation(search)
+                            }}
+                          >
+                            <svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+                              <line x1="3" y1="3" x2="13" y2="13" /><line x1="13" y1="3" x2="3" y2="13" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
                     )
                   })}
                 </div>
