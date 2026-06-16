@@ -258,7 +258,7 @@ function App() {
           // If compare mode is active and there's room, auto-add this location and scroll to panel
           const cacheKey = trimmedQuery.toLowerCase()
           setCompareKeys((prev) => {
-            if (compareMode && prev.length < 4 && !prev.includes(cacheKey)) {
+            if (compareMode && prev.length < 6 && !prev.includes(cacheKey)) {
               setTimeout(() => {
                 comparePanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
               }, 120)
@@ -648,7 +648,7 @@ function App() {
                   </label>
                   {compareMode && compareKeys.length > 0 && (
                     <span className="compare-count-badge">
-                      {compareKeys.length}/4 selected
+                      {compareKeys.length}/6 selected
                     </span>
                   )}
                 </div>
@@ -657,7 +657,7 @@ function App() {
                     const key = search.trim().toLowerCase()
                     const isSelected = compareKeys.includes(key)
                     const isCached = getCachedReview(key) !== null
-                    const isDisabled = compareMode && !isSelected && compareKeys.length >= 4
+                    const isDisabled = compareMode && !isSelected && compareKeys.length >= 6
                     if (compareMode) {
                       return (
                         <button

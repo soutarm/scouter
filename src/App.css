@@ -2412,6 +2412,10 @@ td {
   grid-template-columns: repeat(2, 1fr);
 }
 
+.compare-grid--3col {
+  grid-template-columns: repeat(3, 1fr);
+}
+
 .compare-card {
   background: linear-gradient(135deg, #244b31, #477a52);
   border-radius: 20px;
