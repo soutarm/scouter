@@ -33,7 +33,7 @@ export const WindRoseChart = ({ directions, predominantDirection, averageSpeedKm
   return (
     <div className="wind-rose-wrap">
       <div className="wind-rose-diagram">
-      <svg
+        <svg
         className="wind-rose-svg"
         viewBox="0 0 160 160"
         aria-label="Wind rose diagram showing frequency and speed by direction"
@@ -117,7 +117,7 @@ export const WindRoseChart = ({ directions, predominantDirection, averageSpeedKm
             </text>
           )
         })}
-      </svg>
+        </svg>
 
         <div className="wind-rose-stats">
           <div className="wind-rose-stat">

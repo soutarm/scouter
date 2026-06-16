@@ -1253,6 +1253,10 @@ button:focus-visible {
   color: #17351f;
 }
 
+.tab-map-label {
+  display: none;
+}
+
 .tab-map-btn {
   align-items: center;
   background: #244b31 !important;
@@ -2827,10 +2831,6 @@ td {
   .tabs button {
     flex: 1 1 44%;
   }
-
-.tab-map-label {
-  display: none;
-}
 
   .tab-map-label {
     display: inline;
