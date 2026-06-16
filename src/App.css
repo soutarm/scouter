@@ -1892,6 +1892,84 @@ td {
   gap: 12px;
 }
 
+/* Wind section */
+.wind-section {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.wind-rose-wrap {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.wind-rose-svg {
+  height: 160px;
+  width: 160px;
+}
+
+.wind-rose-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 160px;
+}
+
+.wind-rose-stat {
+  align-items: baseline;
+  display: flex;
+  gap: 5px;
+}
+
+.wind-rose-stat-value {
+  color: #244b31;
+  font-size: 1.1rem;
+  font-weight: 900;
+}
+
+.wind-rose-stat-label {
+  color: #607264;
+  font-size: 0.75rem;
+}
+
+.wind-rose-speed-key {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.wind-rose-key-item {
+  align-items: center;
+  color: #4a5e4e;
+  display: flex;
+  font-size: 0.72rem;
+  gap: 5px;
+}
+
+.wind-rose-key-dot {
+  border-radius: 999px;
+  flex-shrink: 0;
+  height: 9px;
+  width: 9px;
+}
+
+.wind-detail {
+  flex: 1 1 200px;
+}
+
+.wind-seasonal {
+  color: #3d5442;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
 /* Noise section */
 .noise-panel {
   display: flex;

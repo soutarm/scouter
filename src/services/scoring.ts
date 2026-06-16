@@ -25,20 +25,31 @@ const levelScore = (level: string | undefined) =>
 const round1 = (n: number) => Math.round(n * 10) / 10
 
 // ── Property score ────────────────────────────────────────────────────────────
-// Based on 12-month growth for Houses and Units (average of both).
-// Linear scale: -5% → 1/10, 10% → 10/10
+// Relative to state median growth (stateMedianGrowth) when available.
+//   - Suburb at state average → 5/10
+//   - +7.5pp above average → 10/10
+//   - -7.5pp below average → 1/10
+//   score = 5 + (suburbGrowth - stateGrowth) / 7.5 * 4.5
 //
-//   score = 1 + (growth - (-5)) / (10 - (-5)) * 9
-//         = 1 + (growth + 5) / 15 * 9
+// Falls back to absolute scale when stateMedianGrowth is missing:
+//   -5% → 1/10, 10% → 10/10
 
 export const computePropertyScore = (review: Review): number => {
   const growths = review.marketRows
     .map((r) => parsePercent(r.twelveMonthGrowth))
     .filter((v): v is number => v !== null)
 
-  if (!growths.length) return 5  // neutral if no data
+  if (!growths.length) return 5
 
   const avg = growths.reduce((a, b) => a + b, 0) / growths.length
+
+  const stateGrowth = review.stateMedianGrowth != null ? parsePercent(review.stateMedianGrowth) : null
+  if (stateGrowth != null) {
+    const score = 5 + ((avg - stateGrowth) / 7.5) * 4.5
+    return round1(clamp(score, 1, 10))
+  }
+
+  // Fallback: absolute scale -5% → 1, 10% → 10
   const score = 1 + ((avg + 5) / 15) * 9
   return round1(clamp(score, 1, 10))
 }
@@ -216,8 +227,9 @@ export const computeInfrastructureScore = (review: Review): number => {
 }
 
 // ── Environment score ─────────────────────────────────────────────────────────
-// Equal thirds: air quality + noise + climate comfort.
+// Equal quarters: air quality + noise + climate comfort + wind.
 // Climate comfort: avg of summer-max score + winter-min score. Missing → 5.
+// Wind: Low→10, Medium→7, High→3, Very High→1. Missing → 5.
 //
 // Summer max (°C):  ≤25→10, 28→9, 31→7, 34→5, 37→3, 40→2, ≥43→1
 // Winter min (°C):  ≥10→10,  7→9,  4→7,  1→5, -2→3, -5→2, ≤-8→1
@@ -272,7 +284,11 @@ export const computeEnvironmentScore = (review: Review): number => {
 
   const climateScore = computeClimateScore(review)
 
-  return round1(clamp((airScore + noiseScore + climateScore) / 3, 1, 10))
+  const windRating = review.climate.wind?.overallRating
+  const windScoreMap: Record<string, number> = { Low: 10, Medium: 7, High: 3, 'Very High': 1 }
+  const windScore = windRating != null ? (windScoreMap[windRating] ?? 5) : 5
+
+  return round1(clamp((airScore + noiseScore + climateScore + windScore) / 4, 1, 10))
 }
 
 // ── Overall ───────────────────────────────────────────────────────────────────

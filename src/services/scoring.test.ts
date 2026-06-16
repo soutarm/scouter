@@ -32,61 +32,84 @@ describe('computePropertyScore', () => {
     expect(computePropertyScore(baseReview)).toBe(5)
   })
 
-  it('scores 10 at 10% growth', () => {
+  // ── Relative mode (stateMedianGrowth present) ──────────────────────────────
+
+  it('relative: suburb at state average → 5', () => {
+    const r = { ...baseReview,
+      stateMedianGrowth: '+2.5%',
+      marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+2.5%', medianWeeklyRent: '$450', grossYield: '3%' }],
+    }
+    expect(computePropertyScore(r)).toBe(5)
+  })
+
+  it('relative: +7.5pp above state average → 9.5 (clamp to 10 only beyond)', () => {
+    // score = 5 + (7.5/7.5)*4.5 = 9.5
+    const r = { ...baseReview,
+      stateMedianGrowth: '+2.5%',
+      marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+10%', medianWeeklyRent: '$450', grossYield: '3%' }],
+    }
+    expect(computePropertyScore(r)).toBeCloseTo(9.5, 1)
+  })
+
+  it('relative: ≥+7.5pp above state average clamps to 10', () => {
+    const r = { ...baseReview,
+      stateMedianGrowth: '+2.5%',
+      marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+20%', medianWeeklyRent: '$450', grossYield: '3%' }],
+    }
+    expect(computePropertyScore(r)).toBe(10)
+  })
+
+  it('relative: -7.5pp below state average → 0.5 (clamps to 1)', () => {
+    const r = { ...baseReview,
+      stateMedianGrowth: '+2.5%',
+      marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '-5%', medianWeeklyRent: '$450', grossYield: '3%' }],
+    }
+    expect(computePropertyScore(r)).toBe(1)
+  })
+
+  it('relative: +3pp above state average → 6.8', () => {
+    // score = 5 + (3/7.5)*4.5 = 5 + 1.8 = 6.8
+    const r = { ...baseReview,
+      stateMedianGrowth: '+2%',
+      marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+5%', medianWeeklyRent: '$450', grossYield: '3%' }],
+    }
+    expect(computePropertyScore(r)).toBeCloseTo(6.8, 1)
+  })
+
+  it('relative: clamps below 1 when far below average', () => {
+    const r = { ...baseReview,
+      stateMedianGrowth: '+5%',
+      marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '-20%', medianWeeklyRent: '$450', grossYield: '3%' }],
+    }
+    expect(computePropertyScore(r)).toBe(1)
+  })
+
+  // ── Fallback mode (no stateMedianGrowth) ──────────────────────────────────
+
+  it('fallback: scores 10 at 10% growth', () => {
     const r = { ...baseReview, marketRows: [
       { propertyType: 'Houses', medianPrice: '$800k', twelveMonthGrowth: '+10%', medianWeeklyRent: '$500', grossYield: '3%' },
     ] }
     expect(computePropertyScore(r)).toBe(10)
   })
 
-  it('scores 1 at -5% growth', () => {
+  it('fallback: scores 1 at -5% growth', () => {
     const r = { ...baseReview, marketRows: [
       { propertyType: 'Houses', medianPrice: '$500k', twelveMonthGrowth: '-5%', medianWeeklyRent: '$400', grossYield: '4%' },
     ] }
     expect(computePropertyScore(r)).toBe(1)
   })
 
-  it('clamps below 1 for growth below -5%', () => {
-    const r = { ...baseReview, marketRows: [
-      { propertyType: 'Houses', medianPrice: '$500k', twelveMonthGrowth: '-20%', medianWeeklyRent: '$400', grossYield: '4%' },
-    ] }
-    expect(computePropertyScore(r)).toBe(1)
-  })
-
-  it('clamps above 10 for growth above 10%', () => {
-    const r = { ...baseReview, marketRows: [
-      { propertyType: 'Houses', medianPrice: '$500k', twelveMonthGrowth: '+20%', medianWeeklyRent: '$400', grossYield: '4%' },
-    ] }
-    expect(computePropertyScore(r)).toBe(10)
-  })
-
-  it('averages both rows', () => {
+  it('fallback: averages both rows', () => {
     const r = { ...baseReview, marketRows: [
       { propertyType: 'Houses', medianPrice: '$800k', twelveMonthGrowth: '+10%', medianWeeklyRent: '$500', grossYield: '3%' },
       { propertyType: 'Units', medianPrice: '$500k', twelveMonthGrowth: '-5%', medianWeeklyRent: '$400', grossYield: '4%' },
     ] }
-    // avg growth = 2.5% → 1 + (2.5+5)/15*9 = 1 + 4.5 = 5.5
+    // avg=2.5% → 1+(2.5+5)/15*9 = 5.5
     expect(computePropertyScore(r)).toBe(5.5)
   })
 
-  it('scores ~7 at 4% growth', () => {
-    // 1 + (4+5)/15*9 = 1 + 5.4 = 6.4
-    const r = { ...baseReview, marketRows: [
-      { propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+4%', medianWeeklyRent: '$450', grossYield: '3.5%' },
-    ] }
-    expect(computePropertyScore(r)).toBeCloseTo(6.4, 1)
-  })
-
-  it('scores ~6.4 at 3% growth', () => {
-    // 1 + (3+5)/15*9 = 1 + 4.8 = 5.8
-    const r = { ...baseReview, marketRows: [
-      { propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+3%', medianWeeklyRent: '$450', grossYield: '3.5%' },
-    ] }
-    expect(computePropertyScore(r)).toBeCloseTo(5.8, 1)
-  })
-
-  it('handles growth without + sign', () => {
-    // same as +3%
+  it('fallback: handles growth without + sign', () => {
     const r = { ...baseReview, marketRows: [
       { propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '3%', medianWeeklyRent: '$450', grossYield: '3.5%' },
     ] }
@@ -250,11 +273,11 @@ describe('computeInfrastructureScore', () => {
 // ── Environment score ─────────────────────────────────────────────────────────
 
 describe('computeEnvironmentScore', () => {
-  it('returns 5 when no air quality or noise data', () => {
+  it('returns 5 when no air quality, noise, climate or wind data', () => {
     expect(computeEnvironmentScore(baseReview)).toBe(5)
   })
 
-  it('scores 8.3 when all Low and no climate data (air=10, noise=10, climate=5 missing → 8.3)', () => {
+  it('scores 7.5 when all Low air+noise, climate and wind missing (air=10, noise=10, climate=5, wind=5 → 7.5)', () => {
     const r = { ...baseReview,
       climate: {
         summerAverages: '', winterAverages: '',
@@ -274,11 +297,11 @@ describe('computeEnvironmentScore', () => {
         },
       }
     }
-    // (10+10+5) / 3 = 8.3
-    expect(computeEnvironmentScore(r)).toBeCloseTo(8.3, 1)
+    // (10+10+5+5) / 4 = 7.5
+    expect(computeEnvironmentScore(r)).toBeCloseTo(7.5, 1)
   })
 
-  it('scores 2.3 when all Very High and no climate data (air=1, noise=1, climate=5 → 2.3)', () => {
+  it('scores 2 when all Very High air+noise, climate and wind missing (air=1, noise=1, climate=5, wind=5 → 3)', () => {
     const r = { ...baseReview,
       climate: {
         summerAverages: '', winterAverages: '',
@@ -298,11 +321,11 @@ describe('computeEnvironmentScore', () => {
         },
       }
     }
-    // (1+1+5) / 3 = 2.3
-    expect(computeEnvironmentScore(r)).toBeCloseTo(2.3, 1)
+    // (1+1+5+5) / 4 = 3
+    expect(computeEnvironmentScore(r)).toBeCloseTo(3, 1)
   })
 
-  it('returns 6.7 for all-Low air quality only, noise and climate missing', () => {
+  it('returns 6.25 for all-Low air quality only, rest missing', () => {
     const r = { ...baseReview,
       climate: {
         summerAverages: '', winterAverages: '',
@@ -315,8 +338,40 @@ describe('computeEnvironmentScore', () => {
         },
       }
     }
-    // air=10, noise=5 (missing), climate=5 (missing) → (10+5+5)/3 = 6.7
-    expect(computeEnvironmentScore(r)).toBeCloseTo(6.7, 1)
+    // air=10, noise=5, climate=5, wind=5 → (10+5+5+5)/4 = 6.25
+    expect(computeEnvironmentScore(r)).toBeCloseTo(6.3, 1)
+  })
+
+  it('wind Low rating scores 10 and boosts overall', () => {
+    const r = { ...baseReview,
+      climate: {
+        summerAverages: '', winterAverages: '',
+        wind: {
+          overallRating: 'Low' as const,
+          overallSummary: '', predominantDirection: 'N', averageSpeedKmh: 10,
+          seasonalVariation: '',
+          directions: [],
+        }
+      }
+    }
+    // air=5, noise=5, climate=5, wind=10 → 6.25
+    expect(computeEnvironmentScore(r)).toBeCloseTo(6.3, 1)
+  })
+
+  it('wind Very High rating scores 1 and drags overall down', () => {
+    const r = { ...baseReview,
+      climate: {
+        summerAverages: '', winterAverages: '',
+        wind: {
+          overallRating: 'Very High' as const,
+          overallSummary: '', predominantDirection: 'SW', averageSpeedKmh: 45,
+          seasonalVariation: '',
+          directions: [],
+        }
+      }
+    }
+    // air=5, noise=5, climate=5, wind=1 → 4
+    expect(computeEnvironmentScore(r)).toBeCloseTo(4, 1)
   })
 })
 

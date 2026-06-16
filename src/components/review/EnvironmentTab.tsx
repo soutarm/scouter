@@ -1,6 +1,7 @@
 import type { Review } from '../../types'
 import { ThermometerRange } from './ThermometerRange'
 import { EnvironmentalFactorPanel } from './EnvironmentalFactorPanel'
+import { WindRoseChart } from './WindRoseChart'
 
 type Props = { review: Review }
 
@@ -62,6 +63,25 @@ export const EnvironmentTab = ({ review }: Props) => (
           { icon: '🏭', label: 'Industrial zones', value: review.climate.noise.industrialZones },
         ]}
       />
+    )}
+
+    {review.climate.wind && (
+      <div className="environment-section">
+        <p className="eyebrow">Wind</p>
+        <p className="environment-summary">{review.climate.wind.overallSummary}</p>
+        <div className="wind-section">
+          {review.climate.wind.directions?.length > 0 && (
+            <WindRoseChart
+              directions={review.climate.wind.directions}
+              predominantDirection={review.climate.wind.predominantDirection}
+              averageSpeedKmh={review.climate.wind.averageSpeedKmh}
+            />
+          )}
+          <div className="wind-detail">
+            <p className="wind-seasonal">{review.climate.wind.seasonalVariation}</p>
+          </div>
+        </div>
+      </div>
     )}
   </section>
 )

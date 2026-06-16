@@ -55,6 +55,7 @@ export type Review = {
   suggestedState?: string
   marketNarrative: string
   marketRows: MarketRow[]
+  stateMedianGrowth?: string
   climate: {
     summerAverages: string
     winterAverages: string
@@ -81,6 +82,14 @@ export type Review = {
       industrialZonesLevel: 'Low' | 'Medium' | 'High' | 'Very High'
       overallRating: 'Low' | 'Medium' | 'High' | 'Very High'
       overallSummary: string
+    }
+    wind?: {
+      overallRating: 'Low' | 'Medium' | 'High' | 'Very High'
+      overallSummary: string
+      predominantDirection: string
+      averageSpeedKmh: number
+      seasonalVariation: string
+      directions: Array<{ direction: 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW'; frequency: number; avgSpeedKmh: number }>
     }
   }
   crime: {

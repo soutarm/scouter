@@ -94,6 +94,7 @@ JSON shape:
     { "propertyType": "Houses", "medianPrice": "AUD $...", "twelveMonthGrowth": "+...%", "medianWeeklyRent": "AUD $...", "grossYield": "...%" },
     { "propertyType": "Units / Townhouses", "medianPrice": "AUD $...", "twelveMonthGrowth": "...%", "medianWeeklyRent": "AUD $...", "grossYield": "...%" }
   ],
+  "stateMedianGrowth": "The current 12-month median property price growth for the state (e.g. '+2.5%'). Use the latest available data for the state this suburb is in. This is used as the benchmark midpoint for scoring the suburb's growth relative to the state average.",
   "climate": {
     "summerAverages": "Average high and low temperatures plus seasonal behaviour.",
     "winterAverages": "Average high and low temperatures plus rainfall/cloud/frost behaviour.",
@@ -120,6 +121,23 @@ JSON shape:
       "industrialZonesLevel": "One of: Low, Medium, High, Very High",
       "overallRating": "One of: Low, Medium, High, Very High",
       "overallSummary": "1-2 sentence summary of the suburb's overall noise and environmental amenity."
+    },
+    "wind": {
+      "overallRating": "One of: Low, Medium, High, Very High (Low = calm/sheltered, Very High = frequently windy/exposed)",
+      "overallSummary": "1-2 sentences describing the suburb's typical wind exposure and any notable seasonal patterns.",
+      "predominantDirection": "The most common wind direction, e.g. 'North-westerly'.",
+      "averageSpeedKmh": 15,
+      "seasonalVariation": "Description of how wind varies by season, including any strong wind events.",
+      "directions": [
+        { "direction": "N",  "frequency": 12, "avgSpeedKmh": 14 },
+        { "direction": "NE", "frequency": 8,  "avgSpeedKmh": 12 },
+        { "direction": "E",  "frequency": 10, "avgSpeedKmh": 11 },
+        { "direction": "SE", "frequency": 9,  "avgSpeedKmh": 13 },
+        { "direction": "S",  "frequency": 11, "avgSpeedKmh": 15 },
+        { "direction": "SW", "frequency": 18, "avgSpeedKmh": 20 },
+        { "direction": "W",  "frequency": 20, "avgSpeedKmh": 22 },
+        { "direction": "NW", "frequency": 12, "avgSpeedKmh": 16 }
+      ]
     }
   },
   "crime": {
