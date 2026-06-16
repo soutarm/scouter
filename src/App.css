@@ -1947,16 +1947,22 @@ td {
   gap: 16px;
 }
 
+.wind-rose-diagram {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .wind-rose-svg {
   flex-shrink: 0;
   height: 160px;
   width: 160px;
 }
 
-.wind-rose-legend {
+.wind-rose-stats {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  gap: 16px;
 }
 
 .wind-rose-stat {

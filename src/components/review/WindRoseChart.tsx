@@ -32,6 +32,7 @@ export const WindRoseChart = ({ directions, predominantDirection, averageSpeedKm
 
   return (
     <div className="wind-rose-wrap">
+      <div className="wind-rose-diagram">
       <svg
         className="wind-rose-svg"
         viewBox="0 0 160 160"
@@ -118,28 +119,30 @@ export const WindRoseChart = ({ directions, predominantDirection, averageSpeedKm
         })}
       </svg>
 
-      <div className="wind-rose-legend">
-        <div className="wind-rose-stat">
-          <span className="wind-rose-stat-value">{averageSpeedKmh}</span>
-          <span className="wind-rose-stat-label">avg km/h</span>
+        <div className="wind-rose-stats">
+          <div className="wind-rose-stat">
+            <span className="wind-rose-stat-value">{averageSpeedKmh}</span>
+            <span className="wind-rose-stat-label">avg km/h</span>
+          </div>
+          <div className="wind-rose-stat">
+            <span className="wind-rose-stat-value">{predominantDirection}</span>
+            <span className="wind-rose-stat-label">predominant</span>
+          </div>
         </div>
-        <div className="wind-rose-stat">
-          <span className="wind-rose-stat-value">{predominantDirection}</span>
-          <span className="wind-rose-stat-label">predominant</span>
-        </div>
-        <div className="wind-rose-speed-key">
-          {[
-            { label: '< 15', colour: '#7ecfdb' },
-            { label: '15–25', colour: '#7fd49a' },
-            { label: '25–35', colour: '#d4a843' },
-            { label: '35+',   colour: '#c07060' },
-          ].map(({ label, colour }) => (
-            <span key={label} className="wind-rose-key-item">
-              <span className="wind-rose-key-dot" style={{ background: colour }} />
-              {label} km/h
-            </span>
-          ))}
-        </div>
+      </div>
+
+      <div className="wind-rose-speed-key">
+        {[
+          { label: '< 15', colour: '#7ecfdb' },
+          { label: '15–25', colour: '#7fd49a' },
+          { label: '25–35', colour: '#d4a843' },
+          { label: '35+',   colour: '#c07060' },
+        ].map(({ label, colour }) => (
+          <span key={label} className="wind-rose-key-item">
+            <span className="wind-rose-key-dot" style={{ background: colour }} />
+            {label} km/h
+          </span>
+        ))}
       </div>
     </div>
   )
