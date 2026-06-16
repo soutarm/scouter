@@ -588,16 +588,17 @@ button:focus-visible {
 }
 
 .hero-panel {
-  align-items: stretch;
+  align-items: center;
   animation: hero-reveal 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
   background:
     radial-gradient(circle at 7% 14%, rgba(255, 255, 255, 0.92), transparent 28%),
     radial-gradient(circle at 86% 8%, rgba(222, 127, 101, 0.16), transparent 22%),
     radial-gradient(circle at 84% 88%, rgba(139, 184, 129, 0.24), transparent 32%),
     linear-gradient(135deg, rgba(253, 255, 247, 0.96), rgba(232, 245, 226, 0.94) 52%, rgba(207, 226, 204, 0.92));
-  display: grid;
-  gap: clamp(28px, 5vw, 64px);
-  grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.78fr);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(20px, 3vw, 36px);
+  justify-content: center;
   min-height: min(660px, calc(100vh - 170px));
   overflow: hidden;
   padding: clamp(30px, 6vw, 76px);
@@ -650,22 +651,20 @@ button:focus-visible {
 }
 
 .hero-copy {
-  align-self: center;
-  max-width: 760px;
+  max-width: 560px;
   position: relative;
+  text-align: center;
   z-index: 1;
 }
 
 .hero-copy h2 {
   font-size: clamp(2.2rem, 6vw, 5.4rem);
-  max-width: 760px;
 }
 
 .hero-copy p {
   color: #405946;
   font-size: clamp(1.08rem, 2vw, 1.34rem);
   line-height: 1.55;
-  max-width: 540px;
 }
 
 .pill {
@@ -2741,7 +2740,6 @@ td {
     align-items: stretch;
   }
 
-  .hero-panel,
   .settings-grid,
   .not-found-card,
   .split-panel,
@@ -2780,6 +2778,10 @@ td {
   .hero-panel {
     min-height: auto;
     padding: 30px 20px 22px;
+  }
+
+  .hero-copy {
+    text-align: left;
   }
 
   .hero-copy h2 {
