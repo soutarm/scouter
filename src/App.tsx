@@ -608,8 +608,8 @@ function App() {
           </svg>
           <form className="search-card" onSubmit={handleSubmit}>
             <div className="search-card-heading"><span>Location search</span></div>
-            <div className="search-input-wrap">
-              <div className="search-row">
+            <div className="search-row">
+              <div className="search-input-wrap">
                 <input
                   id="suburb-query"
                   placeholder="Hobart"
@@ -620,37 +620,37 @@ function App() {
                   autoComplete="off"
                   disabled={isLoading}
                 />
-                <button
-                  type="submit"
-                  className={isLoading ? 'is-loading' : undefined}
-                  disabled={isLoading || !query.trim()}
-                  aria-label={isLoading ? 'Scouting location' : undefined}
-                >
-                  {isLoading ? <span className="button-spinner" aria-label="Scouting" /> : 'Scout'}
-                </button>
+                {showSuggestions && suggestions.length > 0 && (
+                  <ul className="suggestions-list" role="listbox" aria-label="Location suggestions">
+                    {suggestions.map((s) => (
+                      <li
+                        key={`${s.name}-${s.state}`}
+                        role="option"
+                        aria-selected={false}
+                        className="suggestions-item"
+                        onMouseDown={(e) => {
+                          e.preventDefault()
+                          setSuggestions([])
+                          setShowSuggestions(false)
+                          setCanonicalPlace(s.name)
+                          void runSearch(s.name, s.state)
+                        }}
+                      >
+                        <span className="suggestions-name">{s.name}</span>
+                        <span className="suggestions-meta">{s.state}{s.postcode ? ` · ${s.postcode}` : ''}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
-              {showSuggestions && suggestions.length > 0 && (
-                <ul className="suggestions-list" role="listbox" aria-label="Location suggestions">
-                  {suggestions.map((s) => (
-                    <li
-                      key={`${s.name}-${s.state}`}
-                      role="option"
-                      aria-selected={false}
-                      className="suggestions-item"
-                      onMouseDown={(e) => {
-                        e.preventDefault()
-                        setSuggestions([])
-                        setShowSuggestions(false)
-                        setCanonicalPlace(s.name)
-                        void runSearch(s.name, s.state)
-                      }}
-                    >
-                      <span className="suggestions-name">{s.name}</span>
-                      <span className="suggestions-meta">{s.state}{s.postcode ? ` · ${s.postcode}` : ''}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <button
+                type="submit"
+                className={isLoading ? 'is-loading' : undefined}
+                disabled={isLoading || !query.trim()}
+                aria-label={isLoading ? 'Scouting location' : undefined}
+              >
+                {isLoading ? <span className="button-spinner" aria-label="Scouting" /> : 'Scout'}
+              </button>
             </div>
             {quickLocationTags.length > 0 && (
               <>

@@ -744,6 +744,7 @@ button:focus-visible {
 .search-row .search-input-wrap {
   flex: 1;
   min-width: 0;
+  position: relative;
 }
 
 .search-row input:hover {
@@ -1797,12 +1798,6 @@ td {
 }
 
 /* Autocomplete */
-.search-input-wrap {
-  flex: 1;
-  min-width: 0;
-  position: relative;
-}
-
 .search-row .search-input-wrap input {
   width: 100%;
 }
