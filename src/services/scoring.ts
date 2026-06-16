@@ -25,10 +25,10 @@ const round1 = (n: number) => Math.round(n * 10) / 10
 
 // ── Property score ────────────────────────────────────────────────────────────
 // Based on 12-month growth for Houses and Units (average of both).
-// Linear scale: -5% → 1/10, 15% → 10/10
+// Linear scale: -5% → 1/10, 10% → 10/10
 //
-//   score = 1 + (growth - (-5)) / (15 - (-5)) * 9
-//         = 1 + (growth + 5) / 20 * 9
+//   score = 1 + (growth - (-5)) / (10 - (-5)) * 9
+//         = 1 + (growth + 5) / 15 * 9
 
 export const computePropertyScore = (review: Review): number => {
   const growths = review.marketRows
@@ -38,7 +38,7 @@ export const computePropertyScore = (review: Review): number => {
   if (!growths.length) return 5  // neutral if no data
 
   const avg = growths.reduce((a, b) => a + b, 0) / growths.length
-  const score = 1 + ((avg + 5) / 20) * 9
+  const score = 1 + ((avg + 5) / 15) * 9
   return round1(clamp(score, 1, 10))
 }
 

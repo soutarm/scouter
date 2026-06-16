@@ -31,9 +31,9 @@ describe('computePropertyScore', () => {
     expect(computePropertyScore(baseReview)).toBe(5)
   })
 
-  it('scores 10 at 15% growth', () => {
+  it('scores 10 at 10% growth', () => {
     const r = { ...baseReview, marketRows: [
-      { propertyType: 'Houses', medianPrice: '$800k', twelveMonthGrowth: '+15%', medianWeeklyRent: '$500', grossYield: '3%' },
+      { propertyType: 'Houses', medianPrice: '$800k', twelveMonthGrowth: '+10%', medianWeeklyRent: '$500', grossYield: '3%' },
     ] }
     expect(computePropertyScore(r)).toBe(10)
   })
@@ -52,34 +52,44 @@ describe('computePropertyScore', () => {
     expect(computePropertyScore(r)).toBe(1)
   })
 
-  it('clamps above 10 for growth above 15%', () => {
+  it('clamps above 10 for growth above 10%', () => {
     const r = { ...baseReview, marketRows: [
-      { propertyType: 'Houses', medianPrice: '$500k', twelveMonthGrowth: '+30%', medianWeeklyRent: '$400', grossYield: '4%' },
+      { propertyType: 'Houses', medianPrice: '$500k', twelveMonthGrowth: '+20%', medianWeeklyRent: '$400', grossYield: '4%' },
     ] }
     expect(computePropertyScore(r)).toBe(10)
   })
 
   it('averages both rows', () => {
     const r = { ...baseReview, marketRows: [
-      { propertyType: 'Houses', medianPrice: '$800k', twelveMonthGrowth: '+15%', medianWeeklyRent: '$500', grossYield: '3%' },
+      { propertyType: 'Houses', medianPrice: '$800k', twelveMonthGrowth: '+10%', medianWeeklyRent: '$500', grossYield: '3%' },
       { propertyType: 'Units', medianPrice: '$500k', twelveMonthGrowth: '-5%', medianWeeklyRent: '$400', grossYield: '4%' },
     ] }
-    // avg growth = 5% → 1 + (5+5)/20*9 = 1+4.5 = 5.5
+    // avg growth = 2.5% → 1 + (2.5+5)/15*9 = 1 + 4.5 = 5.5
     expect(computePropertyScore(r)).toBe(5.5)
   })
 
-  it('scores ~5.5 at 5% average growth', () => {
+  it('scores ~7 at 4% growth', () => {
+    // 1 + (4+5)/15*9 = 1 + 5.4 = 6.4
     const r = { ...baseReview, marketRows: [
-      { propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+5%', medianWeeklyRent: '$450', grossYield: '3.5%' },
+      { propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+4%', medianWeeklyRent: '$450', grossYield: '3.5%' },
     ] }
-    expect(computePropertyScore(r)).toBe(5.5)
+    expect(computePropertyScore(r)).toBeCloseTo(6.4, 1)
+  })
+
+  it('scores ~6.4 at 3% growth', () => {
+    // 1 + (3+5)/15*9 = 1 + 4.8 = 5.8
+    const r = { ...baseReview, marketRows: [
+      { propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+3%', medianWeeklyRent: '$450', grossYield: '3.5%' },
+    ] }
+    expect(computePropertyScore(r)).toBeCloseTo(5.8, 1)
   })
 
   it('handles growth without + sign', () => {
+    // same as +3%
     const r = { ...baseReview, marketRows: [
-      { propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '5%', medianWeeklyRent: '$450', grossYield: '3.5%' },
+      { propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '3%', medianWeeklyRent: '$450', grossYield: '3.5%' },
     ] }
-    expect(computePropertyScore(r)).toBe(5.5)
+    expect(computePropertyScore(r)).toBeCloseTo(5.8, 1)
   })
 })
 
