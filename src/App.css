@@ -2451,24 +2451,19 @@ td {
 /* Compare-mode location tags */
 .quick-location-tag--compare {
   cursor: pointer;
-  gap: 8px;
-  opacity: 0.7;
+  opacity: 0.55;
   transition:
     background 160ms ease,
     border-color 160ms ease,
+    color 160ms ease,
     opacity 160ms ease,
     transform 160ms ease;
 }
 
-.quick-location-tag--compare.uncached {
-  cursor: not-allowed;
-  opacity: 0.38;
-}
-
-.quick-location-tag--compare:not(.uncached):hover {
+.quick-location-tag--compare:hover {
   background: #e5f5df;
   border-color: rgba(36, 75, 49, 0.3);
-  opacity: 1;
+  opacity: 0.85;
   transform: translateY(-1px);
 }
 
@@ -2479,39 +2474,15 @@ td {
   opacity: 1;
 }
 
+.quick-location-tag--compare.selected:hover {
+  background: #1a3823;
+  border-color: #1a3823;
+  transform: translateY(-1px);
+}
+
 .quick-location-tag--compare.disabled {
-  opacity: 0.3;
+  opacity: 0.25;
   pointer-events: none;
-}
-
-/* Mini checkbox dot inside the tag */
-.compare-checkbox {
-  background: rgba(36, 75, 49, 0.15);
-  border: 1.5px solid rgba(36, 75, 49, 0.35);
-  border-radius: 4px;
-  display: block;
-  flex-shrink: 0;
-  height: 14px;
-  transition: background 140ms ease, border-color 140ms ease;
-  width: 14px;
-}
-
-.compare-checkbox.checked {
-  background: #f7fff2;
-  border-color: #f7fff2;
-  position: relative;
-}
-
-.compare-checkbox.checked::after {
-  border-bottom: 2px solid #244b31;
-  border-right: 2px solid #244b31;
-  content: '';
-  height: 7px;
-  left: 3px;
-  position: absolute;
-  top: 1px;
-  transform: rotate(45deg);
-  width: 4px;
 }
 
 /* ── Compare panel ───────────────────────────────────────────────────────── */

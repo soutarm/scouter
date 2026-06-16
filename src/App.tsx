@@ -161,6 +161,21 @@ function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recentSearches, cacheLocationCount])
 
+  // Up to 8 cached locations shown in compare mode, most-recent first
+  const compareLocationTags = useMemo(() => {
+    const seen = new Set<string>()
+    const out: string[] = []
+    for (const s of recentSearches) {
+      const key = s.trim().toLowerCase()
+      if (!key || seen.has(key)) continue
+      seen.add(key)
+      if (getCachedReview(key) !== null) out.push(s)
+      if (out.length >= 8) break
+    }
+    return out
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recentSearches, cacheLocationCount])
+
   const composedQuery = query.trim() ? `${query.trim()}, ${selectedState}` : ''
 
   const compareReviews = useMemo(() => {
@@ -661,8 +676,17 @@ function App() {
                         type="checkbox"
                         checked={compareMode}
                         onChange={(e) => {
-                          setCompareMode(e.target.checked)
-                          if (!e.target.checked) setCompareKeys([])
+                          const on = e.target.checked
+                          setCompareMode(on)
+                          if (!on) {
+                            setCompareKeys([])
+                          } else {
+                            // Auto-select current location if cached
+                            const currentKey = composedQuery.trim().toLowerCase()
+                            if (currentKey && getCachedReview(currentKey) !== null) {
+                              setCompareKeys([currentKey])
+                            }
+                          }
                         }}
                       />
                       <span className="ios-toggle-track" aria-hidden="true" />
@@ -671,37 +695,42 @@ function App() {
                   </label>
                   {compareMode && compareKeys.length > 0 && (
                     <span className="compare-count-badge">
-                      {compareKeys.length}/6 selected
+                      {compareKeys.length}/6
                     </span>
                   )}
                 </div>
-                <div className="quick-location-grid" aria-label="Quick location selections">
-                  {quickLocationTags.map((search) => {
-                    const key = search.trim().toLowerCase()
-                    const isSelected = compareKeys.includes(key)
-                    const isCached = getCachedReview(key) !== null
-                    const isDisabled = compareMode && !isSelected && compareKeys.length >= 6
-                    const isRecent = recentSearches.some((s) => s.trim().toLowerCase() === key) || isCached
-                    if (compareMode) {
+
+                {compareMode ? (
+                  <div className="quick-location-grid compare-select-grid" aria-label="Select locations to compare">
+                    {compareLocationTags.map((search) => {
+                      const key = search.trim().toLowerCase()
+                      const isSelected = compareKeys.includes(key)
+                      const isDisabled = !isSelected && compareKeys.length >= 6
                       return (
                         <button
                           key={search}
                           type="button"
-                          className={`quick-location-tag quick-location-tag--compare${isSelected ? ' selected' : ''}${isDisabled ? ' disabled' : ''}${!isCached ? ' uncached' : ''}`}
+                          className={`quick-location-tag quick-location-tag--compare${isSelected ? ' selected' : ''}${isDisabled ? ' disabled' : ''}`}
                           disabled={isDisabled}
-                          onClick={() => {
-                            if (!isCached) return
+                          aria-pressed={isSelected}
+                          onClick={() =>
                             setCompareKeys((prev) =>
                               prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
                             )
-                          }}
-                          title={!isCached ? 'Scout this location first to compare it' : undefined}
+                          }
                         >
-                          <span className={`compare-checkbox${isSelected ? ' checked' : ''}`} aria-hidden="true" />
+                          <LocationPinIcon />
                           <span>{search}</span>
                         </button>
                       )
-                    }
+                    })}
+                  </div>
+                ) : (
+                <div className="quick-location-grid" aria-label="Quick location selections">
+                  {quickLocationTags.map((search) => {
+                    const key = search.trim().toLowerCase()
+                    const isCached = getCachedReview(key) !== null
+                    const isRecent = recentSearches.some((s) => s.trim().toLowerCase() === key) || isCached
                     return (
                       <div key={search} className={`quick-location-tag-wrap${isRecent ? ' is-recent' : ''}`}>
                         <a
@@ -738,6 +767,7 @@ function App() {
                     )
                   })}
                 </div>
+                )}
               </>
             )}
           </form>
