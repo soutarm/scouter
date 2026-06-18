@@ -59,6 +59,10 @@ Key deployment settings:
 - For functional/code behavior changes: run validation if requested, or when risk is non-trivial.
 - Always call out what was and wasn’t validated in your handoff.
 
+## ✍️ Copy & Content Rules
+
+- **Never use em dashes** (`—`) in any UI text, copy, prompts, or code comments. Use a regular hyphen, comma, or rewrite the sentence instead.
+
 ## 🚫 Safe Change Rules
 
 - Do not add server-only patterns that break static deployment assumptions.

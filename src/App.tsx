@@ -1200,7 +1200,7 @@ function App() {
       )}
 
       <footer className="site-footer">
-        <p>© {new Date().getFullYear()} Michael Scouter. For research purposes only — verify all information independently.</p>
+        <p>© {new Date().getFullYear()} Michael Scouter. For research purposes only. Verify all information independently.</p>
       </footer>
 
     </main>
