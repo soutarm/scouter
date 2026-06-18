@@ -14,7 +14,7 @@ export const DemographicsTab = ({ review }: Props) => {
       <div className="demographic-copy">
         <p className="eyebrow">Resident profile</p>
         <h3>Demographic snapshot</h3>
-        <p>{demographicSummary}</p>
+        {demographicSummary && <p>{demographicSummary}</p>}
         {(review.demographics?.population || review.demographics?.medianAge) && (
           <div className="demographic-stats">
             {review.demographics?.population && (

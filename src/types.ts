@@ -1,4 +1,4 @@
-export type ProviderKind = 'azure' | 'openai' | 'gemini'
+export type ProviderKind = 'azure' | 'openai' | 'gemini' | 'anthropic'
 
 export type LlmSettings = {
   provider: ProviderKind
@@ -11,6 +11,8 @@ export type LlmSettings = {
   openAiApiKey: string
   geminiModel: string
   geminiApiKey: string
+  anthropicModel: string
+  anthropicApiKey: string
 }
 
 export type ReviewSectionKey = 'property' | 'environment' | 'crime' | 'infrastructure' | 'demographics' | 'map'
@@ -49,6 +51,12 @@ export type Review = {
   postcode?: string
   generatedAt: string
   summary: string
+  briefs?: {
+    market?: string
+    environment?: string
+    crime?: string
+    infrastructure?: string
+  }
   scores?: ReviewScores
   notFoundReason?: string
   suggestedSuburb?: string
@@ -134,6 +142,7 @@ export type Review = {
     residentProfiles?: DemographicDatum[]
   }
   caveats: string[]
+  briefCaveats?: string[]
   references?: string[]
 }
 

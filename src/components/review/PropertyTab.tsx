@@ -75,7 +75,7 @@ export const PropertyTab = ({ review }: Props) => {
   return (
     <section className="tab-panel">
       <h3>Property Market &amp; Rental Realities</h3>
-      <p>{review.marketNarrative}</p>
+      {review.marketNarrative && <p>{review.marketNarrative}</p>}
       {(review.stateMedianGrowth || review.capitalCityGrowth) && (
         <div className="state-benchmark-row">
           {review.stateMedianGrowth && (

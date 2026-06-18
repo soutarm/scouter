@@ -12,18 +12,22 @@ import {
   featuredQuickLocations,
   mapStateName, splitLocation,
   readSearchFromQueryString, writeSearchToQueryString,
-  toSearchHref, getSuggestedLocation,
+  getSuggestedLocation,
 } from './services/location'
 import { callLlm, fetchHomelyContext, friendlyRequestError } from './services/llm'
+import { buildShareUrl, clearSharedReviewHash, getSharedReviewFromHash, SHARED_REVIEW_HASH_KEY } from './services/share'
 import { parseReferenceLink } from './services/reviewParser'
 import { SettingsPanel } from './components/SettingsPanel'
+import { HeroSearchSection } from './components/HeroSearchSection'
 import { PropertyTab } from './components/review/PropertyTab'
 import { EnvironmentTab } from './components/review/EnvironmentTab'
 import { CrimeTab } from './components/review/CrimeTab'
 import { InfrastructureTab } from './components/review/InfrastructureTab'
 import { DemographicsTab } from './components/review/DemographicsTab'
 import { MapTab } from './components/review/MapTab'
+import { SharedReviewBanner } from './components/review/SharedReviewBanner'
 import { ScoreRing } from './components/review/ScoreRing'
+import { TabPageHeader } from './components/review/TabPageHeader'
 import { ComparePanel } from './components/review/ComparePanel'
 import { PropertyIcon, SafetyIcon, InfrastructureIcon, DemographicsIcon, EnvironmentIcon, MapIcon } from './components/TabIcons'
 import { extractTemperatureProfile } from './components/review/ThermometerRange'
@@ -43,6 +47,8 @@ const defaultSettings: LlmSettings = {
   openAiApiKey: '',
   geminiModel: 'gemini-2.5-flash',
   geminiApiKey: '',
+  anthropicModel: 'claude-3-5-sonnet-latest',
+  anthropicApiKey: '',
 }
 
 const LEVEL_STEPS: Record<'Low' | 'Medium' | 'High' | 'Very High', number> = {
@@ -69,6 +75,7 @@ const loadSettings = (): LlmSettings => {
       ...merged,
       openAiModel: merged.openAiModel?.trim() || defaultSettings.openAiModel,
       geminiModel: merged.geminiModel?.trim() || defaultSettings.geminiModel,
+      anthropicModel: merged.anthropicModel?.trim() || defaultSettings.anthropicModel,
     }
   } catch {
     return defaultSettings
@@ -106,13 +113,6 @@ const tabs: Array<{ key: ReviewSectionKey; label: string }> = [
 // Misc UI helpers
 // ---------------------------------------------------------------------------
 
-const LocationPinIcon = () => (
-  <svg className="location-pin" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-    <path d="M12 21s6.3-5.6 6.3-11.1A6.3 6.3 0 0 0 5.7 9.9C5.7 15.4 12 21 12 21Z" />
-    <circle cx="12" cy="9.9" r="2.15" />
-  </svg>
-)
-
 // ---------------------------------------------------------------------------
 // App
 // ---------------------------------------------------------------------------
@@ -137,6 +137,10 @@ function App() {
   const [showReferences, setShowReferences] = useState(false)
   const [compareMode, setCompareMode] = useState(false)
   const [compareKeys, setCompareKeys] = useState<string[]>([])
+  const [isSharedReview, setIsSharedReview] = useState(() =>
+    Boolean(new URLSearchParams(window.location.hash.slice(1)).get(SHARED_REVIEW_HASH_KEY))
+  )
+  const [shareStatus, setShareStatus] = useState('')
   const [suggestions, setSuggestions] = useState<SuburbSuggestion[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const suggestionsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -147,6 +151,7 @@ function App() {
   const providerReady = useMemo(() => {
     if (settings.provider === 'azure') return Boolean(settings.azureEndpoint && settings.azureDeployment && settings.azureApiKey)
     if (settings.provider === 'gemini') return Boolean(settings.geminiApiKey && settings.geminiModel)
+    if (settings.provider === 'anthropic') return Boolean(settings.anthropicApiKey && settings.anthropicModel)
     return Boolean(settings.openAiApiKey && settings.openAiModel)
   }, [settings])
 
@@ -200,6 +205,8 @@ function App() {
   }, [compareKeys])
   const locationNotFound = review?.exists === false
   const suggestedLocation = getSuggestedLocation(review)
+  const viewOnlyMode = isSharedReview && !providerReady
+  const canUseSearchActions = !viewOnlyMode
 
   const updateSettings = (next: LlmSettings) => {
     setSettings(next)
@@ -263,8 +270,14 @@ function App() {
       setQuery(displayPlace)
       setCanonicalPlace(null)
       setSelectedState(state)
+      setShareStatus('')
 
       if (options.updateQueryString !== false) writeSearchToQueryString(trimmedPlace, state, options.tab)
+
+      if (isSharedReview) {
+        clearSharedReviewHash()
+        setIsSharedReview(false)
+      }
 
       if (!providerReady) {
         setShowSettings(true)
@@ -316,8 +329,25 @@ function App() {
         setIsLoading(false)
       }
     },
-    [canonicalPlace, providerReady, rememberSearch, settings],
+    [canonicalPlace, isSharedReview, providerReady, rememberSearch, settings],
   )
+
+  useEffect(() => {
+    const sharedReview = getSharedReviewFromHash(window.location.hash)
+    if (!sharedReview) return
+
+    autoSearchStartedRef.current = true
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setReview(sharedReview)
+    setHasSearched(true)
+    setIsSearchOpen(false)
+    setActiveTab('property')
+    setShowReferences(false)
+    setError('')
+    setIsSharedReview(true)
+    setQuery(sharedReview.suburb)
+    setSelectedState((sharedReview.state as AustralianState) ?? 'TAS')
+  }, [])
 
   useEffect(() => {
     if (autoSearchStartedRef.current) return
@@ -350,6 +380,12 @@ function App() {
     }
   }, [review])
 
+  useEffect(() => {
+    if (!viewOnlyMode) return
+    setCompareMode(false)
+    setCompareKeys([])
+  }, [viewOnlyMode])
+
   const clearSearchFromUrl = useCallback(() => {
     const params = new URLSearchParams(window.location.search)
     params.delete('search')
@@ -376,6 +412,7 @@ function App() {
     if (composedQuery) removeLocation(composedQuery)
     setQuery('')
     setReview(null)
+    setIsSharedReview(false)
     setHasSearched(false)
     openSearchPanel()
     setActiveTab('property')
@@ -384,6 +421,7 @@ function App() {
     setSuggestions([])
     setShowSuggestions(false)
     clearSearchFromUrl()
+    clearSharedReviewHash()
   }, [clearSearchFromUrl, composedQuery, openSearchPanel, removeLocation])
 
   const clearCacheAndRecentSearches = useCallback(() => {
@@ -406,8 +444,48 @@ function App() {
     await runSearch(place, state)
   }
 
+  const handleSharedSearchIntent = useCallback(() => {
+    if (!viewOnlyMode) return
+    setShowSettings(true)
+    setError('Add LLM settings to run your own search.')
+  }, [viewOnlyMode])
+
+  const handleCreateOwnReview = useCallback(() => {
+    clearSharedReviewHash()
+    setIsSharedReview(false)
+    setReview(null)
+    setHasSearched(false)
+    setIsSearchOpen(true)
+    setError('')
+    setActiveTab('property')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
+
+  const handleShare = useCallback(async () => {
+    if (!review || locationNotFound) return
+    const url = buildShareUrl(review)
+    const title = `Scouter: ${review.suburb}, ${review.state}`
+    const text = review.scores
+      ? `${review.suburb}, ${review.state} — overall score ${review.scores.overall.toFixed(1)}/10.`
+      : `Scouter review for ${review.suburb}, ${review.state}.`
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url })
+        setShareStatus('Shared')
+      } else {
+        await navigator.clipboard.writeText(url)
+        setShareStatus('Link copied')
+      }
+      window.setTimeout(() => setShareStatus(''), 2200)
+    } catch (caught) {
+      if (caught instanceof DOMException && caught.name === 'AbortError') return
+      setError('Could not share this review. Try copying the link manually.')
+    }
+  }, [locationNotFound, review])
+
   const downloadPdf = async () => {
-    if (!review) return
+    if (!review || viewOnlyMode) return
     setIsExporting(true)
     setError('')
     try {
@@ -800,34 +878,53 @@ function App() {
           </button>
         )}
 
-        <div className="settings-anchor">
-          <button
-            className="settings-button"
-            type="button"
-            onClick={() => setShowSettings((open) => !open)}
-            aria-label="LLM settings"
-            aria-expanded={showSettings}
-            aria-haspopup="true"
-            title="LLM settings"
-          >
-            <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-          </button>
-
-          {showSettings && (
-            <SettingsPanel
-              settings={settings}
-              providerReady={providerReady}
-              saveStatus={saveStatus}
-              cacheCount={cacheLocationCount}
-              cacheStatus={cacheStatus}
-              onUpdate={updateSettings}
-              onClearCache={clearCacheAndRecentSearches}
-              onClearCurrentLocation={clearCurrentLocation}
-            />
+        <div className="topbar-actions">
+          {review && review.exists !== false && (
+            <button
+              className="settings-button share-button"
+              type="button"
+              onClick={() => void handleShare()}
+              aria-label="Share review"
+              title="Share review"
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="18" cy="5" r="2.8" />
+                <circle cx="6" cy="12" r="2.8" />
+                <circle cx="18" cy="19" r="2.8" />
+                <path d="M8.4 10.8 15.5 6.4M8.4 13.2l7.1 4.4" />
+              </svg>
+            </button>
           )}
+
+          <div className="settings-anchor">
+            <button
+              className="settings-button"
+              type="button"
+              onClick={() => setShowSettings((open) => !open)}
+              aria-label="LLM settings"
+              aria-expanded={showSettings}
+              aria-haspopup="true"
+              title="LLM settings"
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
+
+            {showSettings && (
+              <SettingsPanel
+                settings={settings}
+                providerReady={providerReady}
+                saveStatus={saveStatus}
+                cacheCount={cacheLocationCount}
+                cacheStatus={cacheStatus}
+                onUpdate={updateSettings}
+                onClearCache={clearCacheAndRecentSearches}
+                onClearCurrentLocation={clearCurrentLocation}
+              />
+            )}
+          </div>
         </div>
       </header>
 
@@ -840,171 +937,87 @@ function App() {
       )}
 
       {!isSticky && (
-        <section className="hero-panel">
-          <div className="hero-copy">
-            <h2>Scout a location before you make your move.</h2>
-            <p>Enter a location and let us scout it out.</p>
-          </div>
-          <svg className="hero-contours" aria-hidden="true" viewBox="0 0 260 220" focusable="false">
-            <path d="M231 13c-38 4-72 16-101 37-28 20-46 43-83 49-21 4-37 1-56-5" />
-            <path d="M251 62c-36 7-66 20-91 39-32 24-50 53-95 57-25 2-43-5-65-18" />
-            <path d="M243 118c-27 2-50 11-70 26-24 18-39 41-73 48-24 5-50 0-76-16" />
-            <path d="M202 11c-16 23-23 45-20 66 4 28 24 49 21 82-2 19-11 34-27 48" />
-          </svg>
-          <form className="search-card" onSubmit={handleSubmit}>
-            <div className="search-card-heading"><span>Location search</span></div>
-            <div className="search-row">
-              <div className="search-input-wrap">
-                <input
-                  id="suburb-query"
-                  placeholder="Hobart"
-                  value={query}
-                  onChange={(e) => { setQuery(e.target.value); setCanonicalPlace(null); fetchSuggestions(e.target.value) }}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                  onFocus={() => { setQuery(''); setSuggestions([]); setShowSuggestions(false) }}
-                  autoComplete="off"
-                  disabled={isLoading}
-                />
-                {showSuggestions && suggestions.length > 0 && (
-                  <ul className="suggestions-list" role="listbox" aria-label="Location suggestions">
-                    {suggestions.map((s) => (
-                      <li
-                        key={`${s.name}-${s.state}`}
-                        role="option"
-                        aria-selected={false}
-                        className="suggestions-item"
-                        onMouseDown={(e) => {
-                          e.preventDefault()
-                          setSuggestions([])
-                          setShowSuggestions(false)
-                          setCanonicalPlace(s.name)
-                          void runSearch(s.name, s.state)
-                        }}
-                      >
-                        <span className="suggestions-name">{s.name}</span>
-                        <span className="suggestions-meta">{s.state}{s.postcode ? ` · ${s.postcode}` : ''}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <button
-                type="submit"
-                className={isLoading ? 'is-loading' : undefined}
-                disabled={isLoading || !query.trim()}
-                aria-label={isLoading ? 'Scouting location' : undefined}
-              >
-                {isLoading ? <span className="button-spinner" aria-label="Scouting" /> : 'Scout'}
-              </button>
-            </div>
-            {quickLocationTags.length > 0 && (
-              <>
-                <div className="compare-toggle-row">
-                  <label className="compare-toggle-label">
-                    <span className="ios-toggle">
-                      <input
-                        type="checkbox"
-                        checked={compareMode}
-                        onChange={(e) => {
-                          const on = e.target.checked
-                          setCompareMode(on)
-                          if (!on) {
-                            setCompareKeys([])
-                          } else {
-                            // Auto-select current location if cached
-                            const currentKey = composedQuery.trim().toLowerCase()
-                            if (currentKey && getCachedReview(currentKey) !== null) {
-                              setCompareKeys([currentKey])
-                            }
-                          }
-                        }}
-                      />
-                      <span className="ios-toggle-track" aria-hidden="true" />
-                    </span>
-                    <span>Compare</span>
-                  </label>
-                  {compareMode && compareKeys.length > 0 && (
-                    <span className="compare-count-badge">
-                      {compareKeys.length}/6
-                    </span>
-                  )}
-                </div>
-
-                {compareMode ? (
-                  <div className="quick-location-grid compare-select-grid" aria-label="Select locations to compare">
-                    {compareLocationTags.map((search) => {
-                      const key = search.trim().toLowerCase()
-                      const isSelected = compareKeys.includes(key)
-                      const isDisabled = !isSelected && compareKeys.length >= 6
-                      return (
-                        <button
-                          key={search}
-                          type="button"
-                          className={`quick-location-tag quick-location-tag--compare${isSelected ? ' selected' : ''}${isDisabled ? ' disabled' : ''}`}
-                          disabled={isDisabled}
-                          aria-pressed={isSelected}
-                          onClick={() =>
-                            setCompareKeys((prev) =>
-                              prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
-                            )
-                          }
-                        >
-                          <LocationPinIcon />
-                          <span>{search}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                ) : (
-                <div className="quick-location-grid" aria-label="Quick location selections">
-                  {quickLocationTags.map((search) => {
-                    const key = search.trim().toLowerCase()
-                    const isCached = getCachedReview(key) !== null
-                    const isRecent = recentSearches.some((s) => s.trim().toLowerCase() === key) || isCached
-                    return (
-                      <div key={search} className={`quick-location-tag-wrap${isRecent ? ' is-recent' : ''}`}>
-                        <a
-                          className="quick-location-tag"
-                          href={toSearchHref(search, selectedState)}
-                          onClick={(e) => {
-                            e.preventDefault()
-                            setSuggestions([])
-                            setShowSuggestions(false)
-                            const parsed = splitLocation(search)
-                            if (!parsed.place) return
-                            void runSearch(parsed.place, parsed.state ?? selectedState)
-                          }}
-                        >
-                          <LocationPinIcon />
-                          <span>{search}</span>
-                        </a>
-                        {isRecent && (
-                          <button
-                            type="button"
-                            className="quick-location-remove"
-                            aria-label={`Remove ${search}`}
-                            onMouseDown={(e) => {
-                              e.preventDefault()
-                              removeLocation(search)
-                            }}
-                          >
-                            <svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-                              <line x1="3" y1="3" x2="13" y2="13" /><line x1="13" y1="3" x2="3" y2="13" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-                )}
-              </>
-            )}
-          </form>
-        </section>
+        <>
+          <HeroSearchSection
+            showSetupCta={!providerReady && !isSharedReview}
+            isLoading={isLoading}
+            query={query}
+            showSuggestions={showSuggestions}
+            suggestions={suggestions}
+            quickLocationTags={quickLocationTags}
+            compareMode={compareMode}
+            compareKeys={compareKeys}
+            compareLocationTags={compareLocationTags}
+            composedQuery={composedQuery}
+            showCompareControls={canUseSearchActions}
+            onSubmit={handleSubmit}
+            onQueryChange={(value) => {
+              if (viewOnlyMode) {
+                handleSharedSearchIntent()
+                return
+              }
+              setQuery(value)
+              setCanonicalPlace(null)
+              fetchSuggestions(value)
+            }}
+            onQueryBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+            onQueryFocus={() => {
+              if (viewOnlyMode) {
+                handleSharedSearchIntent()
+                return
+              }
+              setQuery('')
+              setSuggestions([])
+              setShowSuggestions(false)
+            }}
+            onSuggestionSelect={(s) => {
+              setSuggestions([])
+              setShowSuggestions(false)
+              setCanonicalPlace(s.name)
+              void runSearch(s.name, s.state)
+            }}
+            onQuickLocationSelect={(search) => {
+              if (viewOnlyMode) {
+                handleSharedSearchIntent()
+                return
+              }
+              setSuggestions([])
+              setShowSuggestions(false)
+              const parsed = splitLocation(search)
+              if (!parsed.place) return
+              void runSearch(parsed.place, parsed.state ?? selectedState)
+            }}
+            onCompareModeChange={(enabled) => {
+              if (!canUseSearchActions) {
+                handleSharedSearchIntent()
+                return
+              }
+              setCompareMode(enabled)
+              if (!enabled) {
+                setCompareKeys([])
+              } else {
+                const currentKey = composedQuery.trim().toLowerCase()
+                if (currentKey && getCachedReview(currentKey) !== null) {
+                  setCompareKeys([currentKey])
+                }
+              }
+            }}
+            onToggleCompareKey={(key) => {
+              setCompareKeys((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]))
+            }}
+            onRemoveLocation={removeLocation}
+            onOpenSettings={() => setShowSettings(true)}
+            isRecentSearch={(search) => {
+              const key = search.trim().toLowerCase()
+              const isCached = getCachedReview(key) !== null
+              return recentSearches.some((s) => s.trim().toLowerCase() === key) || isCached
+            }}
+            isCompareKeyDisabled={(key) => !compareKeys.includes(key) && compareKeys.length >= 6}
+          />
+        </>
       )}
 
-      {compareMode && compareReviews.length > 0 && (
+      {canUseSearchActions && compareMode && compareReviews.length > 0 && (
         <div ref={comparePanelRef as React.RefObject<HTMLDivElement>}>
           <ComparePanel
             reviews={compareReviews}
@@ -1073,7 +1086,12 @@ function App() {
               <p className="eyebrow">Generated review</p>
               <h2>{review.suburb}, {review.state}</h2>
             </div>
+            {shareStatus && <p className="share-status" aria-live="polite">{shareStatus}</p>}
           </div>
+
+          {isSharedReview && (
+            <SharedReviewBanner onCreateOwn={handleCreateOwnReview} />
+          )}
 
           <article className="review-card">
             {locationNotFound ? (
@@ -1122,9 +1140,11 @@ function App() {
                       </div>
                     )}
                     <p>{review.summary}</p>
-                    <button type="button" className="summary-download primary-lite" onClick={downloadPdf} disabled={isExporting}>
-                      {isExporting ? 'Preparing PDF...' : 'Download PDF'}
-                    </button>
+                    {!viewOnlyMode && (
+                      <button type="button" className="summary-download primary-lite" onClick={downloadPdf} disabled={isExporting}>
+                        {isExporting ? 'Preparing PDF...' : 'Download PDF'}
+                      </button>
+                    )}
                   </div>
                 </section>
 
@@ -1141,6 +1161,18 @@ function App() {
                   ))}
                 </nav>
 
+                <TabPageHeader
+                  tabKey={activeTab}
+                  scores={review.scores}
+                  brief={
+                    activeTab === 'property' ? review.briefs?.market
+                      : activeTab === 'environment' ? review.briefs?.environment
+                        : activeTab === 'crime' ? review.briefs?.crime
+                          : activeTab === 'infrastructure' ? review.briefs?.infrastructure
+                            : undefined
+                  }
+                />
+
                 {activeTab === 'property' && <PropertyTab review={review} />}
                 {activeTab === 'environment' && <EnvironmentTab review={review} />}
                 {activeTab === 'crime' && <CrimeTab review={review} />}
@@ -1150,19 +1182,26 @@ function App() {
               </>
             )}
 
-            {!locationNotFound && review.caveats?.length > 0 && (
+            {!locationNotFound && (review.briefCaveats?.length || review.caveats?.length) && (
               <section className="caveats">
                 <h3>Caveats</h3>
                 <ul>
-                  {review.caveats.map((caveat) => (
+                  {(review.briefCaveats?.length ? review.briefCaveats : review.caveats).map((caveat) => (
                     <li key={caveat}>{caveat}</li>
                   ))}
+                  {isSharedReview && (
+                    <li>This review was shared with you. Verify details independently before making decisions.</li>
+                  )}
                 </ul>
               </section>
             )}
           </article>
         </section>
       )}
+
+      <footer className="site-footer">
+        <p>© {new Date().getFullYear()} Michael Scouter. For research purposes only — verify all information independently.</p>
+      </footer>
 
     </main>
   )

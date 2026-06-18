@@ -128,20 +128,28 @@ export const InfrastructureTab = ({ review }: Props) => {
         </div>
       )}
 
-      <div className="infra-narrative-grid">
-        <div className="infra-card">
-          <h3>Transit &amp; Commute</h3>
-          <p>{review.infrastructure.transit}</p>
+      {(review.infrastructure.transit || review.infrastructure.education || review.infrastructure.lifestyle) && (
+        <div className="infra-narrative-grid">
+          {review.infrastructure.transit && (
+            <div className="infra-card">
+              <h3>Transit &amp; Commute</h3>
+              <p>{review.infrastructure.transit}</p>
+            </div>
+          )}
+          {review.infrastructure.education && (
+            <div className="infra-card">
+              <h3>Education &amp; Catchments</h3>
+              <p>{review.infrastructure.education}</p>
+            </div>
+          )}
+          {review.infrastructure.lifestyle && (
+            <div className="infra-card">
+              <h3>Lifestyle &amp; Amenities</h3>
+              <p>{review.infrastructure.lifestyle}</p>
+            </div>
+          )}
         </div>
-        <div className="infra-card">
-          <h3>Education &amp; Catchments</h3>
-          <p>{review.infrastructure.education}</p>
-        </div>
-        <div className="infra-card">
-          <h3>Lifestyle &amp; Amenities</h3>
-          <p>{review.infrastructure.lifestyle}</p>
-        </div>
-      </div>
+      )}
     </section>
   )
 }

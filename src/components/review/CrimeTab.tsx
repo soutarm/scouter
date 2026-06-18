@@ -5,10 +5,12 @@ type Props = { review: Review }
 
 export const CrimeTab = ({ review }: Props) => (
   <section className="tab-panel safety-panel">
-    <div className="safety-narrative">
-      <h3>Crime &amp; Safety Analysis</h3>
-      <p>{review.crime.narrative}</p>
-    </div>
+    {review.crime.narrative && (
+      <div className="safety-narrative">
+        <h3>Crime &amp; Safety Analysis</h3>
+        <p>{review.crime.narrative}</p>
+      </div>
+    )}
     {review.crime.crimeTypes?.length ? (
       <div className="crime-chart-card">
         <h3>Crime type levels</h3>

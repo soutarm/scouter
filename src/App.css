@@ -312,6 +312,16 @@ input:disabled {
   position: relative;
 }
 
+.topbar-actions {
+  align-items: center;
+  display: inline-flex;
+  gap: 10px;
+}
+
+.share-button {
+  background: rgba(255, 255, 255, 0.78);
+}
+
 .settings-backdrop {
   bottom: 0;
   cursor: default;
@@ -433,6 +443,10 @@ input:disabled {
   font-size: 0.84rem;
   line-height: 1.45;
   margin: 0;
+}
+
+.settings-note--full {
+  grid-column: 1 / -1;
 }
 
 .settings-footer {
@@ -715,6 +729,36 @@ button:focus-visible {
   z-index: 1;
 }
 
+.setup-cta-card {
+  align-self: stretch;
+  align-items: flex-start;
+  border: 1px solid rgba(36, 75, 49, 0.18);
+  display: grid;
+  gap: 0;
+  max-width: none;
+  width: 100%;
+}
+
+.setup-cta-row {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.setup-cta-card h3 {
+  color: #183521;
+  font-size: clamp(1.15rem, 2.8vw, 1.45rem);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.setup-cta-card .primary-lite {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
 .search-card-heading {
   align-items: flex-start;
   display: flex;
@@ -941,6 +985,42 @@ button:focus-visible {
 
 .review-actions {
   margin-bottom: 14px;
+}
+
+.share-status {
+  color: #436449;
+  font-size: 0.86rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.shared-review-banner {
+  background: linear-gradient(135deg, #244b31, #477a52);
+  border: 1px solid rgba(20, 49, 30, 0.22);
+  border-radius: 18px;
+  margin-bottom: 12px;
+  padding: 14px 16px;
+}
+
+.shared-review-banner p {
+  color: #f5fff7;
+}
+
+.shared-review-banner-row {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.shared-review-banner-row p {
+  margin: 0;
+}
+
+.shared-review-banner .primary-lite {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(255, 255, 255, 0.96);
+  color: #204a30;
 }
 
 .review-card {
@@ -1251,6 +1331,61 @@ button:focus-visible {
   background: #ffffff;
   box-shadow: 0 8px 20px rgba(33, 64, 40, 0.1);
   color: #17351f;
+}
+
+.tab-page-header {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(74, 111, 81, 0.12);
+  border-radius: 18px;
+  display: flex;
+  gap: 14px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+}
+
+.tab-page-score-chip {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 10px;
+}
+
+.tab-page-score-ring {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  height: 44px;
+  justify-content: center;
+  padding: 4px;
+  width: 44px;
+}
+
+.tab-page-score-core {
+  align-items: center;
+  background: #fbfff7;
+  border-radius: inherit;
+  color: #244b31;
+  display: inline-flex;
+  font-size: 0.75rem;
+  font-weight: 900;
+  height: 100%;
+  justify-content: center;
+  width: 100%;
+}
+
+.tab-page-score-label {
+  color: #4a6f51;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tab-page-brief {
+  color: #3f5f47;
+  font-size: 0.95rem;
+  margin: 0;
 }
 
 .tab-map-label {
@@ -1669,11 +1804,19 @@ td {
 
 .empty-state {
   background: rgba(255, 255, 255, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
   padding: 22px;
 }
 
 .empty-state h2 {
   margin-bottom: 0;
+}
+
+.empty-state p {
+  margin: 0;
 }
 
 .empty-state > div:first-child {
@@ -2699,6 +2842,10 @@ td {
     margin-left: auto;
   }
 
+  .topbar-actions {
+    margin-left: auto;
+  }
+
   /* On mobile, anchor dropdown to left so it doesn't clip off the right edge */
   .settings-card {
     left: auto;
@@ -2871,5 +3018,17 @@ td {
 
   .topbar-search-pill {
     margin: 0 6px;
+  }
+
+  .empty-state,
+  .shared-review-banner-row,
+  .setup-cta-row,
+  .tab-page-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .setup-cta-card .primary-lite {
+    margin-left: 0;
   }
 }

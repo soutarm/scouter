@@ -4,16 +4,18 @@ import { computeScores } from './scoring'
 export const STORAGE_KEY = 'scouter.llm-settings'
 export const RECENT_SEARCHES_KEY = 'scouter.recent-searches'
 export const REVIEW_CACHE_KEY = 'scouter.review-cache'
-export const REVIEW_CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 1 day
+export const REVIEW_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 1 week
 export const MAX_RECENT_SEARCHES = 12
 
 // Increment when the scoring model changes so cached scores are recomputed on read.
 const SCORES_VERSION = 9
+const CACHE_VERSION = 2
 
 type ReviewCacheEntry = {
   review: Review
   cachedAt: number
   scoresVersion?: number
+  cacheVersion?: number
 }
 
 type ReviewCache = Record<string, ReviewCacheEntry>
@@ -32,6 +34,12 @@ export const getCachedReview = (query: string): Review | null => {
   const cache = loadReviewCache()
   const entry = cache[key]
   if (!entry) return null
+  if ((entry.cacheVersion ?? 0) < CACHE_VERSION) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { [key]: _stale, ...rest } = cache
+    window.localStorage.setItem(REVIEW_CACHE_KEY, JSON.stringify(rest))
+    return null
+  }
   if (Date.now() - entry.cachedAt > REVIEW_CACHE_TTL_MS) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { [key]: _expired, ...rest } = cache
@@ -51,7 +59,7 @@ export const getCachedReview = (query: string): Review | null => {
 export const setCachedReview = (query: string, review: Review) => {
   const key = query.trim().toLowerCase()
   const cache = loadReviewCache()
-  cache[key] = { review, cachedAt: Date.now(), scoresVersion: SCORES_VERSION }
+  cache[key] = { review, cachedAt: Date.now(), scoresVersion: SCORES_VERSION, cacheVersion: CACHE_VERSION }
   try {
     window.localStorage.setItem(REVIEW_CACHE_KEY, JSON.stringify(cache))
   } catch {
@@ -67,6 +75,7 @@ export const removeCachedReview = (query: string) => {
   const key = query.trim().toLowerCase()
   const cache = loadReviewCache()
   if (!(key in cache)) return
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { [key]: _removed, ...rest } = cache
   window.localStorage.setItem(REVIEW_CACHE_KEY, JSON.stringify(rest))
 }
@@ -76,14 +85,16 @@ export const getCachedReviewKeys = (): string[] => {
   const cache = loadReviewCache()
   const now = Date.now()
   return Object.entries(cache)
-    .filter(([, entry]) => now - entry.cachedAt <= REVIEW_CACHE_TTL_MS)
+    .filter(([, entry]) => now - entry.cachedAt <= REVIEW_CACHE_TTL_MS && (entry.cacheVersion ?? 0) >= CACHE_VERSION)
     .map(([key]) => key)
 }
 
 export const getReviewCacheCount = () => {
   const cache = loadReviewCache()
   const now = Date.now()
-  const validEntries = Object.entries(cache).filter(([, entry]) => now - entry.cachedAt <= REVIEW_CACHE_TTL_MS)
+  const validEntries = Object.entries(cache).filter(([, entry]) => (
+    now - entry.cachedAt <= REVIEW_CACHE_TTL_MS && (entry.cacheVersion ?? 0) >= CACHE_VERSION
+  ))
 
   if (validEntries.length !== Object.keys(cache).length) {
     window.localStorage.setItem(REVIEW_CACHE_KEY, JSON.stringify(Object.fromEntries(validEntries)))

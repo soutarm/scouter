@@ -14,16 +14,18 @@ These instructions take precedence over generic defaults for this repository.
 
 - **Framework:** React + TypeScript
 - **Build Tool:** Vite
-- **Deployment:** Static output to GitHub Pages via `gh-pages`
+- **Deployment:** Static output to GitHub Pages via `gh-pages`, served on the custom domain **https://scouter.mrated.dev**
 - **PDF Export:** `jspdf` (client-side)
 - **LLM calls:** Browser-side provider calls (Azure OpenAI Responses API + OpenAI-compatible Chat Completions + Google Gemini API)
 
 Key deployment settings:
 
+- Production URL: `https://scouter.mrated.dev` (custom domain pointing at the GitHub Pages site)
 - `vite.config.ts` uses `base: './'`
 - `npm run deploy` publishes `dist/` to `gh-pages`
 - `predeploy` runs build first
 - After pushing source changes to GitHub, run `npm run deploy` so the GitHub Pages site updates.
+- When generating shareable links, base them on `https://scouter.mrated.dev` (not the `github.io` URL).
 
 ## 🎨 Product + UX Intent
 

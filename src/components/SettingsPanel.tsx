@@ -89,6 +89,7 @@ export const SettingsPanel = ({
             <option value="azure">Azure OpenAI</option>
             <option value="openai">OpenAI compatible</option>
             <option value="gemini">Google Gemini</option>
+            <option value="anthropic">Anthropic</option>
           </select>
         </div>
       </div>
@@ -131,6 +132,22 @@ export const SettingsPanel = ({
         </label>
         <p className="settings-note">
           Uses Google AI Studio&apos;s Gemini API directly from this browser. Keep keys restricted where possible.
+        </p>
+      </div>
+    ) : settings.provider === 'anthropic' ? (
+      <div className="settings-grid">
+        <label>
+          Model
+          <input placeholder="e.g. claude-opus-4-0" value={settings.anthropicModel}
+            onChange={(e) => onUpdate({ ...settings, anthropicModel: e.target.value })} />
+        </label>
+        <label>
+          API key
+          <input type="password" value={settings.anthropicApiKey}
+            onChange={(e) => onUpdate({ ...settings, anthropicApiKey: e.target.value })} />
+        </label>
+        <p className="settings-note settings-note--full">
+          Uses Anthropic&apos;s Messages API directly from this browser. Keep keys restricted where possible.
         </p>
       </div>
     ) : (

@@ -41,6 +41,10 @@ const extractGeminiResponseText = (payload: {
   candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
 }) => payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? '').join('').trim()
 
+const extractAnthropicResponseText = (payload: {
+  content?: Array<{ type?: string; text?: string }>
+}) => payload.content?.find((part) => part.type === 'text')?.text?.trim()
+
 export const friendlyRequestError = (caught: unknown) => {
   if (caught instanceof DOMException && caught.name === 'AbortError') {
     return 'The LLM request timed out after 60 seconds. Try a smaller/faster model or run the query again.'
@@ -86,6 +90,12 @@ JSON shape:
   "postcode": "4-digit Australian postcode",
   "generatedAt": "ISO timestamp",
   "summary": "Top-level practical assessment in 2-4 sentences.",
+  "briefs": {
+    "market": "One-sentence summary of market conditions (max ~120 chars).",
+    "environment": "One-sentence summary of climate/air/noise (max ~120 chars).",
+    "crime": "One-sentence summary of safety/insurance risk (max ~120 chars).",
+    "infrastructure": "One-sentence summary of transit/amenity access (max ~120 chars)."
+  },
   "notFoundReason": "Only present when exists is false.",
   "suggestedSuburb": "Likely intended suburb or town. Only present when exists is false and a likely correction exists.",
   "suggestedState": "Likely intended Australian state or territory abbreviation. Only present when exists is false and a likely correction exists.",
@@ -218,6 +228,7 @@ JSON shape:
     ]
   },
   "caveats": ["Any uncertainty, unavailable fresh data, or source limitation."],
+  "briefCaveats": ["Short one-line caveat statements suitable for compact UI."],
   "references": ["Named data source, publication, or public agency used or recommended for verification, including a URL when available."]
 }
 
@@ -280,6 +291,36 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
       const payload = JSON.parse(rawPayload) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }
       const content = extractGeminiResponseText(payload)
       if (!content) throw new Error('Gemini returned no review content.')
+      return parseReview(content)
+    }
+
+    if (settings.provider === 'anthropic') {
+      if (!settings.anthropicApiKey || !settings.anthropicModel) {
+        throw new Error('Anthropic API key and model are required.')
+      }
+      const response = await fetchWithRetry(
+        'https://api.anthropic.com/v1/messages',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': settings.anthropicApiKey,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify({
+            model: settings.anthropicModel,
+            temperature: 0.2,
+            max_tokens: 8000,
+            messages: [{ role: 'user', content: prompt }],
+          }),
+        },
+        controller.signal,
+      )
+      const rawPayload = await response.text()
+      if (!response.ok) throw new Error(`Anthropic request failed: ${response.status} ${rawPayload.slice(0, 260)}`)
+      const payload = JSON.parse(rawPayload) as { content?: Array<{ type?: string; text?: string }> }
+      const content = extractAnthropicResponseText(payload)
+      if (!content) throw new Error('Anthropic returned no review content.')
       return parseReview(content)
     }
 
