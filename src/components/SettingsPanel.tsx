@@ -11,6 +11,7 @@ type Props = {
   onUpdate: (next: LlmSettings) => void
   onClearCache: () => void
   onClearCurrentLocation: () => void
+  onClose?: () => void
 }
 
 const ProviderIcon = ({ ready, label }: { ready: boolean; label: string }) => (
@@ -66,6 +67,7 @@ export const SettingsPanel = ({
   onUpdate,
   onClearCache,
   onClearCurrentLocation,
+  onClose,
 }: Props) => (
   <section
     className="settings-card"
@@ -75,25 +77,33 @@ export const SettingsPanel = ({
     onClick={(event) => event.stopPropagation()}
     onPointerDown={(event) => event.stopPropagation()}
   >
+    {onClose && (
+      <button
+        className="settings-close-btn"
+        aria-label="Close settings"
+        onClick={onClose}
+      >
+        <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    )}
     <div className="settings-header">
       <div>
-        <p className="eyebrow">Configuration</p>
         <h2>Provider settings</h2>
       </div>
-      <div className="settings-header-right">
-        <div className="settings-controls">
-          <select
-            value={settings.provider}
-            onChange={(e) => onUpdate({ ...settings, provider: e.target.value as ProviderKind })}
-          >
-            <option value="azure">Azure OpenAI</option>
-            <option value="openai">OpenAI compatible</option>
-            <option value="gemini">Google Gemini</option>
-            <option value="anthropic">Anthropic</option>
-          </select>
-        </div>
-      </div>
     </div>
+    <select
+      className="settings-provider-select"
+      value={settings.provider}
+      onChange={(e) => onUpdate({ ...settings, provider: e.target.value as ProviderKind })}
+    >
+      <option value="azure">Azure OpenAI</option>
+      <option value="openai">OpenAI compatible</option>
+      <option value="gemini">Google Gemini</option>
+      <option value="anthropic">Anthropic</option>
+    </select>
 
     {settings.provider === 'azure' ? (
       <div className="settings-grid">
@@ -178,24 +188,24 @@ export const SettingsPanel = ({
       <div className="settings-footer-buttons">
         <button
           type="button"
-          className="clear-cache-button"
+          className="clear-link-button"
           onClick={onClearCache}
         >
-          Clear cache &amp; recent searches
+          Clear cache
         </button>
         <button
           type="button"
-          className="clear-cache-button"
+          className="clear-link-button"
           onClick={onClearCurrentLocation}
         >
           Clear current location
         </button>
       </div>
-      <div className="cache-pill-wrap" aria-live="polite">
-        <ProviderIcon ready={providerReady} label={providerReady ? `Ready · ${saveStatus}` : saveStatus} />
-        <CacheIcon status={cacheStatus} />
-        <span className="cache-pill-label">{cacheCount} {cacheCount === 1 ? 'location' : 'locations'}</span>
-      </div>
+    </div>
+    <div className="settings-status-row" aria-live="polite">
+      <ProviderIcon ready={providerReady} label={providerReady ? `Ready · ${saveStatus}` : saveStatus} />
+      <CacheIcon status={cacheStatus} />
+      <span className="cache-pill-label">{cacheCount} {cacheCount === 1 ? 'location' : 'locations'}</span>
     </div>
   </section>
 )

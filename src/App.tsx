@@ -124,6 +124,7 @@ function App() {
   const [settings, setSettings] = useState<LlmSettings>(() => loadSettings())
   const [recentSearches, setRecentSearches] = useState<string[]>(() => loadRecentSearches())
   const [showSettings, setShowSettings] = useState(false)
+  const [settingsFromMobile, setSettingsFromMobile] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(true)
   const [review, setReview] = useState<Review | null>(null)
@@ -141,6 +142,7 @@ function App() {
     Boolean(new URLSearchParams(window.location.hash.slice(1)).get(SHARED_REVIEW_HASH_KEY))
   )
   const [shareStatus, setShareStatus] = useState('')
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [suggestions, setSuggestions] = useState<SuburbSuggestion[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const suggestionsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -878,7 +880,8 @@ function App() {
           </button>
         )}
 
-        <div className="topbar-actions">
+        {/* Desktop: individual action buttons */}
+        <div className="topbar-actions topbar-actions--desktop">
           {review && review.exists !== false && (
             <button
               className="settings-button share-button"
@@ -900,7 +903,7 @@ function App() {
             <button
               className="settings-button"
               type="button"
-              onClick={() => setShowSettings((open) => !open)}
+              onClick={() => { setShowSettings((open) => !open); setSettingsFromMobile(false) }}
               aria-label="LLM settings"
               aria-expanded={showSettings}
               aria-haspopup="true"
@@ -911,29 +914,85 @@ function App() {
                 <circle cx="12" cy="12" r="3" />
               </svg>
             </button>
-
-            {showSettings && (
-              <SettingsPanel
-                settings={settings}
-                providerReady={providerReady}
-                saveStatus={saveStatus}
-                cacheCount={cacheLocationCount}
-                cacheStatus={cacheStatus}
-                onUpdate={updateSettings}
-                onClearCache={clearCacheAndRecentSearches}
-                onClearCurrentLocation={clearCurrentLocation}
-              />
-            )}
           </div>
         </div>
+
+        {/* Mobile: hamburger button */}
+        <button
+          className="topbar-actions topbar-actions--hamburger"
+          type="button"
+          onClick={() => { setShowMobileMenu((v) => !v); setShowSettings(false) }}
+          aria-label="Menu"
+          aria-expanded={showMobileMenu}
+        >
+          {showMobileMenu ? (
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+              <line x1="4" y1="4" x2="20" y2="20" /><line x1="20" y1="4" x2="4" y2="20" />
+            </svg>
+          ) : (
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+              <line x1="3" y1="7" x2="21" y2="7" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="17" x2="21" y2="17" />
+            </svg>
+          )}
+        </button>
       </header>
 
+      {/* Mobile menu drawer */}
+      {showMobileMenu && (
+        <div className="mobile-menu" role="menu">
+          {review && review.exists !== false && (
+            <button
+              type="button"
+              className="mobile-menu-item"
+              role="menuitem"
+              onClick={() => { void handleShare(); setShowMobileMenu(false) }}
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="18" cy="5" r="2.8" /><circle cx="6" cy="12" r="2.8" /><circle cx="18" cy="19" r="2.8" />
+                <path d="M8.4 10.8 15.5 6.4M8.4 13.2l7.1 4.4" />
+              </svg>
+              Share review
+            </button>
+          )}
+          <button
+            type="button"
+            className="mobile-menu-item"
+            role="menuitem"
+            onClick={() => { setShowSettings(true); setSettingsFromMobile(true); setShowMobileMenu(false) }}
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            LLM settings
+          </button>
+        </div>
+      )}
+      {showMobileMenu && (
+        <div className="settings-backdrop" aria-hidden="true" onClick={() => setShowMobileMenu(false)} />
+      )}
+
       {showSettings && (
-        <div
-          className="settings-backdrop"
-          aria-hidden="true"
-          onClick={() => setShowSettings(false)}
-        />
+        <>
+          <div className="settings-panel-portal">
+            <SettingsPanel
+              settings={settings}
+              providerReady={providerReady}
+              saveStatus={saveStatus}
+              cacheCount={cacheLocationCount}
+              cacheStatus={cacheStatus}
+              onUpdate={updateSettings}
+              onClearCache={clearCacheAndRecentSearches}
+              onClearCurrentLocation={clearCurrentLocation}
+              onClose={settingsFromMobile ? () => setShowSettings(false) : undefined}
+            />
+          </div>
+          <div
+            className="settings-backdrop"
+            aria-hidden="true"
+            onClick={() => setShowSettings(false)}
+          />
+        </>
       )}
 
       {!isSticky && (
@@ -1182,11 +1241,11 @@ function App() {
               </>
             )}
 
-            {!locationNotFound && (review.briefCaveats?.length || review.caveats?.length) && (
+            {!locationNotFound && (review.caveats?.length || review.briefCaveats?.length) && (
               <section className="caveats">
                 <h3>Caveats</h3>
                 <ul>
-                  {(review.briefCaveats?.length ? review.briefCaveats : review.caveats).map((caveat) => (
+                  {(isSharedReview && review.briefCaveats?.length ? review.briefCaveats : review.caveats ?? []).map((caveat) => (
                     <li key={caveat}>{caveat}</li>
                   ))}
                   {isSharedReview && (
@@ -1200,7 +1259,7 @@ function App() {
       )}
 
       <footer className="site-footer">
-        <p>© {new Date().getFullYear()} Michael Scouter. For research purposes only. Verify all information independently.</p>
+        <p>© {new Date().getFullYear()} Michael Soutar. For research purposes only. Verify all information independently.</p>
       </footer>
 
     </main>
