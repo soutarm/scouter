@@ -5,10 +5,35 @@ import { extractTemperatureProfile } from '../components/review/ThermometerRange
 
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n))
 
-/** Parse a percentage string like "+4.2%", "-1.5%", "3%" → number */
+/**
+ * Parse a percentage string to a number.
+ * Handles single values ("+4.2%", "-1.5%") and range strings ("+2.0% to +3.4%",
+ * "+2.0%-+3.4%") by returning the midpoint of the range.
+ */
 const parsePercent = (s: string): number | null => {
-  const m = s.replace(/\s/g, '').match(/([+-]?\d+(?:\.\d+)?)%/)
+  const stripped = s.replace(/\s/g, '')
+  // Try to find two percentage values (range)
+  const rangeMatch = stripped.match(/([+-]?\d+(?:\.\d+)?)%[^%]*?([+-]?\d+(?:\.\d+)?)%/)
+  if (rangeMatch) {
+    const a = parseFloat(rangeMatch[1])
+    const b = parseFloat(rangeMatch[2])
+    return (a + b) / 2
+  }
+  // Single value
+  const m = stripped.match(/([+-]?\d+(?:\.\d+)?)%/)
   return m ? parseFloat(m[1]) : null
+}
+
+/**
+ * Parse a 5-year growth string to an annualised percentage.
+ * Detects "p.a." / "per annum" to treat as already annualised.
+ * Otherwise treats as cumulative and divides by 5.
+ */
+const parsePercent5yr = (s: string): number | null => {
+  const isAnnualised = /p\.?a\.?|per\s+annum/i.test(s)
+  const val = parsePercent(s)
+  if (val === null) return null
+  return isAnnualised ? val : val / 5
 }
 
 const levelToScore: Record<string, number> = {
@@ -25,42 +50,77 @@ const levelScore = (level: string | undefined) =>
 const round1 = (n: number) => Math.round(n * 10) / 10
 
 // ── Property score ────────────────────────────────────────────────────────────
-// Blended score when a benchmark is available (state and/or capital city):
-//   - 55% absolute component: -5% → 1, 10% → 10
-//   - 45% relative component: suburb at benchmark avg → 5, ±4pp → ±4.5
 //
-// If both stateMedianGrowth and capitalCityGrowth exist, benchmark = their average.
-// This better rewards suburbs that outperform both broad state and metro trend lines.
+// Anchored to benchmark (average of state and capital city median growth midpoints):
+//   suburb growth = benchmark → 6 / 10
 //
-// Falls back to pure absolute scale when no benchmark is available:
-//   -5% → 1, 10% → 10
+// Scoring uses the ratio of suburb growth to benchmark growth:
+//   ratio 1.0 → 6,  ratio 1.5 → 10,  ratio 2.0+ → 10 (clamped)
+//   ratio 0.5 → 3,  ratio 0.0 or below → 1
+//
+// When both 12-month and 5-year data are available the final score is blended:
+//   70% 12-month ratio score + 30% 5-year ratio score (annualised)
+//
+// Negative suburb growth for a given period hard-caps that period's score at 4.
+//
+// When no benchmark is available, falls back to an absolute scale:
+//   0% → 4,  5% → 7,  10%+ → 10  (negative capped at 4)
+
+/** Score a single period's suburb growth against a benchmark using ratio logic. */
+const ratioScore = (suburbGrowth: number, benchmark: number): number => {
+  if (suburbGrowth < 0) {
+    return clamp(4 + (suburbGrowth / Math.max(Math.abs(benchmark), 1)) * 2, 1, 4)
+  }
+  if (benchmark <= 0) {
+    return clamp(4 + (suburbGrowth / 5) * 3, 1, 10)
+  }
+  const ratio = suburbGrowth / benchmark
+  return ratio >= 1
+    ? clamp(6 + (ratio - 1) * 8, 6, 10)
+    : clamp(6 - (1 - ratio) * 6, 1, 6)
+}
+
+/** Absolute fallback score when no benchmark exists. */
+const absoluteScore = (growth: number): number => {
+  if (growth < 0) return clamp(4 + (growth / 5) * 3, 1, 4)
+  return clamp(4 + (growth / 5) * 3, 1, 10)
+}
 
 export const computePropertyScore = (review: Review): number => {
-  const growths = review.marketRows
+  const growths12 = review.marketRows
     .map((r) => parsePercent(r.twelveMonthGrowth))
     .filter((v): v is number => v !== null)
 
-  if (!growths.length) return 5
+  if (!growths12.length) return 5
 
-  const avg = growths.reduce((a, b) => a + b, 0) / growths.length
+  const suburb12 = growths12.reduce((a, b) => a + b, 0) / growths12.length
 
-  // Absolute component: -5% → 1, 10% → 10
-  const absScore = clamp(1 + ((avg + 5) / 15) * 9, 1, 10)
-
-  const benchmarkGrowths = [review.stateMedianGrowth, review.capitalCityGrowth]
+  const benchmarks12 = [review.stateMedianGrowth, review.capitalCityGrowth]
     .map((g) => (g != null ? parsePercent(g) : null))
     .filter((g): g is number => g !== null)
 
-  if (benchmarkGrowths.length) {
-    const benchmarkAvg = benchmarkGrowths.reduce((a, b) => a + b, 0) / benchmarkGrowths.length
-    // Relative component: suburb at benchmark avg → 5, ±4pp → ±4.5
-    const relScore = clamp(5 + ((avg - benchmarkAvg) / 4) * 4.5, 1, 10)
-    return round1(0.55 * absScore + 0.45 * relScore)
-  }
+  const score12 = benchmarks12.length
+    ? ratioScore(suburb12, benchmarks12.reduce((a, b) => a + b, 0) / benchmarks12.length)
+    : absoluteScore(suburb12)
 
-  // Fallback: pure absolute scale -5% → 1, 10% → 10
-  const score = 1 + ((avg + 5) / 15) * 9
-  return round1(clamp(score, 1, 10))
+  // 5-year blend — annualised
+  const growths5yr = review.marketRows
+    .map((r) => (r.fiveYearGrowth != null ? parsePercent5yr(r.fiveYearGrowth) : null))
+    .filter((v): v is number => v !== null)
+
+  if (!growths5yr.length) return round1(score12)
+
+  const suburb5yr = growths5yr.reduce((a, b) => a + b, 0) / growths5yr.length
+
+  const benchmarks5yr = [review.stateMedianGrowth5yr, review.capitalCityGrowth5yr]
+    .map((g) => (g != null ? parsePercent5yr(g) : null))
+    .filter((g): g is number => g !== null)
+
+  const score5yr = benchmarks5yr.length
+    ? ratioScore(suburb5yr, benchmarks5yr.reduce((a, b) => a + b, 0) / benchmarks5yr.length)
+    : absoluteScore(suburb5yr)
+
+  return round1(0.7 * score12 + 0.3 * score5yr)
 }
 
 // ── Safety score ─────────────────────────────────────────────────────────────

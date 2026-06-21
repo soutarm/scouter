@@ -140,7 +140,7 @@ export const SettingsPanel = ({
           <input type="password" value={settings.geminiApiKey}
             onChange={(e) => onUpdate({ ...settings, geminiApiKey: e.target.value })} />
         </label>
-        <p className="settings-note">
+        <p className="settings-note settings-note--full">
           Uses Google AI Studio&apos;s Gemini API directly from this browser. Keep keys restricted where possible.
         </p>
       </div>

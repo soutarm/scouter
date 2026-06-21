@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 const CLIMATE_SCALE_MIN = -10
 const CLIMATE_SCALE_MAX = 50
 

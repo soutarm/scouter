@@ -1,4 +1,7 @@
 import type { Review } from '../../types'
+import logoRea from '/logo-rea.png'
+import logoDomain from '/logo-domain.png'
+import logoHomely from '/logo-homely.png'
 
 const IconAllListings = () => (
   <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -21,9 +24,9 @@ const IconUnit = () => (
     <path d="M2 8h16M10 3v14M6 11h1m6 0h1M6 14h1m6 0h1" />
   </svg>
 )
-const LogoRealEstate = () => <img src="./logo-rea.png" alt="realestate.com.au" className="listing-site-logo" />
-const LogoDomain = () => <img src="./logo-domain.png" alt="domain.com.au" className="listing-site-logo" />
-const LogoHomely = () => <img src="./logo-homely.png" alt="homely.com.au" className="listing-site-logo" />
+const LogoRealEstate = () => <img src={logoRea} alt="realestate.com.au" className="listing-site-logo" />
+const LogoDomain = () => <img src={logoDomain} alt="domain.com.au" className="listing-site-logo" />
+const LogoHomely = () => <img src={logoHomely} alt="homely.com.au" className="listing-site-logo" />
 
 type Props = { review: Review }
 
@@ -76,7 +79,7 @@ export const PropertyTab = ({ review }: Props) => {
     <section className="tab-panel">
       <h3>Property Market &amp; Rental Realities</h3>
       {review.marketNarrative && <p>{review.marketNarrative}</p>}
-      {(review.stateMedianGrowth || review.capitalCityGrowth) && (
+      {(review.stateMedianGrowth || review.capitalCityGrowth || review.stateMedianGrowth5yr || review.capitalCityGrowth5yr) && (
         <div className="state-benchmark-row">
           {review.stateMedianGrowth && (
             <div className="state-benchmark-pill">
@@ -90,6 +93,18 @@ export const PropertyTab = ({ review }: Props) => {
               <span className="state-benchmark-value">{review.capitalCityGrowth}</span>
             </div>
           )}
+          {review.stateMedianGrowth5yr && (
+            <div className="state-benchmark-pill">
+              <span className="state-benchmark-label">{stateUp} state (5-year)</span>
+              <span className="state-benchmark-value">{review.stateMedianGrowth5yr}</span>
+            </div>
+          )}
+          {review.capitalCityGrowth5yr && (
+            <div className="state-benchmark-pill">
+              <span className="state-benchmark-label">Capital city (5-year)</span>
+              <span className="state-benchmark-value">{review.capitalCityGrowth5yr}</span>
+            </div>
+          )}
         </div>
       )}
       <div className="table-wrap">
@@ -99,6 +114,7 @@ export const PropertyTab = ({ review }: Props) => {
               <th>Property Type</th>
               <th>Median Price</th>
               <th>12-Month Growth{growthPeriodLabel ? <><br /><span className="th-sub">to {growthPeriodLabel}</span></> : ''}</th>
+              {review.marketRows.some((r) => r.fiveYearGrowth) && <th>5-Year Growth<br /><span className="th-sub">cumulative</span></th>}
               <th>Median Weekly Rent</th>
               <th>Gross Yield</th>
             </tr>
@@ -109,6 +125,7 @@ export const PropertyTab = ({ review }: Props) => {
                 <td>{row.propertyType}</td>
                 <td>{row.medianPrice}</td>
                 <td>{row.twelveMonthGrowth}</td>
+                {review.marketRows.some((r) => r.fiveYearGrowth) && <td>{row.fiveYearGrowth ?? '-'}</td>}
                 <td>{row.medianWeeklyRent}</td>
                 <td>{row.grossYield}</td>
               </tr>

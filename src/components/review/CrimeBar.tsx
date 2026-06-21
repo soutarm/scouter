@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 export const CRIME_LEVEL_MAP = { Low: 1, Medium: 2, High: 3, 'Very High': 4 } as const
 export const CRIME_LEVEL_COLORS: Record<string, string> = {
   Low: '#4f8f66',

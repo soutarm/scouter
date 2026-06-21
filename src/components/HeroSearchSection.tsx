@@ -87,7 +87,7 @@ export const HeroSearchSection = ({
           <div className="search-input-wrap">
             <input
               id="suburb-query"
-              placeholder="Hobart"
+              placeholder="Enter location name"
               value={query}
               onChange={(e) => onQueryChange(e.target.value)}
               onBlur={onQueryBlur}

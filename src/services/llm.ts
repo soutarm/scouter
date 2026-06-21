@@ -80,7 +80,8 @@ Create a concise but useful suburb review for: ${query}.
 
 If you cannot confidently identify the Australian location, return "exists": false, use the requested place/state in "suburb" and "state", explain the issue in "summary" and "notFoundReason", and return empty or brief placeholder values for the remaining fields. If there is a likely intended Australian suburb or town, include it in "suggestedSuburb" and include its Australian state or territory abbreviation in "suggestedState". For example, if the request is "Warragul, TAS", explain that it appears to correspond to Warragul, VIC, and set "suggestedSuburb": "Warragul" and "suggestedState": "VIC".
 ${homelyContext ? `\nThe following is community-sourced context from Homely.com.au for this suburb. Use it to enrich the demographics and lifestyle sections where relevant, but treat it as anecdotal and supplement with your own knowledge:\n<homely_context>\n${homelyContext}\n</homely_context>\n` : ''}
-Return JSON only. Do not include markdown fences. Use current 2026 context where possible. Use AUD for money. Do not use em dashes.
+Return JSON only. Do not include markdown fences. Use current 2026 context where possible. Use AUD for money. Do not use em dashes or en dashes anywhere in the JSON output. Use a plain hyphen (-) instead of any dash character in price ranges and text.
+For flight path assessment in climate.noise.flightPath and climate.noise.flightPathLevel, source flight path information from Airservices Australia first: https://aircraftnoise.airservicesaustralia.com/category/what-are-the-flight-paths-in-my-area/. Do not state that a suburb is not under a flight path unless this is explicitly supported by that source. If this source is unavailable or unclear for the suburb, say so explicitly in caveats and use a conservative uncertainty statement instead of declaring no flight path impact.
 
 JSON shape:
 {
@@ -101,11 +102,13 @@ JSON shape:
   "suggestedState": "Likely intended Australian state or territory abbreviation. Only present when exists is false and a likely correction exists.",
   "marketNarrative": "Short market conditions paragraph.",
   "marketRows": [
-    { "propertyType": "Houses", "medianPrice": "AUD $...", "twelveMonthGrowth": "+...%", "medianWeeklyRent": "AUD $...", "grossYield": "...%" },
-    { "propertyType": "Units / Townhouses", "medianPrice": "AUD $...", "twelveMonthGrowth": "...%", "medianWeeklyRent": "AUD $...", "grossYield": "...%" }
+    { "propertyType": "Houses", "medianPrice": "AUD $...", "twelveMonthGrowth": "+...%", "fiveYearGrowth": "+...%", "medianWeeklyRent": "AUD $...", "grossYield": "...%" },
+    { "propertyType": "Units / Townhouses", "medianPrice": "AUD $...", "twelveMonthGrowth": "...%", "fiveYearGrowth": "+...%", "medianWeeklyRent": "AUD $...", "grossYield": "...%" }
   ],
-  "stateMedianGrowth": "The current 12-month median property price growth for the state (e.g. '+2.5%'). Use the latest available data for the state this suburb is in. This is used as the benchmark midpoint for scoring the suburb's growth relative to the state average.",
-  "capitalCityGrowth": "The current 12-month median property price growth for the capital city / greater metro region of the state (e.g. 'Greater Sydney +3.1%', 'Greater Melbourne +1.8%', 'Greater Brisbane +11.2%'). Include the city region name followed by the growth figure. For ACT use 'Greater Canberra'; for NT use 'Greater Darwin'; for TAS use 'Greater Hobart'.",
+  "stateMedianGrowth": "The current 12-month combined dwelling price growth for the state, sourced from the CoreLogic Home Value Index and PropTrack Home Price Index (mid-2026 reports). Because the two indices use different methodologies (hedonic regression vs repeat-sales), express the figure as a consensus range where they differ, e.g. '+2.0% to +3.4%', or a single figure if they agree closely. This is used as the benchmark midpoint for scoring the suburb's growth relative to the state average. Be consistent across queries for the same state.",
+  "capitalCityGrowth": "The current 12-month combined dwelling price growth for the capital city / greater metro region of the state, sourced from the CoreLogic Home Value Index and PropTrack Home Price Index (mid-2026 reports). Express as a consensus range where the indices differ, e.g. 'Greater Melbourne +1.8% to +2.6%', or a single figure if they agree closely. Include the city region name followed by the growth figure. For ACT use 'Greater Canberra'; for NT use 'Greater Darwin'; for TAS use 'Greater Hobart'. Be consistent across queries for the same region.",
+  "stateMedianGrowth5yr": "The cumulative or annualised 5-year combined dwelling price growth for the state (2021-2026), sourced from CoreLogic and PropTrack. Express as a consensus range where the indices differ, e.g. '+38% to +42%' cumulative or '+6.7% to +7.3% p.a.'. Be consistent and note whether the figure is cumulative or annualised.",
+  "capitalCityGrowth5yr": "The cumulative or annualised 5-year combined dwelling price growth for the capital city / greater metro region (2021-2026), sourced from CoreLogic and PropTrack. Include the city region name, e.g. 'Greater Melbourne +28% to +34%'. Note whether cumulative or annualised. Be consistent across queries for the same region.",
   "climate": {
     "summerAverages": "Average high and low temperatures plus seasonal behaviour.",
     "winterAverages": "Average high and low temperatures plus rainfall/cloud/frost behaviour.",
@@ -122,8 +125,8 @@ JSON shape:
       "industrialPollutionLevel": "One of: Low, Medium, High, Very High"
     },
     "noise": {
-      "flightPath": "Is the suburb under a flight path? Which airport, which runway approach, frequency of overflights, and estimated noise level.",
-      "flightPathLevel": "One of: Low, Medium, High, Very High",
+      "flightPath": "Is the suburb under a flight path? Use Airservices Australia flight path data first, then state which airport, runway approach, frequency of overflights, and estimated noise level.",
+      "flightPathLevel": "One of: Low, Medium, High, Very High. If flight path status is uncertain, do not use Low; use Medium and state uncertainty in caveats.",
       "railNoise": "Proximity to train or tram lines and resulting noise impact on residents.",
       "railNoiseLevel": "One of: Low, Medium, High, Very High",
       "roadNoise": "Proximity to major roads, freeways or arterials and traffic noise impact.",
@@ -155,9 +158,9 @@ JSON shape:
     "narrative": "Crime and safety analysis with LGA, common incident types, and practical safety interpretation.",
     "insuranceImpact": "How crime and risk levels affect home, contents and car insurance in this suburb. Mention relevant factors like theft rates, flood/fire risk, and postcode loading.",
     "estimatedAnnualPremiums": {
-      "homeBuilding": "AUD $X,XXX – $X,XXX",
-      "homeContents": "AUD $XXX – $X,XXX",
-      "carComprehensive": "AUD $XXX – $X,XXX"
+      "homeBuilding": "AUD $X,XXX - $X,XXX",
+      "homeContents": "AUD $XXX - $X,XXX",
+      "carComprehensive": "AUD $XXX - $X,XXX"
     },
     "crimeTypes": [
       { "label": "Theft", "level": "Medium" },
@@ -274,19 +277,34 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
       if (!settings.geminiApiKey || !settings.geminiModel) {
         throw new Error('Gemini API key and model are required.')
       }
-      const response = await fetchWithRetry(
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(settings.geminiModel)}:generateContent?key=${encodeURIComponent(settings.geminiApiKey)}`,
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(settings.geminiModel)}:generateContent?key=${encodeURIComponent(settings.geminiApiKey)}`
+
+      const sendGeminiRequest = (enableSearchTool: boolean) => fetchWithRetry(
+        geminiUrl,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
             generationConfig: { temperature: 0.2, responseMimeType: 'application/json', maxOutputTokens: 8000 },
+            ...(enableSearchTool ? { tools: [{ google_search: {} }] } : {}),
           }),
         },
         controller.signal,
       )
-      const rawPayload = await response.text()
+
+      let response = await sendGeminiRequest(true)
+      let rawPayload = await response.text()
+
+      // Some models/endpoints do not support tools; gracefully retry without grounding.
+      if (!response.ok && (response.status === 400 || response.status === 404)) {
+        const unsupportedTools = /tools?|google_search|ground/i.test(rawPayload)
+        if (unsupportedTools) {
+          response = await sendGeminiRequest(false)
+          rawPayload = await response.text()
+        }
+      }
+
       if (!response.ok) throw new Error(`Gemini request failed: ${response.status} ${rawPayload.slice(0, 260)}`)
       const payload = JSON.parse(rawPayload) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }
       const content = extractGeminiResponseText(payload)

@@ -32,57 +32,71 @@ describe('computePropertyScore', () => {
     expect(computePropertyScore(baseReview)).toBe(5)
   })
 
-  // ── Blended mode (benchmark present): 55% absolute + 45% relative ─────────
+  // ── Ratio-based mode (benchmark present) ──────────────────────────────────
 
-  it('blended: suburb at state average still gets a fair absolute score', () => {
-    // avg=2.5%, benchmark=2.5% → relScore=5; absScore=1+(7.5/15)*9=5.5
-    // blend = 0.55*5.5 + 0.45*5 = 5.3
+  it('benchmark: suburb exactly at benchmark scores 6', () => {
+    // ratio = 2.5/2.5 = 1.0 → score = 6
     const r = { ...baseReview,
       stateMedianGrowth: '+2.5%',
       marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+2.5%', medianWeeklyRent: '$450', grossYield: '3%' }],
     }
-    expect(computePropertyScore(r)).toBeCloseTo(5.3, 1)
+    expect(computePropertyScore(r)).toBe(6)
   })
 
-  it('blended: strong absolute growth (10%) scores 10 regardless of relative', () => {
-    // avg=10% → absScore=10 (clamped); relScore=clamp(5+(7.5/5)*4.5,1,10)=10
-    // blend = 10
+  it('benchmark: suburb 50% above benchmark scores 10', () => {
+    // ratio = 3/2 = 1.5 → score = 6 + 0.5*8 = 10
     const r = { ...baseReview,
-      stateMedianGrowth: '+2.5%',
-      marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+10%', medianWeeklyRent: '$450', grossYield: '3%' }],
+      stateMedianGrowth: '+2%',
+      marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+3%', medianWeeklyRent: '$450', grossYield: '3%' }],
     }
     expect(computePropertyScore(r)).toBe(10)
   })
 
-  it('blended: extreme growth clamps to 10', () => {
+  it('benchmark: suburb double benchmark clamps to 10', () => {
+    // ratio = 5/2.5 = 2.0 → score = 6 + 1.0*8 = 14, clamped to 10
     const r = { ...baseReview,
       stateMedianGrowth: '+2.5%',
-      marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+20%', medianWeeklyRent: '$450', grossYield: '3%' }],
+      marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+5%', medianWeeklyRent: '$450', grossYield: '3%' }],
     }
     expect(computePropertyScore(r)).toBe(10)
   })
 
-  it('blended: negative growth clamps to 1', () => {
-    // avg=-5% → absScore=clamp(1+(-3/12)*9,1,10)=1; relScore=clamp(5-7.5/5*4.5,1,10)=1
-    // blend = 1
+  it('benchmark: suburb 25% above benchmark scores 8', () => {
+    // ratio = 2.5/2 = 1.25 → score = 6 + 0.25*8 = 8
     const r = { ...baseReview,
-      stateMedianGrowth: '+2.5%',
-      marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '-5%', medianWeeklyRent: '$450', grossYield: '3%' }],
+      stateMedianGrowth: '+2%',
+      marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+2.5%', medianWeeklyRent: '$450', grossYield: '3%' }],
+    }
+    expect(computePropertyScore(r)).toBe(8)
+  })
+
+  it('benchmark: suburb 50% below benchmark scores 3', () => {
+    // ratio = 1/2 = 0.5 → score = 6 - 0.5*6 = 3
+    const r = { ...baseReview,
+      stateMedianGrowth: '+2%',
+      marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+1%', medianWeeklyRent: '$450', grossYield: '3%' }],
+    }
+    expect(computePropertyScore(r)).toBe(3)
+  })
+
+  it('benchmark: suburb at zero growth scores 1 (ratio=0, clamped)', () => {
+    // ratio = 0/2 = 0 → score = 6 - 1.0*6 = 0, clamped to 1
+    const r = { ...baseReview,
+      stateMedianGrowth: '+2%',
+      marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '0%', medianWeeklyRent: '$450', grossYield: '3%' }],
     }
     expect(computePropertyScore(r)).toBe(1)
   })
 
-  it('blended: +3pp above state average → ~7.6', () => {
-    // avg=5%, benchmark=2% → relScore=5+(3/4)*4.5=8.375; absScore=1+(10/15)*9=7
-    // blend = 0.55*7 + 0.45*8.375 = 7.62 → 7.6
+  it('benchmark: negative suburb growth hard-caps at 4', () => {
     const r = { ...baseReview,
-      stateMedianGrowth: '+2%',
-      marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+5%', medianWeeklyRent: '$450', grossYield: '3%' }],
+      stateMedianGrowth: '+2.5%',
+      marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '-3%', medianWeeklyRent: '$450', grossYield: '3%' }],
     }
-    expect(computePropertyScore(r)).toBeCloseTo(7.6, 1)
+    expect(computePropertyScore(r)).toBeLessThanOrEqual(4)
   })
 
-  it('blended: clamps below 1 when far below average', () => {
+  it('benchmark: deeply negative suburb growth clamps to 1', () => {
     const r = { ...baseReview,
       stateMedianGrowth: '+5%',
       marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '-20%', medianWeeklyRent: '$450', grossYield: '3%' }],
@@ -90,63 +104,75 @@ describe('computePropertyScore', () => {
     expect(computePropertyScore(r)).toBe(1)
   })
 
-  it('blended: Narooma-like (6.5% avg, 5% state) → ~7.4', () => {
-    // avg=6.5%, benchmark=5% → relScore=5+(1.5/4)*4.5=6.6875; absScore=1+(11.5/15)*9=7.9
-    // blend = 0.55*7.9 + 0.45*6.6875 = 7.35 → 7.4
+  it('benchmark: uses average of state and capital city as benchmark', () => {
+    // suburb=4%, state=2%, capital=2% → benchmark=2%, ratio=4/2=2.0 → clamped to 10
     const r = { ...baseReview,
-      stateMedianGrowth: '+5%',
-      marketRows: [
-        { propertyType: 'Houses', medianPrice: '$600k', twelveMonthGrowth: '+7.5%', medianWeeklyRent: '$400', grossYield: '3.5%' },
-        { propertyType: 'Units',  medianPrice: '$400k', twelveMonthGrowth: '+5.5%', medianWeeklyRent: '$300', grossYield: '3.9%' },
-      ],
-    }
-    expect(computePropertyScore(r)).toBeCloseTo(7.4, 1)
-  })
-
-  it('blended: Port Welshpool-like outperformance vs state and capital city trends', () => {
-    // avg=(4%+3%)/2 = 3.5%
-    // benchmark avg=(2%+1.6%)/2 = 1.8%
-    // abs=1+((3.5+5)/15)*9 = 6.1
-    // rel=5+((3.5-1.8)/4)*4.5 = 6.9125
-    // blend=0.55*6.1 + 0.45*6.9125 = 6.47 → 6.5
-    const r = {
-      ...baseReview,
       stateMedianGrowth: '+2%',
-      capitalCityGrowth: '+1.6%',
-      marketRows: [
-        { propertyType: 'Houses', medianPrice: '$550k', twelveMonthGrowth: '+4%', medianWeeklyRent: '$430', grossYield: '4.1%' },
-        { propertyType: 'Units', medianPrice: '$390k', twelveMonthGrowth: '+3%', medianWeeklyRent: '$330', grossYield: '4.4%' },
-      ],
+      capitalCityGrowth: 'Greater Melbourne +2%',
+      marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+4%', medianWeeklyRent: '$450', grossYield: '3%' }],
     }
-    expect(computePropertyScore(r)).toBeCloseTo(6.5, 1)
+    expect(computePropertyScore(r)).toBe(10)
   })
 
-  // ── Fallback mode (no stateMedianGrowth) ──────────────────────────────────
+  it('benchmark: handles range string in benchmark (takes midpoint)', () => {
+    // state range midpoint = (2+3)/2 = 2.5%, suburb=2.5% → ratio=1.0 → 6
+    const r = { ...baseReview,
+      stateMedianGrowth: '+2.0% to +3.0%',
+      marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+2.5%', medianWeeklyRent: '$450', grossYield: '3%' }],
+    }
+    expect(computePropertyScore(r)).toBe(6)
+  })
 
-  it('fallback: scores 10 at 10% growth', () => {
+  it('benchmark: handles range string in suburb growth (takes midpoint)', () => {
+    // suburb midpoint=(2+3)/2=2.5%, benchmark=2.5% → ratio=1.0 → 6
+    const r = { ...baseReview,
+      stateMedianGrowth: '+2.5%',
+      marketRows: [{ propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '+2.0% to +3.0%', medianWeeklyRent: '$450', grossYield: '3%' }],
+    }
+    expect(computePropertyScore(r)).toBe(6)
+  })
+
+  // ── Fallback mode (no benchmark) ──────────────────────────────────────────
+
+  it('fallback: 0% growth scores 4', () => {
+    const r = { ...baseReview, marketRows: [
+      { propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '0%', medianWeeklyRent: '$450', grossYield: '3%' },
+    ] }
+    expect(computePropertyScore(r)).toBe(4)
+  })
+
+  it('fallback: 5% growth scores 7', () => {
+    const r = { ...baseReview, marketRows: [
+      { propertyType: 'Houses', medianPrice: '$800k', twelveMonthGrowth: '+5%', medianWeeklyRent: '$500', grossYield: '3%' },
+    ] }
+    expect(computePropertyScore(r)).toBe(7)
+  })
+
+  it('fallback: 10%+ growth scores 10', () => {
     const r = { ...baseReview, marketRows: [
       { propertyType: 'Houses', medianPrice: '$800k', twelveMonthGrowth: '+10%', medianWeeklyRent: '$500', grossYield: '3%' },
     ] }
     expect(computePropertyScore(r)).toBe(10)
   })
 
-  it('fallback: scores 1 at -5% growth', () => {
+  it('fallback: negative growth hard-caps at 4', () => {
     const r = { ...baseReview, marketRows: [
       { propertyType: 'Houses', medianPrice: '$500k', twelveMonthGrowth: '-5%', medianWeeklyRent: '$400', grossYield: '4%' },
     ] }
-    expect(computePropertyScore(r)).toBe(1)
+    expect(computePropertyScore(r)).toBeLessThanOrEqual(4)
   })
 
-  it('fallback: averages both rows', () => {
+  it('fallback: averages multiple rows', () => {
+    // avg=(10%+0%)/2=5% → 4+(5/5)*3=7
     const r = { ...baseReview, marketRows: [
       { propertyType: 'Houses', medianPrice: '$800k', twelveMonthGrowth: '+10%', medianWeeklyRent: '$500', grossYield: '3%' },
-      { propertyType: 'Units', medianPrice: '$500k', twelveMonthGrowth: '-5%', medianWeeklyRent: '$400', grossYield: '4%' },
+      { propertyType: 'Units', medianPrice: '$500k', twelveMonthGrowth: '0%', medianWeeklyRent: '$400', grossYield: '4%' },
     ] }
-    // avg=2.5% → 1+(2.5+5)/15*9 = 5.5
-    expect(computePropertyScore(r)).toBe(5.5)
+    expect(computePropertyScore(r)).toBe(7)
   })
 
   it('fallback: handles growth without + sign', () => {
+    // 3% → 4+(3/5)*3 = 5.8
     const r = { ...baseReview, marketRows: [
       { propertyType: 'Houses', medianPrice: '$700k', twelveMonthGrowth: '3%', medianWeeklyRent: '$450', grossYield: '3.5%' },
     ] }

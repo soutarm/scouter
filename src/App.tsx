@@ -29,6 +29,7 @@ import { SharedReviewBanner } from './components/review/SharedReviewBanner'
 import { ScoreRing } from './components/review/ScoreRing'
 import { TabPageHeader } from './components/review/TabPageHeader'
 import { ComparePanel } from './components/review/ComparePanel'
+import { BusyIconMorph } from './components/BusyIconMorph'
 import { PropertyIcon, SafetyIcon, InfrastructureIcon, DemographicsIcon, EnvironmentIcon, MapIcon } from './components/TabIcons'
 import { extractTemperatureProfile } from './components/review/ThermometerRange'
 
@@ -108,6 +109,20 @@ const tabs: Array<{ key: ReviewSectionKey; label: string }> = [
   { key: 'demographics', label: 'Demographics' },
   { key: 'map', label: 'Map' },
 ]
+
+const providerLabelByKind: Record<LlmSettings['provider'], string> = {
+  azure: 'Azure OpenAI',
+  openai: 'OpenAI compatible',
+  gemini: 'Google Gemini',
+  anthropic: 'Anthropic',
+}
+
+const getConfiguredModelName = (settings: LlmSettings): string => {
+  if (settings.provider === 'azure') return settings.azureDeployment.trim()
+  if (settings.provider === 'gemini') return settings.geminiModel.trim()
+  if (settings.provider === 'anthropic') return settings.anthropicModel.trim()
+  return settings.openAiModel.trim()
+}
 
 // ---------------------------------------------------------------------------
 // Misc UI helpers
@@ -209,6 +224,23 @@ function App() {
   const suggestedLocation = getSuggestedLocation(review)
   const viewOnlyMode = isSharedReview && !providerReady
   const canUseSearchActions = !viewOnlyMode
+  const providerLabel = review?.sourceProvider ? providerLabelByKind[review.sourceProvider] : ''
+  const modelLabel = review?.sourceModel?.trim() || ''
+  const placeLabel = query.trim() || 'this suburb'
+  const placePossessive = /s$/i.test(placeLabel) ? `${placeLabel}'` : `${placeLabel}'s`
+  const busyMessages = useMemo(() => {
+    const locationLabel = composedQuery || 'this location'
+    return [
+      `Scouting ${locationLabel}...`,
+      `Mapping ${placePossessive} infrastructure...`,
+      `Checking transport links around ${placeLabel}...`,
+      `Reviewing ${placePossessive} climate and noise profile...`,
+      `Sizing up ${placePossessive} market momentum...`,
+      `Investigating crime trends in ${placeLabel}...`,
+      `Cross-checking safety signals for ${placeLabel}...`,
+    ]
+  }, [composedQuery, placeLabel, placePossessive])
+  const [busyMessageIndex, setBusyMessageIndex] = useState(0)
 
   const updateSettings = (next: LlmSettings) => {
     setSettings(next)
@@ -307,7 +339,12 @@ function App() {
       try {
         const homelyContext = await fetchHomelyContext(trimmedPlace, state)
         const result = await callLlm(settings, trimmedQuery, homelyContext)
-        const nextReview = { ...result, generatedAt: result.generatedAt || new Date().toISOString() }
+        const nextReview = {
+          ...result,
+          generatedAt: result.generatedAt || new Date().toISOString(),
+          sourceProvider: settings.provider,
+          sourceModel: getConfiguredModelName(settings),
+        }
         setReview(nextReview)
         if (nextReview.exists !== false) {
           rememberSearch(trimmedQuery)
@@ -331,7 +368,7 @@ function App() {
         setIsLoading(false)
       }
     },
-    [canonicalPlace, isSharedReview, providerReady, rememberSearch, settings],
+    [canonicalPlace, isSharedReview, providerReady, rememberSearch, settings, compareMode],
   )
 
   useEffect(() => {
@@ -357,9 +394,19 @@ function App() {
     if (!initialSearch?.place) return
     const initialState = initialSearch.state ?? selectedState
     autoSearchStartedRef.current = true
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void runSearch(initialSearch.place, initialState, { tab: initialSearch.tab })
   }, [runSearch, selectedState])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!isLoading) { setBusyMessageIndex(0); return }
+    setBusyMessageIndex(0)
+    const intervalId = window.setInterval(() => {
+      setBusyMessageIndex((current) => (current + 1) % busyMessages.length)
+    }, 2600)
+    return () => window.clearInterval(intervalId)
+  }, [busyMessages.length, isLoading])
 
   // Scroll to review section when a new result arrives
   useEffect(() => {
@@ -384,6 +431,7 @@ function App() {
 
   useEffect(() => {
     if (!viewOnlyMode) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCompareMode(false)
     setCompareKeys([])
   }, [viewOnlyMode])
@@ -748,7 +796,10 @@ function App() {
 
       section('Property Market & Rental Realities', review.marketNarrative)
       review.marketRows.forEach((row) => {
-        write(`${row.propertyType}: ${row.medianPrice}, ${row.twelveMonthGrowth} growth, ${row.medianWeeklyRent} rent, ${row.grossYield} yield`, 9, 'normal', 3)
+        const growthStr = row.fiveYearGrowth
+          ? `${row.twelveMonthGrowth} (12-month), ${row.fiveYearGrowth} (5-year)`
+          : row.twelveMonthGrowth
+        write(`${row.propertyType}: ${row.medianPrice}, ${growthStr} growth, ${row.medianWeeklyRent} rent, ${row.grossYield} yield`, 9, 'normal', 3)
       })
 
       section('Climate & Environment', [
@@ -1096,7 +1147,8 @@ function App() {
       {isLoading && (
         <section className="busy-card" aria-live="polite">
           <div className="spinner" />
-          <div><h2>Scouting {composedQuery ? `${composedQuery}` : 'location'}…</h2></div>
+          <div className="busy-copy"><h2>{busyMessages[busyMessageIndex]}</h2></div>
+          <BusyIconMorph activeIndex={busyMessageIndex} />
         </section>
       )}
 
@@ -1119,6 +1171,9 @@ function App() {
                 <div>
                   <p className="eyebrow">References</p>
                   <h2>All references</h2>
+                  {(providerLabel || modelLabel) && (
+                    <p className="references-model">Model source: {[providerLabel, modelLabel].filter(Boolean).join(' · ')}</p>
+                  )}
                 </div>
               </div>
               {review.references?.length ? (

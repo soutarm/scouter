@@ -7,6 +7,8 @@ export const SHARED_REVIEW_HASH_KEY = 'r'
 type SharedReviewPayload = {
   suburb: string
   state: string
+  sourceProvider?: Review['sourceProvider']
+  sourceModel?: string
   generatedAt: string
   summary: string
   scores?: ReviewScores
@@ -14,6 +16,8 @@ type SharedReviewPayload = {
   marketRows: MarketRow[]
   stateMedianGrowth?: string
   capitalCityGrowth?: string
+  stateMedianGrowth5yr?: string
+  capitalCityGrowth5yr?: string
   climate: Review['climate']
   crime: {
     crimeTypes?: Array<{ label: string; level: 'Low' | 'Medium' | 'High' | 'Very High' }>
@@ -71,6 +75,8 @@ const sanitizeScores = (value: unknown): ReviewScores | undefined => {
 const toSharedPayload = (review: Review): SharedReviewPayload => ({
   suburb: review.suburb,
   state: review.state,
+  sourceProvider: review.sourceProvider,
+  sourceModel: review.sourceModel,
   generatedAt: review.generatedAt,
   summary: review.summary,
   scores: review.scores,
@@ -78,6 +84,8 @@ const toSharedPayload = (review: Review): SharedReviewPayload => ({
   marketRows: review.marketRows,
   stateMedianGrowth: review.stateMedianGrowth,
   capitalCityGrowth: review.capitalCityGrowth,
+  stateMedianGrowth5yr: review.stateMedianGrowth5yr,
+  capitalCityGrowth5yr: review.capitalCityGrowth5yr,
   climate: review.climate,
   crime: {
     crimeTypes: review.crime.crimeTypes,
@@ -131,6 +139,8 @@ const toReview = (payload: SharedReviewPayload): Review => ({
   exists: true,
   suburb: payload.suburb,
   state: payload.state,
+  sourceProvider: payload.sourceProvider,
+  sourceModel: payload.sourceModel,
   generatedAt: payload.generatedAt,
   summary: payload.summary,
   briefs: payload.briefs,
@@ -139,6 +149,8 @@ const toReview = (payload: SharedReviewPayload): Review => ({
   marketRows: Array.isArray(payload.marketRows) ? payload.marketRows : [],
   stateMedianGrowth: payload.stateMedianGrowth,
   capitalCityGrowth: payload.capitalCityGrowth,
+  stateMedianGrowth5yr: payload.stateMedianGrowth5yr,
+  capitalCityGrowth5yr: payload.capitalCityGrowth5yr,
   climate: payload.climate ?? {
     summerAverages: '',
     winterAverages: '',

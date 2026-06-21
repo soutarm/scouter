@@ -26,6 +26,7 @@ export type MarketRow = {
   propertyType: string
   medianPrice: string
   twelveMonthGrowth: string
+  fiveYearGrowth?: string
   medianWeeklyRent: string
   grossYield: string
 }
@@ -46,6 +47,8 @@ export type ReviewScores = {
 
 export type Review = {
   exists?: boolean
+  sourceProvider?: ProviderKind
+  sourceModel?: string
   suburb: string
   state: string
   postcode?: string
@@ -65,6 +68,8 @@ export type Review = {
   marketRows: MarketRow[]
   stateMedianGrowth?: string
   capitalCityGrowth?: string
+  stateMedianGrowth5yr?: string
+  capitalCityGrowth5yr?: string
   climate: {
     summerAverages: string
     winterAverages: string
