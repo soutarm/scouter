@@ -1,14 +1,7 @@
-name = "scouter-reviews"
-main = "worker/worker.js"
+name = "scouter"
+pages_build_output_dir = "dist"
 compatibility_date = "2024-09-23"
 
-[[kv_namespaces]]
-binding = "REVIEWS"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
-preview_id = "REPLACE_WITH_KV_PREVIEW_NAMESPACE_ID"
-
 [vars]
-ALLOWED_ORIGIN = "https://scouter.mrated.dev"
-
-[dev]
-port = 8787
+VITE_WORKER_URL = "https://scouter-reviews.soutarm.workers.dev"
+NODE_VERSION = "20"
