@@ -174,7 +174,7 @@ JSON shape:
   "infrastructure": {
     "transit": "Train, bus, road and commute context.",
     "education": "Primary, secondary, tertiary and catchment notes.",
-    "lifestyle": "Retail, dining, parks, health, culture and daily amenity.",
+    "lifestyle": "Retail, dining, parks, health, culture, religious facilities (churches, mosques, temples, synagogues etc.) and daily amenity.",
     "demographic": "Dominant resident profiles and census-style context.",
     "trainStations": [{ "name": "Station name", "lines": "Line name(s)" }],
     "tramStops": "Description of tram stop availability, or null if not applicable.",
@@ -190,7 +190,8 @@ JSON shape:
     "parks": 5,
     "medicalCentres": 2,
     "pointsOfInterest": [
-      { "icon": "🏛", "label": "Notable landmark or facility name" }
+      { "icon": "🏛", "label": "Notable landmark or facility name" },
+      { "icon": "⛪", "label": "Church / mosque / temple name if notable" }
     ]
   },
   "demographics": {
@@ -228,6 +229,16 @@ JSON shape:
       { "label": "Students", "value": 10 },
       { "label": "Singles", "value": 10 },
       { "label": "Other", "value": 5 }
+    ],
+    "religion": [
+      { "label": "No religion", "value": 38 },
+      { "label": "Catholic", "value": 20 },
+      { "label": "Anglican", "value": 10 },
+      { "label": "Islam", "value": 5 },
+      { "label": "Buddhism", "value": 4 },
+      { "label": "Hinduism", "value": 3 },
+      { "label": "Other Christian", "value": 10 },
+      { "label": "Other", "value": 10 }
     ]
   },
   "caveats": ["Any uncertainty, unavailable fresh data, or source limitation."],

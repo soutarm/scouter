@@ -164,6 +164,7 @@ function App() {
   const autoSearchStartedRef = useRef(false)
   const reviewRef = useRef<HTMLElement | null>(null)
   const comparePanelRef = useRef<HTMLElement | null>(null)
+  const tabContentRef = useRef<HTMLDivElement | null>(null)
 
   const providerReady = useMemo(() => {
     if (settings.provider === 'azure') return Boolean(settings.azureEndpoint && settings.azureDeployment && settings.azureApiKey)
@@ -880,6 +881,7 @@ function App() {
         drawDemographicBars('Who lives here', review.demographics.residentProfiles)
         drawDemographicBars('Housing tenure', review.demographics.tenureTypes)
         drawDemographicBars('Country of origin', review.demographics.countryOfOrigin)
+        drawDemographicBars('Religion', review.demographics.religion)
       }
 
       if (review.caveats?.length) section('Caveats', review.caveats.map((c) => `- ${c}`).join('\n'))
@@ -1238,7 +1240,13 @@ function App() {
                   {review.scores ? (
                     <ScoreRing
                       scores={review.scores}
-                      onCategoryClick={(key) => setActiveTab(key as ReviewSectionKey)}
+                      onCategoryClick={(key) => {
+                        setActiveTab(key as ReviewSectionKey)
+                        // On mobile, scroll the tab content into view after the state update
+                        setTimeout(() => {
+                          tabContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                        }, 60)
+                      }}
                     />
                   ) : (
                     <div>
@@ -1275,17 +1283,19 @@ function App() {
                   ))}
                 </nav>
 
-                <TabPageHeader
-                  tabKey={activeTab}
-                  scores={review.scores}
-                  brief={
-                    activeTab === 'property' ? review.briefs?.market
-                      : activeTab === 'environment' ? review.briefs?.environment
-                        : activeTab === 'crime' ? review.briefs?.crime
-                          : activeTab === 'infrastructure' ? review.briefs?.infrastructure
-                            : undefined
-                  }
-                />
+                <div ref={tabContentRef}>
+                  <TabPageHeader
+                    tabKey={activeTab}
+                    scores={review.scores}
+                    brief={
+                      activeTab === 'property' ? review.briefs?.market
+                        : activeTab === 'environment' ? review.briefs?.environment
+                          : activeTab === 'crime' ? review.briefs?.crime
+                            : activeTab === 'infrastructure' ? review.briefs?.infrastructure
+                              : undefined
+                    }
+                  />
+                </div>
 
                 {activeTab === 'property' && <PropertyTab review={review} />}
                 {activeTab === 'environment' && <EnvironmentTab review={review} />}

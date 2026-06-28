@@ -56,6 +56,10 @@ export const DemographicsTab = ({ review }: Props) => {
         {review.demographics?.countryOfOrigin?.length ? (
           <DemographicPieChart title="Country of origin" data={review.demographics.countryOfOrigin} />
         ) : null}
+
+        {review.demographics?.religion?.length ? (
+          <DemographicPieChart title="Religion" data={review.demographics.religion} />
+        ) : null}
       </div>
     </section>
   )

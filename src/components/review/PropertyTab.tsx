@@ -1,7 +1,7 @@
 import type { Review } from '../../types'
-import logoRea from '/logo-rea.png'
-import logoDomain from '/logo-domain.png'
-import logoHomely from '/logo-homely.png'
+import logoRea from '../../assets/logo-rea.png'
+import logoDomain from '../../assets/logo-domain.png'
+import logoHomely from '../../assets/logo-homely.png'
 
 const IconAllListings = () => (
   <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">

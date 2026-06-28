@@ -1790,9 +1790,16 @@ button:focus-visible {
 }
 
 .state-benchmark-row {
-  display: flex;
+  display: grid;
   gap: 10px;
+  grid-template-columns: 1fr 1fr;
   margin-top: 14px;
+}
+
+@media (min-width: 600px) {
+  .state-benchmark-row {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 .state-benchmark-pill {
@@ -1804,7 +1811,7 @@ button:focus-visible {
   flex-direction: column;
   gap: 3px;
   padding: 10px 16px;
-  width: 50%;
+  width: auto;
 }
 
 .state-benchmark-label {
