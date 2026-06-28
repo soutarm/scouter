@@ -6,7 +6,7 @@ vibe: Fast design iteration, clean implementation, practical delivery.
 
 # Scouter: Project Mandates
 
-You are the **Scouter Agent**, focused on building and refining a static, GitHub Pages-friendly React app that generates practical suburb reviews.
+You are the **Scouter Agent**, focused on building and refining a React app that generates practical suburb reviews. The app is deployed on **Cloudflare Pages** with a **Cloudflare Worker** backend for review sharing.
 
 These instructions take precedence over generic defaults for this repository.
 
@@ -14,18 +14,34 @@ These instructions take precedence over generic defaults for this repository.
 
 - **Framework:** React + TypeScript
 - **Build Tool:** Vite
-- **Deployment:** Static output to GitHub Pages via `gh-pages`, served on the custom domain **https://scouter.mrated.dev**
+- **Deployment:** Cloudflare Pages (static), auto-deploys on push to `main`
+- **Share backend:** Cloudflare Worker (`worker/index.ts`) + KV namespace `REVIEWS`
 - **PDF Export:** `jspdf` (client-side)
 - **LLM calls:** Browser-side provider calls (Azure OpenAI Responses API + OpenAI-compatible Chat Completions + Google Gemini API)
 
 Key deployment settings:
 
-- Production URL: `https://scouter.mrated.dev` (custom domain pointing at the GitHub Pages site)
-- `vite.config.ts` uses `base: './'`
-- `npm run deploy` publishes `dist/` to `gh-pages`
-- `predeploy` runs build first
-- After pushing source changes to GitHub, run `npm run deploy` so the GitHub Pages site updates.
-- When generating shareable links, base them on `https://scouter.mrated.dev` (not the `github.io` URL).
+- Production URL: `https://scouter.mrated.dev` (custom domain on Cloudflare Pages)
+- `vite.config.ts` uses `base: '/'`
+- Cloudflare Pages: build command `npm run build`, output dir `dist`, Node version `20`
+- `public/_redirects` handles SPA routing: `/r/*` and `/*` both serve `index.html`
+- Pushing to `main` triggers automatic Cloudflare Pages deploy - no manual deploy step needed
+- When generating shareable links, base them on `https://scouter.mrated.dev`
+
+### Worker deployment
+
+- Worker lives in `worker/index.ts`, config in `wrangler.toml`
+- `npm run worker:dev` - local worker dev server on port 8787
+- `npm run worker:deploy` - deploy worker to Cloudflare
+- Worker URL set via `VITE_WORKER_URL` env var (Cloudflare Pages env), falls back to `https://scouter-reviews.michaelsoutar.workers.dev`
+- KV namespace `REVIEWS` must exist and its ID must be set in `wrangler.toml` before deploying
+
+### First-time Cloudflare setup (one-off)
+1. `npx wrangler kv namespace create REVIEWS` - creates the KV namespace, copy the ID into `wrangler.toml`
+2. `npx wrangler kv namespace create REVIEWS --preview` - creates preview namespace, copy into `wrangler.toml`
+3. `npm run worker:deploy` - deploys the worker
+4. Connect repo to Cloudflare Pages in the dashboard, set build settings above
+5. Set `VITE_WORKER_URL` environment variable in Cloudflare Pages to the worker URL
 
 ## 🎨 Product + UX Intent
 
@@ -65,7 +81,7 @@ Key deployment settings:
 
 ## 🚫 Safe Change Rules
 
-- Do not add server-only patterns that break static deployment assumptions.
+- Do not add server-only patterns that break static deployment assumptions (the Worker is the only backend).
 - Do not change deployment scripts/base-path conventions without explicit instruction.
 - Do not commit generated artifacts unless requested.
 - Do not leak secrets in logs, files, screenshots, or examples.

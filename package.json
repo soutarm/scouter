@@ -11,7 +11,9 @@
     "test": "vitest run",
     "prepare": "husky",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist -u \"Michael Soutar <soutarm@users.noreply.github.com>\""
+    "deploy": "gh-pages -d dist -u \"Michael Soutar <soutarm@users.noreply.github.com>\"",
+    "worker:dev": "wrangler dev worker/index.ts",
+    "worker:deploy": "wrangler deploy worker/index.ts"
   },
   "dependencies": {
     "jspdf": "^4.2.1",
@@ -20,6 +22,7 @@
     "react-dom": "^19.2.6"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260628.1",
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.12.3",
     "@types/react": "^19.2.14",
@@ -33,9 +36,11 @@
     "globals": "^17.6.0",
     "husky": "^9.1.7",
     "jsdom": "^29.1.1",
+    "nanoid": "^5.1.16",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
     "vite": "^8.0.12",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "wrangler": "^4.105.0"
   }
 }

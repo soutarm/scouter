@@ -1,8 +1,22 @@
-import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string'
+import { decompressFromEncodedURIComponent } from 'lz-string'
 
 import type { DemographicDatum, MarketRow, Review, ReviewScores } from '../types'
 
+// ---------------------------------------------------------------------------
+// Worker URL — set via Vite env var at build time, falls back to prod URL
+// ---------------------------------------------------------------------------
+export const WORKER_BASE_URL =
+  (import.meta.env.VITE_WORKER_URL as string | undefined)?.replace(/\/$/, '') ??
+  'https://scouter-reviews.michaelsoutar.workers.dev'
+
+// ---------------------------------------------------------------------------
+// Legacy hash-based key (kept for backwards-compat decoding of old links)
+// ---------------------------------------------------------------------------
 export const SHARED_REVIEW_HASH_KEY = 'r'
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 type SharedReviewPayload = {
   suburb: string
@@ -14,16 +28,22 @@ type SharedReviewPayload = {
   scores?: ReviewScores
   briefs?: Review['briefs']
   marketRows: MarketRow[]
+  marketNarrative?: string
   stateMedianGrowth?: string
   capitalCityGrowth?: string
   stateMedianGrowth5yr?: string
   capitalCityGrowth5yr?: string
   climate: Review['climate']
   crime: {
+    narrative?: string
+    insuranceImpact?: string
     crimeTypes?: Array<{ label: string; level: 'Low' | 'Medium' | 'High' | 'Very High' }>
     estimatedAnnualPremiums?: Review['crime']['estimatedAnnualPremiums']
   }
   infrastructure: {
+    transit?: string
+    education?: string
+    lifestyle?: string
     trainStations?: Review['infrastructure']['trainStations']
     tramStops?: string
     busAvailability?: Review['infrastructure']['busAvailability']
@@ -40,6 +60,7 @@ type SharedReviewPayload = {
     pointsOfInterest?: Review['infrastructure']['pointsOfInterest']
   }
   demographics?: {
+    summary?: string
     population?: string
     medianAge?: string
     householdTypes?: DemographicDatum[]
@@ -47,13 +68,19 @@ type SharedReviewPayload = {
     tenureTypes?: DemographicDatum[]
     countryOfOrigin?: DemographicDatum[]
     residentProfiles?: DemographicDatum[]
+    religion?: DemographicDatum[]
   }
   caveats?: string[]
   briefCaveats?: string[]
   references?: string[]
 }
 
-const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
 
 const clampScore = (value: unknown): number => {
   if (typeof value !== 'number' || Number.isNaN(value)) return 0
@@ -72,6 +99,10 @@ const sanitizeScores = (value: unknown): ReviewScores | undefined => {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Serialize a full review to the shared payload shape
+// ---------------------------------------------------------------------------
+
 const toSharedPayload = (review: Review): SharedReviewPayload => ({
   suburb: review.suburb,
   state: review.state,
@@ -82,16 +113,22 @@ const toSharedPayload = (review: Review): SharedReviewPayload => ({
   scores: review.scores,
   briefs: review.briefs,
   marketRows: review.marketRows,
+  marketNarrative: review.marketNarrative,
   stateMedianGrowth: review.stateMedianGrowth,
   capitalCityGrowth: review.capitalCityGrowth,
   stateMedianGrowth5yr: review.stateMedianGrowth5yr,
   capitalCityGrowth5yr: review.capitalCityGrowth5yr,
   climate: review.climate,
   crime: {
+    narrative: review.crime.narrative,
+    insuranceImpact: review.crime.insuranceImpact,
     crimeTypes: review.crime.crimeTypes,
     estimatedAnnualPremiums: review.crime.estimatedAnnualPremiums,
   },
   infrastructure: {
+    transit: review.infrastructure.transit,
+    education: review.infrastructure.education,
+    lifestyle: review.infrastructure.lifestyle,
     trainStations: review.infrastructure.trainStations,
     tramStops: review.infrastructure.tramStops,
     busAvailability: review.infrastructure.busAvailability,
@@ -109,6 +146,7 @@ const toSharedPayload = (review: Review): SharedReviewPayload => ({
   },
   demographics: review.demographics
     ? {
+      summary: review.demographics.summary,
       population: review.demographics.population,
       medianAge: review.demographics.medianAge,
       householdTypes: review.demographics.householdTypes,
@@ -116,6 +154,7 @@ const toSharedPayload = (review: Review): SharedReviewPayload => ({
       tenureTypes: review.demographics.tenureTypes,
       countryOfOrigin: review.demographics.countryOfOrigin,
       residentProfiles: review.demographics.residentProfiles,
+      religion: review.demographics.religion,
     }
     : undefined,
   caveats: review.caveats,
@@ -123,17 +162,9 @@ const toSharedPayload = (review: Review): SharedReviewPayload => ({
   references: review.references,
 })
 
-export const encodeSharedReview = (review: Review): string => {
-  const payload = JSON.stringify(toSharedPayload(review))
-  return compressToEncodedURIComponent(payload)
-}
-
-export const buildShareUrl = (review: Review): string => {
-  const encoded = encodeSharedReview(review)
-  const origin = window.location.origin
-  const pathname = window.location.pathname
-  return `${origin}${pathname}#${SHARED_REVIEW_HASH_KEY}=${encoded}`
-}
+// ---------------------------------------------------------------------------
+// Deserialize payload back to a Review
+// ---------------------------------------------------------------------------
 
 const toReview = (payload: SharedReviewPayload): Review => ({
   exists: true,
@@ -145,26 +176,23 @@ const toReview = (payload: SharedReviewPayload): Review => ({
   summary: payload.summary,
   briefs: payload.briefs,
   scores: sanitizeScores(payload.scores),
-  marketNarrative: '',
+  marketNarrative: payload.marketNarrative ?? '',
   marketRows: Array.isArray(payload.marketRows) ? payload.marketRows : [],
   stateMedianGrowth: payload.stateMedianGrowth,
   capitalCityGrowth: payload.capitalCityGrowth,
   stateMedianGrowth5yr: payload.stateMedianGrowth5yr,
   capitalCityGrowth5yr: payload.capitalCityGrowth5yr,
-  climate: payload.climate ?? {
-    summerAverages: '',
-    winterAverages: '',
-  },
+  climate: payload.climate ?? { summerAverages: '', winterAverages: '' },
   crime: {
-    narrative: '',
-    insuranceImpact: '',
+    narrative: payload.crime?.narrative ?? '',
+    insuranceImpact: payload.crime?.insuranceImpact ?? '',
     estimatedAnnualPremiums: payload.crime?.estimatedAnnualPremiums,
     crimeTypes: payload.crime?.crimeTypes,
   },
   infrastructure: {
-    transit: '',
-    education: '',
-    lifestyle: '',
+    transit: payload.infrastructure?.transit ?? '',
+    education: payload.infrastructure?.education ?? '',
+    lifestyle: payload.infrastructure?.lifestyle ?? '',
     demographic: '',
     trainStations: payload.infrastructure?.trainStations,
     tramStops: payload.infrastructure?.tramStops,
@@ -183,7 +211,7 @@ const toReview = (payload: SharedReviewPayload): Review => ({
   },
   demographics: payload.demographics
     ? {
-      summary: '',
+      summary: payload.demographics.summary ?? '',
       population: payload.demographics.population,
       medianAge: payload.demographics.medianAge,
       householdTypes: payload.demographics.householdTypes,
@@ -191,6 +219,7 @@ const toReview = (payload: SharedReviewPayload): Review => ({
       tenureTypes: payload.demographics.tenureTypes,
       countryOfOrigin: payload.demographics.countryOfOrigin,
       residentProfiles: payload.demographics.residentProfiles,
+      religion: payload.demographics.religion,
     }
     : undefined,
   caveats: payload.caveats ?? [],
@@ -198,10 +227,52 @@ const toReview = (payload: SharedReviewPayload): Review => ({
   references: payload.references,
 })
 
+// ---------------------------------------------------------------------------
+// Worker-backed share: POST review → get short ID
+// ---------------------------------------------------------------------------
+
+export const storeReview = async (review: Review): Promise<string> => {
+  const payload = JSON.stringify(toSharedPayload(review))
+  const res = await fetch(`${WORKER_BASE_URL}/reviews`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: payload,
+    signal: AbortSignal.timeout(10_000),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Failed to store review: ${res.status} ${text.slice(0, 120)}`)
+  }
+  const data = await res.json() as { id?: string }
+  if (!data.id) throw new Error('Worker returned no ID')
+  return data.id
+}
+
+export const fetchReviewById = async (id: string): Promise<Review | null> => {
+  try {
+    const res = await fetch(`${WORKER_BASE_URL}/reviews/${encodeURIComponent(id)}`, {
+      signal: AbortSignal.timeout(10_000),
+    })
+    if (res.status === 404) return null
+    if (!res.ok) throw new Error(`Fetch failed: ${res.status}`)
+    const payload = await res.json() as SharedReviewPayload
+    if (!payload?.suburb || !payload?.state || !payload?.summary) return null
+    return toReview(payload)
+  } catch {
+    return null
+  }
+}
+
+export const buildShareUrl = (id: string): string =>
+  `${window.location.origin}/r/${id}`
+
+// ---------------------------------------------------------------------------
+// Legacy hash-based decode (backwards compat for old shared links)
+// ---------------------------------------------------------------------------
+
 export const decodeSharedReview = (encoded: string): Review | null => {
   const decoded = decompressFromEncodedURIComponent(encoded)
   if (!decoded) return null
-
   try {
     const parsed = JSON.parse(decoded) as SharedReviewPayload
     if (!parsed?.suburb || !parsed?.state || !parsed?.summary || !parsed?.generatedAt || !parsed?.climate || !parsed?.infrastructure) {

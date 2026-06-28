@@ -15,7 +15,7 @@ import {
   getSuggestedLocation,
 } from './services/location'
 import { callLlm, fetchHomelyContext, friendlyRequestError } from './services/llm'
-import { buildShareUrl, clearSharedReviewHash, getSharedReviewFromHash, SHARED_REVIEW_HASH_KEY } from './services/share'
+import { buildShareUrl, clearSharedReviewHash, fetchReviewById, getSharedReviewFromHash, SHARED_REVIEW_HASH_KEY, storeReview } from './services/share'
 import { parseReferenceLink } from './services/reviewParser'
 import { SettingsPanel } from './components/SettingsPanel'
 import { HeroSearchSection } from './components/HeroSearchSection'
@@ -153,9 +153,11 @@ function App() {
   const [showReferences, setShowReferences] = useState(false)
   const [compareMode, setCompareMode] = useState(false)
   const [compareKeys, setCompareKeys] = useState<string[]>([])
-  const [isSharedReview, setIsSharedReview] = useState(() =>
-    Boolean(new URLSearchParams(window.location.hash.slice(1)).get(SHARED_REVIEW_HASH_KEY))
-  )
+  const [isSharedReview, setIsSharedReview] = useState(() => {
+    // True if arriving via /r/:id path OR legacy hash link
+    if (/^\/r\/[A-Za-z0-9_-]{6,20}$/.test(window.location.pathname)) return true
+    return Boolean(new URLSearchParams(window.location.hash.slice(1)).get(SHARED_REVIEW_HASH_KEY))
+  })
   const [shareStatus, setShareStatus] = useState('')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [suggestions, setSuggestions] = useState<SuburbSuggestion[]>([])
@@ -373,6 +375,36 @@ function App() {
   )
 
   useEffect(() => {
+    // --- New: /r/:id path-based shared review ---
+    const idMatch = window.location.pathname.match(/^\/r\/([A-Za-z0-9_-]{6,20})$/)
+    if (idMatch) {
+      autoSearchStartedRef.current = true
+      setIsSharedReview(true)
+      setHasSearched(true)
+      setIsSearchOpen(false)
+      setIsLoading(true)
+      fetchReviewById(idMatch[1]).then((fetched) => {
+        if (fetched) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setReview(fetched)
+          setQuery(fetched.suburb)
+          setSelectedState((fetched.state as AustralianState) ?? 'TAS')
+        } else {
+          setError('This shared review could not be found. It may have expired.')
+          setIsSharedReview(false)
+        }
+        setActiveTab('property')
+        setShowReferences(false)
+        setIsLoading(false)
+      }).catch(() => {
+        setError('Could not load this shared review.')
+        setIsSharedReview(false)
+        setIsLoading(false)
+      })
+      return
+    }
+
+    // --- Legacy: hash-based shared review ---
     const sharedReview = getSharedReviewFromHash(window.location.hash)
     if (!sharedReview) return
 
@@ -514,11 +546,21 @@ function App() {
 
   const handleShare = useCallback(async () => {
     if (!review || locationNotFound) return
-    const url = buildShareUrl(review)
     const title = `Scouter: ${review.suburb}, ${review.state}`
     const text = review.scores
-      ? `${review.suburb}, ${review.state} — overall score ${review.scores.overall.toFixed(1)}/10.`
+      ? `${review.suburb}, ${review.state} - overall score ${review.scores.overall.toFixed(1)}/10.`
       : `Scouter review for ${review.suburb}, ${review.state}.`
+
+    setShareStatus('Generating link...')
+    let url: string
+    try {
+      const id = await storeReview(review)
+      url = buildShareUrl(id)
+    } catch {
+      setShareStatus('')
+      setError('Could not generate a share link. Try again.')
+      return
+    }
 
     try {
       if (navigator.share) {
@@ -530,8 +572,12 @@ function App() {
       }
       window.setTimeout(() => setShareStatus(''), 2200)
     } catch (caught) {
-      if (caught instanceof DOMException && caught.name === 'AbortError') return
+      if (caught instanceof DOMException && caught.name === 'AbortError') {
+        setShareStatus('')
+        return
+      }
       setError('Could not share this review. Try copying the link manually.')
+      setShareStatus('')
     }
   }, [locationNotFound, review])
 
