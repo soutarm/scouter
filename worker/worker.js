@@ -1,84 +1,61 @@
-export interface Env {
-  REVIEWS: KVNamespace
-  ALLOWED_ORIGIN: string
-}
+const MAX_PAYLOAD_BYTES = 100_000
+const TTL_SECONDS = 60 * 60 * 24 * 365
 
-const MAX_PAYLOAD_BYTES = 100_000   // 100 KB hard limit
-const TTL_SECONDS = 60 * 60 * 24 * 365  // 1 year
-
-// Inline nanoid-style ID generator (no npm dependency needed)
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-const nanoid = (size = 10): string => {
+const nanoid = (size = 10) => {
   const bytes = crypto.getRandomValues(new Uint8Array(size))
   return Array.from(bytes).map((b) => ALPHABET[b % ALPHABET.length]).join('')
 }
 
-const corsHeaders = (origin: string) => ({
+const corsHeaders = (origin) => ({
   'Access-Control-Allow-Origin': origin,
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Access-Control-Max-Age': '86400',
 })
 
-const json = (data: unknown, status = 200, origin = '*') =>
+const json = (data, status = 200, origin = '*') =>
   new Response(JSON.stringify(data), {
     status,
-    headers: {
-      'Content-Type': 'application/json',
-      ...corsHeaders(origin),
-    },
+    headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
   })
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request, env) {
     const url = new URL(request.url)
     const allowedOrigin = env.ALLOWED_ORIGIN ?? '*'
 
-    // CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders(allowedOrigin) })
     }
 
-    // POST /reviews — store a new review, return { id }
     if (request.method === 'POST' && url.pathname === '/reviews') {
-      const contentLength = Number(request.headers.get('Content-Length') ?? 0)
-      if (contentLength > MAX_PAYLOAD_BYTES) {
-        return json({ error: 'Payload too large' }, 413, allowedOrigin)
-      }
-
-      let body: string
+      let body
       try {
         body = await request.text()
       } catch {
         return json({ error: 'Could not read request body' }, 400, allowedOrigin)
       }
-
       if (body.length > MAX_PAYLOAD_BYTES) {
         return json({ error: 'Payload too large' }, 413, allowedOrigin)
       }
-
-      // Validate it is parseable JSON with the minimum shape we expect
-      let parsed: Record<string, unknown>
+      let parsed
       try {
-        parsed = JSON.parse(body) as Record<string, unknown>
+        parsed = JSON.parse(body)
         if (!parsed.suburb || !parsed.state || !parsed.summary) {
           return json({ error: 'Invalid review shape' }, 400, allowedOrigin)
         }
       } catch {
         return json({ error: 'Invalid JSON' }, 400, allowedOrigin)
       }
-
       const id = nanoid(10)
       await env.REVIEWS.put(id, body, { expirationTtl: TTL_SECONDS })
-
       return json({ id }, 201, allowedOrigin)
     }
 
-    // GET /reviews/:id — retrieve a stored review
     const getMatch = url.pathname.match(/^\/reviews\/([A-Za-z0-9_-]{6,20})$/)
     if (request.method === 'GET' && getMatch) {
-      const id = getMatch[1]
-      const value = await env.REVIEWS.get(id)
+      const value = await env.REVIEWS.get(getMatch[1])
       if (!value) {
         return json({ error: 'Review not found' }, 404, allowedOrigin)
       }
