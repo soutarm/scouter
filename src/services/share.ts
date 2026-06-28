@@ -7,7 +7,7 @@ import type { DemographicDatum, MarketRow, Review, ReviewScores } from '../types
 // ---------------------------------------------------------------------------
 export const WORKER_BASE_URL =
   (import.meta.env.VITE_WORKER_URL as string | undefined)?.replace(/\/$/, '') ??
-  'https://scouter-reviews.michaelsoutar.workers.dev'
+  'https://scouter-reviews.soutarm.workers.dev'
 
 // ---------------------------------------------------------------------------
 // Legacy hash-based key (kept for backwards-compat decoding of old links)

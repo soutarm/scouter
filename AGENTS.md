@@ -33,7 +33,7 @@ Key deployment settings:
 - Worker lives in `worker/index.ts`, config in `wrangler.toml`
 - `npm run worker:dev` - local worker dev server on port 8787
 - `npm run worker:deploy` - deploy worker to Cloudflare
-- Worker URL set via `VITE_WORKER_URL` env var (Cloudflare Pages env), falls back to `https://scouter-reviews.michaelsoutar.workers.dev`
+- Worker URL set via `VITE_WORKER_URL` env var (Cloudflare Pages env), falls back to `https://scouter-reviews.soutarm.workers.dev`
 - KV namespace `REVIEWS` must exist and its ID must be set in `wrangler.toml` before deploying
 
 ### First-time Cloudflare setup (one-off)
