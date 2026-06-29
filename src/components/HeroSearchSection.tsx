@@ -60,7 +60,7 @@ export const HeroSearchSection = ({
   isCompareKeyDisabled,
   onOpenSettings,
 }: Props) => (
-  <section className="hero-panel">
+  <section className={`hero-panel${showSetupCta ? ' hero-panel--setup' : ''}`}>
     <div className="hero-copy">
       <h2>Scout a location before you make your move.</h2>
       {!showSetupCta && <p>Enter a location and let us scout it out.</p>}

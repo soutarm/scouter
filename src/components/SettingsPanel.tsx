@@ -14,6 +14,18 @@ type Props = {
   onClose?: () => void
 }
 
+const CUSTOM_GEMINI_MODEL = '__custom_gemini_model__'
+
+const geminiModelOptions = [
+  { value: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash (free)' },
+  { value: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro Preview' },
+  { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash Preview (free)' },
+  { value: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite (free)' },
+  { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (free)' },
+  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (free)' },
+  { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite (free)' },
+]
+
 const ProviderIcon = ({ ready, label }: { ready: boolean; label: string }) => (
   <span
     className={ready ? 'cache-pill cache-pill--provider-ready' : 'cache-pill cache-pill--provider-waiting'}
@@ -68,7 +80,10 @@ export const SettingsPanel = ({
   onClearCache,
   onClearCurrentLocation,
   onClose,
-}: Props) => (
+}: Props) => {
+  const isCustomGeminiModel = !geminiModelOptions.some((option) => option.value === settings.geminiModel)
+
+  return (
   <section
     className="settings-card"
     aria-label="LLM settings"
@@ -132,9 +147,27 @@ export const SettingsPanel = ({
       <div className="settings-grid">
         <label>
           Model
-          <input placeholder="gemini-2.5-flash" value={settings.geminiModel}
-            onChange={(e) => onUpdate({ ...settings, geminiModel: e.target.value })} />
+          <select
+            className="settings-provider-select"
+            value={isCustomGeminiModel ? CUSTOM_GEMINI_MODEL : settings.geminiModel}
+            onChange={(e) => {
+              const model = e.target.value
+              onUpdate({ ...settings, geminiModel: model === CUSTOM_GEMINI_MODEL ? '' : model })
+            }}
+          >
+            {geminiModelOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+            <option value={CUSTOM_GEMINI_MODEL}>Custom model</option>
+          </select>
         </label>
+        {isCustomGeminiModel && (
+          <label>
+            Custom model
+            <input placeholder="gemini-model-name" value={settings.geminiModel}
+              onChange={(e) => onUpdate({ ...settings, geminiModel: e.target.value })} />
+          </label>
+        )}
         <label>
           API key
           <input type="password" value={settings.geminiApiKey}
@@ -208,4 +241,5 @@ export const SettingsPanel = ({
       <span className="cache-pill-label">{cacheCount} {cacheCount === 1 ? 'location' : 'locations'}</span>
     </div>
   </section>
-)
+  )
+}
