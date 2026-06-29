@@ -1,5 +1,6 @@
 const MAX_PAYLOAD_BYTES = 100_000
 const TTL_SECONDS = 60 * 60 * 24 * 365
+const DEFAULT_ALLOWED_ORIGINS = ['https://scouter.mrated.dev', 'https://scouter-1ah.pages.dev']
 
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
 const nanoid = (size = 10) => {
@@ -14,6 +15,15 @@ const corsHeaders = (origin) => ({
   'Access-Control-Max-Age': '86400',
 })
 
+const allowedOriginForRequest = (request, configuredOrigin) => {
+  const requestOrigin = request.headers.get('Origin')
+  const configuredOrigins = configuredOrigin
+    ? configuredOrigin.split(',').map((origin) => origin.trim()).filter(Boolean)
+    : []
+  const allowedOrigins = [...new Set([...configuredOrigins, ...DEFAULT_ALLOWED_ORIGINS])]
+  return requestOrigin && allowedOrigins.includes(requestOrigin) ? requestOrigin : allowedOrigins[0]
+}
+
 const json = (data, status = 200, origin = '*') =>
   new Response(JSON.stringify(data), {
     status,
@@ -23,7 +33,7 @@ const json = (data, status = 200, origin = '*') =>
 export default {
   async fetch(request, env) {
     const url = new URL(request.url)
-    const allowedOrigin = env.ALLOWED_ORIGIN ?? '*'
+    const allowedOrigin = allowedOriginForRequest(request, env.ALLOWED_ORIGIN)
 
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders(allowedOrigin) })

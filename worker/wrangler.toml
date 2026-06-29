@@ -8,7 +8,7 @@ id = "REPLACE_WITH_KV_NAMESPACE_ID"
 preview_id = "REPLACE_WITH_KV_PREVIEW_NAMESPACE_ID"
 
 [vars]
-ALLOWED_ORIGIN = "https://scouter.mrated.dev"
+ALLOWED_ORIGIN = "https://scouter.mrated.dev,https://scouter-1ah.pages.dev"
 
 [dev]
 port = 8787
