@@ -17,6 +17,7 @@ type Props = {
 const CUSTOM_GEMINI_MODEL = '__custom_gemini_model__'
 const CUSTOM_ANTHROPIC_MODEL = '__custom_anthropic_model__'
 const CUSTOM_OPENAI_MODEL = '__custom_openai_model__'
+const CUSTOM_DEEPSEEK_MODEL = '__custom_deepseek_model__'
 
 const openAiModelOptions = [
   { value: 'gpt-5.5', label: 'GPT-5.5' },
@@ -49,10 +50,16 @@ const anthropicModelOptions = [
   { value: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5' },
 ]
 
+const deepseekModelOptions = [
+  { value: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash' },
+  { value: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro' },
+]
+
 const apiKeyLinks: Record<ProviderKind, { label: string; href: string }> = {
   gemini: { label: 'Google Gemini API Key', href: 'https://aistudio.google.com/app/apikey' },
   openai: { label: 'OpenAI GPT API Key', href: 'https://platform.openai.com/api-keys' },
   anthropic: { label: 'Anthropic Claude API Key', href: 'https://console.anthropic.com/settings/keys' },
+  deepseek: { label: 'DeepSeek API Key', href: 'https://platform.deepseek.com/api_keys' },
   azure: { label: 'Azure AI API Key', href: 'https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/create-resource' },
 }
 
@@ -114,6 +121,7 @@ export const SettingsPanel = ({
   const isCustomOpenAiModel = !openAiModelOptions.some((option) => option.value === settings.openAiModel)
   const isCustomGeminiModel = !geminiModelOptions.some((option) => option.value === settings.geminiModel)
   const isCustomAnthropicModel = !anthropicModelOptions.some((option) => option.value === settings.anthropicModel)
+  const isCustomDeepseekModel = !deepseekModelOptions.some((option) => option.value === settings.deepseekModel)
   const selectedApiKeyLink = apiKeyLinks[settings.provider]
 
   return (
@@ -150,6 +158,7 @@ export const SettingsPanel = ({
       <option value="gemini">Google Gemini</option>
       <option value="openai">OpenAI GPT</option>
       <option value="anthropic">Anthropic Claude</option>
+      <option value="deepseek">DeepSeek</option>
       <option value="azure">Azure AI</option>
     </select>
 
@@ -242,6 +251,40 @@ export const SettingsPanel = ({
         </label>
         <p className="settings-note settings-note--full">
           Uses Anthropic&apos;s Messages API directly from this browser. Keep keys restricted where possible.
+        </p>
+      </div>
+    ) : settings.provider === 'deepseek' ? (
+      <div className="settings-grid">
+        <label>
+          Model
+          <select
+            className="settings-provider-select"
+            value={isCustomDeepseekModel ? CUSTOM_DEEPSEEK_MODEL : settings.deepseekModel}
+            onChange={(e) => {
+              const model = e.target.value
+              onUpdate({ ...settings, deepseekModel: model === CUSTOM_DEEPSEEK_MODEL ? '' : model })
+            }}
+          >
+            {deepseekModelOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+            <option value={CUSTOM_DEEPSEEK_MODEL}>Custom model</option>
+          </select>
+        </label>
+        {isCustomDeepseekModel && (
+          <label>
+            Custom model
+            <input placeholder="deepseek-model-name" value={settings.deepseekModel}
+              onChange={(e) => onUpdate({ ...settings, deepseekModel: e.target.value })} />
+          </label>
+        )}
+        <label>
+          API key
+          <input type="password" value={settings.deepseekApiKey}
+            onChange={(e) => onUpdate({ ...settings, deepseekApiKey: e.target.value })} />
+        </label>
+        <p className="settings-note settings-note--full">
+          Uses DeepSeek&apos;s Chat Completions API directly from this browser. Keep keys restricted where possible.
         </p>
       </div>
     ) : (

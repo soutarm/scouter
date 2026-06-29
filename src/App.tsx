@@ -50,6 +50,8 @@ const defaultSettings: LlmSettings = {
   geminiApiKey: '',
   anthropicModel: 'claude-sonnet-4-6',
   anthropicApiKey: '',
+  deepseekModel: 'deepseek-v4-flash',
+  deepseekApiKey: '',
 }
 
 const LEVEL_STEPS: Record<'Low' | 'Medium' | 'High' | 'Very High', number> = {
@@ -77,6 +79,7 @@ const loadSettings = (): LlmSettings => {
       openAiModel: merged.openAiModel?.trim() || defaultSettings.openAiModel,
       geminiModel: merged.geminiModel?.trim() || defaultSettings.geminiModel,
       anthropicModel: merged.anthropicModel?.trim() || defaultSettings.anthropicModel,
+      deepseekModel: merged.deepseekModel?.trim() || defaultSettings.deepseekModel,
     }
   } catch {
     return defaultSettings
@@ -115,12 +118,14 @@ const providerLabelByKind: Record<LlmSettings['provider'], string> = {
   openai: 'OpenAI GPT',
   gemini: 'Google Gemini',
   anthropic: 'Anthropic Claude',
+  deepseek: 'DeepSeek',
 }
 
 const getConfiguredModelName = (settings: LlmSettings): string => {
   if (settings.provider === 'azure') return settings.azureDeployment.trim()
   if (settings.provider === 'gemini') return settings.geminiModel.trim()
   if (settings.provider === 'anthropic') return settings.anthropicModel.trim()
+  if (settings.provider === 'deepseek') return settings.deepseekModel.trim()
   return settings.openAiModel.trim()
 }
 
@@ -207,6 +212,7 @@ function App() {
     if (settings.provider === 'azure') return Boolean(settings.azureEndpoint && settings.azureDeployment && settings.azureApiKey)
     if (settings.provider === 'gemini') return Boolean(settings.geminiApiKey && settings.geminiModel)
     if (settings.provider === 'anthropic') return Boolean(settings.anthropicApiKey && settings.anthropicModel)
+    if (settings.provider === 'deepseek') return Boolean(settings.deepseekApiKey && settings.deepseekModel)
     return Boolean(settings.openAiApiKey && settings.openAiModel)
   }, [settings])
 

@@ -1,4 +1,4 @@
-export type ProviderKind = 'azure' | 'openai' | 'gemini' | 'anthropic'
+export type ProviderKind = 'azure' | 'openai' | 'gemini' | 'anthropic' | 'deepseek'
 
 export type LlmSettings = {
   provider: ProviderKind
@@ -13,6 +13,8 @@ export type LlmSettings = {
   geminiApiKey: string
   anthropicModel: string
   anthropicApiKey: string
+  deepseekModel: string
+  deepseekApiKey: string
 }
 
 export type ReviewSectionKey = 'property' | 'environment' | 'crime' | 'infrastructure' | 'demographics' | 'map'

@@ -18,7 +18,7 @@ const fetchWithRetry = async (
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
     const res = await fetch(url, { ...init, signal })
-    if (res.ok || res.status < 500) return res   // success or client error — don't retry
+    if (res.ok || res.status < 500) return res   // success or client error, do not retry
     const body = await res.text()
     lastError = new Error(`${res.status} ${body.slice(0, 260)}`)
     if (attempt < MAX_RETRIES - 1) {
@@ -350,6 +350,33 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
       const payload = JSON.parse(rawPayload) as { content?: Array<{ type?: string; text?: string }> }
       const content = extractAnthropicResponseText(payload)
       if (!content) throw new Error('Anthropic returned no review content.')
+      return parseReview(content)
+    }
+
+    if (settings.provider === 'deepseek') {
+      if (!settings.deepseekApiKey || !settings.deepseekModel) {
+        throw new Error('DeepSeek API key and model are required.')
+      }
+      const response = await fetchWithRetry(
+        'https://api.deepseek.com/chat/completions',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.deepseekApiKey}` },
+          body: JSON.stringify({
+            model: settings.deepseekModel,
+            temperature: 0.2,
+            messages: [{ role: 'user', content: prompt }],
+            response_format: { type: 'json_object' },
+            max_tokens: 8000,
+          }),
+        },
+        controller.signal,
+      )
+      const rawPayload = await response.text()
+      if (!response.ok) throw new Error(`DeepSeek request failed: ${response.status} ${rawPayload.slice(0, 260)}`)
+      const payload = JSON.parse(rawPayload) as { choices?: Array<{ message?: { content?: string } }> }
+      const content = payload.choices?.[0]?.message?.content
+      if (!content) throw new Error('DeepSeek returned no review content.')
       return parseReview(content)
     }
 
