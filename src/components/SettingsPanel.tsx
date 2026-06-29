@@ -49,6 +49,13 @@ const anthropicModelOptions = [
   { value: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5' },
 ]
 
+const apiKeyLinks: Record<ProviderKind, { label: string; href: string }> = {
+  gemini: { label: 'Google Gemini API Key', href: 'https://aistudio.google.com/app/apikey' },
+  openai: { label: 'OpenAI GPT API Key', href: 'https://platform.openai.com/api-keys' },
+  anthropic: { label: 'Anthropic Claude API Key', href: 'https://console.anthropic.com/settings/keys' },
+  azure: { label: 'Azure AI API Key', href: 'https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/create-resource' },
+}
+
 const ProviderIcon = ({ ready, label }: { ready: boolean; label: string }) => (
   <span
     className={ready ? 'cache-pill cache-pill--provider-ready' : 'cache-pill cache-pill--provider-waiting'}
@@ -107,6 +114,7 @@ export const SettingsPanel = ({
   const isCustomOpenAiModel = !openAiModelOptions.some((option) => option.value === settings.openAiModel)
   const isCustomGeminiModel = !geminiModelOptions.some((option) => option.value === settings.geminiModel)
   const isCustomAnthropicModel = !anthropicModelOptions.some((option) => option.value === settings.anthropicModel)
+  const selectedApiKeyLink = apiKeyLinks[settings.provider]
 
   return (
   <section
@@ -139,9 +147,9 @@ export const SettingsPanel = ({
       value={settings.provider}
       onChange={(e) => onUpdate({ ...settings, provider: e.target.value as ProviderKind })}
     >
-      <option value="openai">OpenAI compatible</option>
       <option value="gemini">Google Gemini</option>
-      <option value="anthropic">Anthropic</option>
+      <option value="openai">OpenAI GPT</option>
+      <option value="anthropic">Anthropic Claude</option>
       <option value="azure">Azure AI</option>
     </select>
 
@@ -273,6 +281,13 @@ export const SettingsPanel = ({
         </label>
       </div>
     )}
+
+    <div className="settings-api-links" aria-label="API key setup links">
+      <span>Get API key</span>
+      <a href={selectedApiKeyLink.href} target="_blank" rel="noreferrer">
+        {selectedApiKeyLink.label}
+      </a>
+    </div>
 
     <p className="settings-storage-note">
       <span className="settings-storage-icon" aria-hidden="true">i</span>

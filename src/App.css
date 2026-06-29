@@ -29,7 +29,7 @@
   z-index: 160;
 }
 
-/* Sticky topbar — shown after a search is completed */
+/* Sticky topbar - shown after a search is completed */
 .topbar.is-sticky {
   backdrop-filter: blur(18px) saturate(1.4);
   -webkit-backdrop-filter: blur(18px) saturate(1.4);
@@ -345,7 +345,7 @@ input:disabled {
   background: rgba(255, 255, 255, 0.78);
 }
 
-/* Hamburger — hidden on desktop, shown on mobile */
+/* Hamburger - hidden on desktop, shown on mobile */
 .topbar-actions--hamburger {
   align-items: center;
   background: rgba(255, 255, 255, 0.78);
@@ -369,7 +369,7 @@ input:disabled {
   color: #fbfff7;
 }
 
-/* Mobile menu drawer — floats over content */
+/* Mobile menu drawer - floats over content */
 .mobile-menu {
   background: rgba(255, 255, 255, 0.97);
   border: 1px solid rgba(92, 125, 98, 0.16);
@@ -697,6 +697,32 @@ input:disabled {
   gap: 7px;
   line-height: 1.35;
   margin: 10px 0 0;
+}
+
+.settings-api-links {
+  align-items: center;
+  color: #7a887c;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.76rem;
+  gap: 7px 10px;
+  line-height: 1.35;
+  margin: 12px 0 0;
+}
+
+.settings-api-links span {
+  font-weight: 800;
+}
+
+.settings-api-links a {
+  border-bottom: 1px solid rgba(74, 111, 81, 0.32);
+  color: #31593b;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.settings-api-links a:hover {
+  border-bottom-color: currentColor;
 }
 
 .settings-storage-icon {
@@ -1254,9 +1280,83 @@ button:focus-visible {
 
 
 .error-card {
-  background: #fff3f1;
-  color: #8a2f22;
-  padding: 16px 20px;
+  background: linear-gradient(135deg, #244b31, #477a52);
+  border-radius: 24px;
+  color: #f7fff2;
+  padding: 28px;
+  width: 100%;
+}
+
+.error-card-header {
+  display: block;
+  width: 100%;
+}
+
+.error-card h2 {
+  color: #f7fff2;
+  font-size: clamp(1.35rem, 3vw, 1.9rem);
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  margin: 4px 0 0;
+}
+
+.error-card .eyebrow {
+  color: #f7fff2;
+}
+
+.error-card-copy {
+  color: #f7fff2;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  margin: 12px 0 0;
+  max-width: none;
+  width: 100%;
+}
+
+.error-details {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(247, 255, 242, 0.22);
+  border-radius: 18px;
+  box-sizing: border-box;
+  margin: 18px 0 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+.error-details summary {
+  color: #f7fff2;
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 900;
+  list-style-position: inside;
+  padding: 12px 14px;
+}
+
+.error-details summary:focus-visible {
+  outline: 3px solid rgba(247, 255, 242, 0.36);
+  outline-offset: 2px;
+}
+
+.error-details pre {
+  background: rgba(12, 35, 20, 0.18);
+  border-top: 1px solid rgba(247, 255, 242, 0.18);
+  color: #f7fff2;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  margin: 0;
+  max-height: 260px;
+  overflow: auto;
+  padding: 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 640px) {
+  .error-card-copy,
+  .error-details {
+    margin-left: 0;
+  }
 }
 
 .review-wrap {
@@ -1365,7 +1465,7 @@ button:focus-visible {
 
 .score-ring-dial-wrap {
   position: relative;
-  /* size is driven by the SVG viewBox — let it be natural */
+  /* size is driven by the SVG viewBox - let it be natural */
 }
 
 .score-ring-svg {

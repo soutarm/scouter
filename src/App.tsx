@@ -14,7 +14,7 @@ import {
   readSearchFromQueryString, writeSearchToQueryString,
   getSuggestedLocation,
 } from './services/location'
-import { callLlm, fetchHomelyContext, friendlyRequestError } from './services/llm'
+import { callLlm, fetchHomelyContext } from './services/llm'
 import { buildShareUrl, clearSharedReviewHash, fetchReviewById, getSharedReviewFromHash, SHARED_REVIEW_HASH_KEY, storeReview } from './services/share'
 import { parseReferenceLink } from './services/reviewParser'
 import { SettingsPanel } from './components/SettingsPanel'
@@ -112,9 +112,9 @@ const tabs: Array<{ key: ReviewSectionKey; label: string }> = [
 
 const providerLabelByKind: Record<LlmSettings['provider'], string> = {
   azure: 'Azure AI',
-  openai: 'OpenAI compatible',
+  openai: 'OpenAI GPT',
   gemini: 'Google Gemini',
-  anthropic: 'Anthropic',
+  anthropic: 'Anthropic Claude',
 }
 
 const getConfiguredModelName = (settings: LlmSettings): string => {
@@ -123,6 +123,40 @@ const getConfiguredModelName = (settings: LlmSettings): string => {
   if (settings.provider === 'anthropic') return settings.anthropicModel.trim()
   return settings.openAiModel.trim()
 }
+
+const formatErrorDetails = (caught: unknown): string => {
+  if (caught instanceof Error) return caught.stack || caught.message
+  if (caught instanceof DOMException) return `${caught.name}: ${caught.message}`
+  if (typeof caught === 'string') return caught
+
+  try {
+    return JSON.stringify(caught, null, 2) ?? 'No technical details were available.'
+  } catch {
+    return 'No technical details were available.'
+  }
+}
+
+const ErrorNotice = ({ message, details }: { message: string; details?: string }) => (
+  <section className="error-card" role="alert" aria-live="polite">
+    <div className="error-card-header">
+      <div>
+        <p className="eyebrow">Something needs attention</p>
+        <h2>{message}</h2>
+      </div>
+    </div>
+    <p className="error-card-copy">
+      {details
+        ? 'You can try again, check your provider settings, or open the details below if you need the technical error.'
+        : 'You can try again or check your provider settings before continuing.'}
+    </p>
+    {details && (
+      <details className="error-details">
+        <summary>View full error details</summary>
+        <pre>{details}</pre>
+      </details>
+    )}
+  </section>
+)
 
 // ---------------------------------------------------------------------------
 // Misc UI helpers
@@ -147,6 +181,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [error, setError] = useState('')
+  const [errorDetails, setErrorDetails] = useState('')
   const [saveStatus, setSaveStatus] = useState('Loaded from this browser')
   const [cacheLocationCount, setCacheLocationCount] = useState(() => getReviewCacheCount())
   const [cacheCleared, setCacheCleared] = useState(false)
@@ -264,6 +299,16 @@ function App() {
     })
   }, [])
 
+  const clearError = useCallback(() => {
+    setError('')
+    setErrorDetails('')
+  }, [])
+
+  const showError = useCallback((message: string, details?: unknown) => {
+    setError(message)
+    setErrorDetails(details === undefined ? '' : formatErrorDetails(details))
+  }, [])
+
   const fetchSuggestions = useCallback((value: string) => {
     if (suggestionsDebounceRef.current) clearTimeout(suggestionsDebounceRef.current)
     const trimmed = value.trim()
@@ -291,7 +336,7 @@ function App() {
         setSuggestions(results)
         setShowSuggestions(results.length > 0)
       } catch {
-        // Silently fail — autocomplete is best-effort
+        // Silently fail - autocomplete is best-effort
       }
     }, 280)
   }, [])
@@ -318,7 +363,7 @@ function App() {
 
       if (!providerReady) {
         setShowSettings(true)
-        setError('Add LLM settings before running a review.')
+        showError('Add your provider settings before scouting a suburb.')
         return
       }
 
@@ -333,7 +378,7 @@ function App() {
       }
 
       setIsLoading(true)
-      setError('')
+      clearError()
       setShowReferences(false)
       setReview(null)
       setActiveTab((options.tab as ReviewSectionKey) ?? 'property')
@@ -366,12 +411,12 @@ function App() {
           })
         }
       } catch (caught) {
-        setError(friendlyRequestError(caught))
+        showError('We could not generate that review.', caught)
       } finally {
         setIsLoading(false)
       }
     },
-    [canonicalPlace, isSharedReview, providerReady, rememberSearch, settings, compareMode],
+    [canonicalPlace, clearError, isSharedReview, providerReady, rememberSearch, settings, compareMode, showError],
   )
 
   useEffect(() => {
@@ -390,14 +435,14 @@ function App() {
           setQuery(fetched.suburb)
           setSelectedState((fetched.state as AustralianState) ?? 'TAS')
         } else {
-          setError('This shared review could not be found. It may have expired.')
+          showError('We could not find that shared review.', 'The shared review may have expired or the link may be incorrect.')
           setIsSharedReview(false)
         }
         setActiveTab('property')
         setShowReferences(false)
         setIsLoading(false)
-      }).catch(() => {
-        setError('Could not load this shared review.')
+      }).catch((caught) => {
+        showError('We could not load this shared review.', caught)
         setIsSharedReview(false)
         setIsLoading(false)
       })
@@ -415,11 +460,11 @@ function App() {
     setIsSearchOpen(false)
     setActiveTab('property')
     setShowReferences(false)
-    setError('')
+    clearError()
     setIsSharedReview(true)
     setQuery(sharedReview.suburb)
     setSelectedState((sharedReview.state as AustralianState) ?? 'TAS')
-  }, [])
+  }, [clearError, showError])
 
   useEffect(() => {
     if (autoSearchStartedRef.current) return
@@ -499,13 +544,13 @@ function App() {
     setHasSearched(false)
     openSearchPanel()
     setActiveTab('property')
-    setError('')
+    clearError()
     setShowReferences(false)
     setSuggestions([])
     setShowSuggestions(false)
     clearSearchFromUrl()
     clearSharedReviewHash()
-  }, [clearSearchFromUrl, composedQuery, openSearchPanel, removeLocation])
+  }, [clearError, clearSearchFromUrl, composedQuery, openSearchPanel, removeLocation])
 
   const clearCacheAndRecentSearches = useCallback(() => {
     clearReviewCache()
@@ -530,8 +575,8 @@ function App() {
   const handleSharedSearchIntent = useCallback(() => {
     if (!viewOnlyMode) return
     setShowSettings(true)
-    setError('Add LLM settings to run your own search.')
-  }, [viewOnlyMode])
+    showError('Add your provider settings to run your own search.')
+  }, [showError, viewOnlyMode])
 
   const handleCreateOwnReview = useCallback(() => {
     clearSharedReviewHash()
@@ -539,32 +584,29 @@ function App() {
     setReview(null)
     setHasSearched(false)
     setIsSearchOpen(true)
-    setError('')
+    clearError()
     setActiveTab('property')
     window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [])
+  }, [clearError])
 
   const handleShare = useCallback(async () => {
     if (!review || locationNotFound) return
     const title = `Scouter: ${review.suburb}, ${review.state}`
-    const text = review.scores
-      ? `${review.suburb}, ${review.state} - overall score ${review.scores.overall.toFixed(1)}/10.`
-      : `Scouter review for ${review.suburb}, ${review.state}.`
 
     setShareStatus('Generating link...')
     let url: string
     try {
       const id = await storeReview(review)
       url = buildShareUrl(id)
-    } catch {
+    } catch (caught) {
       setShareStatus('')
-      setError('Could not generate a share link. Try again.')
+      showError('We could not create a share link.', caught)
       return
     }
 
     try {
       if (navigator.share) {
-        await navigator.share({ title, text, url })
+        await navigator.share({ title, url })
         setShareStatus('Shared')
       } else {
         await navigator.clipboard.writeText(url)
@@ -576,15 +618,15 @@ function App() {
         setShareStatus('')
         return
       }
-      setError('Could not share this review. Try copying the link manually.')
+      showError('We could not share this review.', caught)
       setShareStatus('')
     }
-  }, [locationNotFound, review])
+  }, [locationNotFound, review, showError])
 
   const downloadPdf = async () => {
     if (!review || viewOnlyMode) return
     setIsExporting(true)
-    setError('')
+    clearError()
     try {
       const pdf = new jsPDF('p', 'mm', 'a4')
       const pageWidth = pdf.internal.pageSize.getWidth()
@@ -937,7 +979,7 @@ function App() {
         .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
       pdf.save(`${fileName}.pdf`)
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'PDF export failed.')
+      showError('We could not export the PDF.', caught)
     } finally {
       setIsExporting(false)
     }
@@ -1200,7 +1242,7 @@ function App() {
         </section>
       )}
 
-      {error && <div className="error-card">{error}</div>}
+      {error && <ErrorNotice message={error} details={errorDetails} />}
 
       {review && (
         <section className="review-wrap" ref={reviewRef}>

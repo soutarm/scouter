@@ -3,7 +3,7 @@ import { decompressFromEncodedURIComponent } from 'lz-string'
 import type { DemographicDatum, MarketRow, Review, ReviewScores } from '../types'
 
 // ---------------------------------------------------------------------------
-// Worker URL — set via Vite env var at build time, falls back to prod URL
+// Worker URL - set via Vite env var at build time, falls back to prod URL
 // ---------------------------------------------------------------------------
 export const WORKER_BASE_URL =
   (import.meta.env.VITE_WORKER_URL as string | undefined)?.replace(/\/$/, '') ??
@@ -263,8 +263,12 @@ export const fetchReviewById = async (id: string): Promise<Review | null> => {
   }
 }
 
-export const buildShareUrl = (id: string): string =>
-  `${window.location.origin}/r/${id}`
+export const buildShareUrl = (id: string): string => {
+  const url = new URL(`/r/${encodeURIComponent(id)}`, window.location.origin)
+  url.search = ''
+  url.hash = ''
+  return url.toString()
+}
 
 // ---------------------------------------------------------------------------
 // Legacy hash-based decode (backwards compat for old shared links)
