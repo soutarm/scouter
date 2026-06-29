@@ -15,6 +15,19 @@ type Props = {
 }
 
 const CUSTOM_GEMINI_MODEL = '__custom_gemini_model__'
+const CUSTOM_ANTHROPIC_MODEL = '__custom_anthropic_model__'
+const CUSTOM_OPENAI_MODEL = '__custom_openai_model__'
+
+const openAiModelOptions = [
+  { value: 'gpt-5.5', label: 'GPT-5.5' },
+  { value: 'gpt-5.4', label: 'GPT-5.4' },
+  { value: 'gpt-5.4-mini', label: 'GPT-5.4 Mini' },
+  { value: 'gpt-5.4-nano', label: 'GPT-5.4 Nano' },
+  { value: 'gpt-5.1', label: 'GPT-5.1' },
+  { value: 'gpt-5.1-mini', label: 'GPT-5.1 Mini' },
+  { value: 'gpt-4.1', label: 'GPT-4.1' },
+  { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
+]
 
 const geminiModelOptions = [
   { value: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash (free)' },
@@ -24,6 +37,16 @@ const geminiModelOptions = [
   { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (free)' },
   { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (free)' },
   { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite (free)' },
+]
+
+const anthropicModelOptions = [
+  { value: 'claude-fable-5', label: 'Claude Fable 5' },
+  { value: 'claude-opus-4-8', label: 'Claude Opus 4.8' },
+  { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
+  { value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5' },
+  { value: 'claude-opus-4-7', label: 'Claude Opus 4.7' },
+  { value: 'claude-opus-4-6', label: 'Claude Opus 4.6' },
+  { value: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5' },
 ]
 
 const ProviderIcon = ({ ready, label }: { ready: boolean; label: string }) => (
@@ -81,7 +104,9 @@ export const SettingsPanel = ({
   onClearCurrentLocation,
   onClose,
 }: Props) => {
+  const isCustomOpenAiModel = !openAiModelOptions.some((option) => option.value === settings.openAiModel)
   const isCustomGeminiModel = !geminiModelOptions.some((option) => option.value === settings.geminiModel)
+  const isCustomAnthropicModel = !anthropicModelOptions.some((option) => option.value === settings.anthropicModel)
 
   return (
   <section
@@ -114,10 +139,10 @@ export const SettingsPanel = ({
       value={settings.provider}
       onChange={(e) => onUpdate({ ...settings, provider: e.target.value as ProviderKind })}
     >
-      <option value="azure">Azure OpenAI</option>
       <option value="openai">OpenAI compatible</option>
       <option value="gemini">Google Gemini</option>
       <option value="anthropic">Anthropic</option>
+      <option value="azure">Azure AI</option>
     </select>
 
     {settings.provider === 'azure' ? (
@@ -181,9 +206,27 @@ export const SettingsPanel = ({
       <div className="settings-grid">
         <label>
           Model
-          <input placeholder="e.g. claude-opus-4-0" value={settings.anthropicModel}
-            onChange={(e) => onUpdate({ ...settings, anthropicModel: e.target.value })} />
+          <select
+            className="settings-provider-select"
+            value={isCustomAnthropicModel ? CUSTOM_ANTHROPIC_MODEL : settings.anthropicModel}
+            onChange={(e) => {
+              const model = e.target.value
+              onUpdate({ ...settings, anthropicModel: model === CUSTOM_ANTHROPIC_MODEL ? '' : model })
+            }}
+          >
+            {anthropicModelOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+            <option value={CUSTOM_ANTHROPIC_MODEL}>Custom model</option>
+          </select>
         </label>
+        {isCustomAnthropicModel && (
+          <label>
+            Custom model
+            <input placeholder="claude-model-name" value={settings.anthropicModel}
+              onChange={(e) => onUpdate({ ...settings, anthropicModel: e.target.value })} />
+          </label>
+        )}
         <label>
           API key
           <input type="password" value={settings.anthropicApiKey}
@@ -202,9 +245,27 @@ export const SettingsPanel = ({
         </label>
         <label>
           Model
-          <input placeholder="gpt-5.4-mini" value={settings.openAiModel}
-            onChange={(e) => onUpdate({ ...settings, openAiModel: e.target.value })} />
+          <select
+            className="settings-provider-select"
+            value={isCustomOpenAiModel ? CUSTOM_OPENAI_MODEL : settings.openAiModel}
+            onChange={(e) => {
+              const model = e.target.value
+              onUpdate({ ...settings, openAiModel: model === CUSTOM_OPENAI_MODEL ? '' : model })
+            }}
+          >
+            {openAiModelOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+            <option value={CUSTOM_OPENAI_MODEL}>Custom model</option>
+          </select>
         </label>
+        {isCustomOpenAiModel && (
+          <label>
+            Custom model
+            <input placeholder="openai-model-name" value={settings.openAiModel}
+              onChange={(e) => onUpdate({ ...settings, openAiModel: e.target.value })} />
+          </label>
+        )}
         <label>
           API key
           <input type="password" value={settings.openAiApiKey}
@@ -214,6 +275,7 @@ export const SettingsPanel = ({
     )}
 
     <p className="settings-storage-note">
+      <span className="settings-storage-icon" aria-hidden="true">i</span>
       Stored locally in this browser. Do not use public/shared API keys.
     </p>
 

@@ -46,6 +46,27 @@
   z-index: 100;
 }
 
+@media (min-width: 821px) {
+  .topbar.is-sticky {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 540px) minmax(0, 1fr);
+  }
+
+  .topbar.is-sticky .brand-wordmark {
+    justify-self: start;
+  }
+
+  .topbar.is-sticky .topbar-search-pill {
+    justify-self: center;
+    margin: 0;
+    width: 100%;
+  }
+
+  .topbar.is-sticky .topbar-actions--desktop {
+    justify-self: end;
+  }
+}
+
 .topbar.is-sticky.settings-open {
   z-index: 160;
 }
@@ -392,12 +413,17 @@ input:disabled {
   flex: 0 0 auto;
 }
 
-/* Portal wrapper for the settings panel — positions it top-right of viewport below topbar */
+/* Portal wrapper for the settings panel, aligned under the desktop cog */
 .settings-panel-portal {
   position: fixed;
-  right: clamp(14px, 2vw, 24px);
-  top: 64px;
+  right: max(14px, calc((100vw - 1180px) / 2));
+  top: 84px;
   z-index: 200;
+}
+
+.settings-panel-portal--sticky {
+  right: 28px;
+  top: 64px;
 }
 
 .settings-panel-portal .settings-card {
@@ -516,7 +542,7 @@ input:disabled {
   border: 1px solid rgba(92, 125, 98, 0.24);
   border-radius: 16px;
   color: #1f3f2a;
-  padding: 10px 12px;
+  padding: 10px 42px 10px 12px;
   width: 100%;
 }
 
@@ -545,8 +571,13 @@ input:disabled {
 
 .settings-grid {
   display: grid;
-  gap: 14px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 22px;
+  grid-template-columns: 1fr;
+}
+
+.settings-grid input,
+.settings-grid select {
+  width: 100%;
 }
 
 .settings-note {
@@ -659,10 +690,29 @@ input:disabled {
 }
 
 .settings-storage-note {
+  align-items: center;
   color: #7a887c;
+  display: flex;
   font-size: 0.72rem;
+  gap: 7px;
   line-height: 1.35;
   margin: 10px 0 0;
+}
+
+.settings-storage-icon {
+  align-items: center;
+  background: rgba(74, 111, 81, 0.12);
+  border: 1px solid rgba(74, 111, 81, 0.18);
+  border-radius: 999px;
+  color: #4f6f58;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 0.66rem;
+  font-weight: 900;
+  height: 16px;
+  justify-content: center;
+  line-height: 1;
+  width: 16px;
 }
 
 .clear-cache-button {
@@ -812,19 +862,27 @@ button:focus-visible {
 }
 
 .hero-panel--setup {
-  align-items: flex-start;
+  align-items: center;
   flex-direction: column;
   gap: clamp(18px, 3vw, 30px);
   justify-content: center;
+  min-height: min(560px, calc(100vh - 190px));
+  padding-block: clamp(42px, 7vw, 84px);
 }
 
 .hero-panel--setup .hero-copy {
-  max-width: 820px;
+  max-width: 920px;
+  text-align: center;
 }
 
 .hero-panel--setup .setup-cta-card {
-  align-self: flex-start;
-  width: min(760px, 100%);
+  align-self: center;
+  width: min(720px, 100%);
+}
+
+.hero-panel--setup .setup-cta-row {
+  justify-content: center;
+  text-align: center;
 }
 
 .hero-copy h2 {

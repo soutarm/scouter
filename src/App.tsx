@@ -48,7 +48,7 @@ const defaultSettings: LlmSettings = {
   openAiApiKey: '',
   geminiModel: 'gemini-2.5-flash',
   geminiApiKey: '',
-  anthropicModel: 'claude-3-5-sonnet-latest',
+  anthropicModel: 'claude-sonnet-4-6',
   anthropicApiKey: '',
 }
 
@@ -111,7 +111,7 @@ const tabs: Array<{ key: ReviewSectionKey; label: string }> = [
 ]
 
 const providerLabelByKind: Record<LlmSettings['provider'], string> = {
-  azure: 'Azure OpenAI',
+  azure: 'Azure AI',
   openai: 'OpenAI compatible',
   gemini: 'Google Gemini',
   anthropic: 'Anthropic',
@@ -1073,7 +1073,7 @@ function App() {
 
       {showSettings && (
         <>
-          <div className="settings-panel-portal">
+          <div className={`settings-panel-portal${isSticky ? ' settings-panel-portal--sticky' : ''}`}>
             <SettingsPanel
               settings={settings}
               providerReady={providerReady}
