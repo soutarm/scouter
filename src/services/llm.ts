@@ -204,7 +204,7 @@ JSON shape:
     "education": "Primary, secondary, tertiary and catchment notes.",
     "lifestyle": "Retail, dining, parks, health, culture, religious facilities (churches, mosques, temples, synagogues etc.) and daily amenity.",
     "demographic": "Dominant resident profiles and census-style context.",
-    "trainStations": [{ "name": "Station name", "lines": "Line name(s)", "distanceKm": 1.2 }],  // List ALL train or metro stations within 5km of the suburb centre. distanceKm is the approximate straight-line distance from the suburb centre to the station.
+    "trainStations": [{ "name": "Station name", "lines": "Line name(s)", "distanceKm": 1.2 }],  // List ALL train or metro stations within 4km of the suburb centre. distanceKm is the approximate straight-line distance from the suburb centre to the station.
     "tramStops": "Description of tram stop availability, or null if not applicable.",
     "busAvailability": "One of: Excellent, Good, Limited, None",
     "majorRoads": ["Nearest freeway or arterial road name and approximate distance"],
