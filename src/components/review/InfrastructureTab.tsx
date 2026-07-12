@@ -270,7 +270,7 @@ export const InfrastructureTab = ({ review }: Props) => {
       )}
 
       {/* ── Green Space & Lifestyle ── */}
-      {((infra.parks ?? 0) > 0 || (infra.pointsOfInterest?.length ?? 0) > 0) && (
+      {((infra.parks ?? 0) > 0 || (infra.restaurants ?? 0) > 0 || (infra.pointsOfInterest?.length ?? 0) > 0) && (
         <div className="infra-group">
           <h3 className="infra-group-heading">Green Space &amp; Lifestyle</h3>
           <div className="infra-group-cards">
@@ -281,10 +281,17 @@ export const InfrastructureTab = ({ review }: Props) => {
                 names={infra.parkNames}
               />
             )}
+            {(infra.restaurants ?? 0) > 0 && (
+              <GroupCard
+                icon={<IconPoi />}
+                count={plural(infra.restaurants!, 'restaurant')}
+                names={infra.restaurantNames}
+              />
+            )}
             {infra.pointsOfInterest && infra.pointsOfInterest.length > 0 && (
               <GroupCard
                 icon={<IconPoi />}
-                count="Points of interest"
+                count="Local highlights"
                 names={infra.pointsOfInterest.map(p => `${p.icon} ${p.label}`)}
               />
             )}

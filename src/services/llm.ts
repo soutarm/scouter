@@ -131,15 +131,17 @@ JSON shape:
     "suburbLat": number,
     "suburbLng": number,
     "primarySchools": number,
-    "primarySchoolNames": ["Proper name only, e.g. 'Croydon Hills Primary School'"],
+    "primarySchoolNames": ["Proper name only, e.g. 'Croydon Hills Primary School'. Up to 4."],
     "secondarySchools": number,
-    "secondarySchoolNames": ["Proper name only, e.g. 'Oxley College'"],
+    "secondarySchoolNames": ["Proper name only, e.g. 'Oxley College'. Up to 4."],
     "shoppingPrecincts": number,
-    "shoppingPrecinctNames": ["Proper name only, e.g. 'Eastland Shopping Centre'. Never use descriptions like 'local retail strip'."],
+    "shoppingPrecinctNames": ["Proper name only, e.g. 'Eastland Shopping Centre'. Up to 4. Never use descriptions."],
     "parks": number,
-    "parkNames": ["Proper name only, e.g. 'Warranwood Reserve'. No descriptions."],
+    "parkNames": ["Proper name only, e.g. 'Warranwood Reserve'. Up to 4. No descriptions."],
     "medicalCentres": number,
-    "medicalCentreNames": ["Proper name only, e.g. 'Croydon Medical Centre'. No descriptions."],
+    "medicalCentreNames": ["Proper name only, e.g. 'Croydon Medical Centre'. Up to 4. No descriptions."],
+    "restaurants": number,
+    "restaurantNames": ["Up to 5 well-known or notable restaurant or cafe names in the suburb. Proper name only, e.g. 'The Pines Restaurant'. Omit if none known."],
     "pointsOfInterest": [{ "icon": string, "label": string }]
   },
   "climate": {
@@ -203,6 +205,7 @@ JSON shape:
 
 Notes:
 - trainStations: list ALL stations within 4km of suburb centre. distanceKm = straight-line distance from suburb centre.
+- pointsOfInterest: only include genuinely distinct landmarks not already captured by other named lists (e.g. sporting grounds, community centres, galleries, libraries, major attractions). Do NOT duplicate parks, schools, or shopping centres here.
 - crimeTypes labels: Theft, Assault, Break & Enter, Vandalism, Drug offences, Vehicle theft.
 - demographics arrays must use these exact labels - ageGroups: 0-14, 15-24, 25-44, 45-64, 65+. householdTypes: Family households, Single-person households, Group households. tenureTypes: Owned outright, Mortgage, Rented.
 `

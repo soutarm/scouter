@@ -62,6 +62,8 @@ type SharedReviewPayload = {
     parkNames?: string[]
     medicalCentres?: number
     medicalCentreNames?: string[]
+    restaurants?: number
+    restaurantNames?: string[]
     pointsOfInterest?: Review['infrastructure']['pointsOfInterest']
   }
   demographics?: {
@@ -152,6 +154,8 @@ const toSharedPayload = (review: Review): SharedReviewPayload => ({
     parkNames: review.infrastructure.parkNames,
     medicalCentres: review.infrastructure.medicalCentres,
     medicalCentreNames: review.infrastructure.medicalCentreNames,
+    restaurants: review.infrastructure.restaurants,
+    restaurantNames: review.infrastructure.restaurantNames,
     pointsOfInterest: review.infrastructure.pointsOfInterest,
   },
   demographics: review.demographics
@@ -222,6 +226,8 @@ const toReview = (payload: SharedReviewPayload): Review => ({
     parkNames: payload.infrastructure?.parkNames,
     medicalCentres: payload.infrastructure?.medicalCentres,
     medicalCentreNames: payload.infrastructure?.medicalCentreNames,
+    restaurants: payload.infrastructure?.restaurants,
+    restaurantNames: payload.infrastructure?.restaurantNames,
     pointsOfInterest: payload.infrastructure?.pointsOfInterest,
   },
   demographics: payload.demographics

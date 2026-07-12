@@ -2723,10 +2723,13 @@ td {
   flex: 1 1 160px;
   flex-direction: column;
   gap: 10px;
-  max-width: 260px;
   min-width: 140px;
   padding: 14px 16px;
   text-decoration: none;
+}
+
+.infra-group-card:has(.infra-group-card-names) {
+  flex: 1 1 220px;
 }
 
 .infra-group-card-link {
@@ -2792,9 +2795,15 @@ td {
   display: flex;
   flex-direction: column;
   list-style: none;
-  margin: 4px 0 0;
+  margin: 4px -16px -14px;
   overflow: hidden;
   padding: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  border-top: 1px solid rgba(74, 111, 81, 0.13);
 }
 
 .infra-group-card-names li {

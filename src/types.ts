@@ -157,6 +157,8 @@ export type Review = {
     parkNames?: string[]
     medicalCentres?: number
     medicalCentreNames?: string[]
+    restaurants?: number
+    restaurantNames?: string[]
     pointsOfInterest?: Array<{ icon: string; label: string }>
   }
   demographics?: {
