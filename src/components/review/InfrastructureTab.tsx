@@ -14,12 +14,6 @@ const IconPin = () => (
   </svg>
 )
 
-const IconClock = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <circle cx="12" cy="12" r="9" />
-    <path d="M12 7v5l3 2" />
-  </svg>
-)
 
 const IconBus = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -177,15 +171,9 @@ export const InfrastructureTab = ({ review }: Props) => {
               count={`${straightLineKm} km`}
               label={`to ${cbd?.name ?? 'CBD'}`}
               sublabel="straight-line"
+              names={infra.cbdCommuteMinutes != null ? [`🕐 ${infra.cbdCommuteMinutes} min est. commute`] : undefined}
               link={mapsDirectionsUrl ?? undefined}
               linkTitle={`Open directions to ${cbd?.name ?? 'CBD'} in Google Maps`}
-            />
-          )}
-          {infra.cbdCommuteMinutes != null && (
-            <GroupCard
-              icon={<IconClock />}
-              count={`${infra.cbdCommuteMinutes} min`}
-              label="est. commute"
             />
           )}
           {(infra.trainStations?.length || infra.tramStops || infra.busAvailability) && (() => {
