@@ -1,5 +1,5 @@
 import type { AustralianState, Review } from '../../types'
-import { STATE_CBD, STATE_PT_URLS, haversineKm } from '../../services/location'
+import { STATE_CBD, haversineKm } from '../../services/location'
 
 type Props = { review: Review }
 
@@ -147,7 +147,6 @@ const GroupCard = ({ icon, count, label, names, link, linkTitle, sublabel }: Gro
 export const InfrastructureTab = ({ review }: Props) => {
   const stateKey = review.state.toUpperCase() as AustralianState
   const cbd = STATE_CBD[stateKey]
-  const pt = STATE_PT_URLS[stateKey]
   const infra = review.infrastructure
 
   const straightLineKm =
@@ -189,35 +188,31 @@ export const InfrastructureTab = ({ review }: Props) => {
               label="est. commute"
             />
           )}
-          {infra.trainStations && infra.trainStations.length > 0 && (
-            <GroupCard
-              icon={<IconTrain />}
-              count={plural(infra.trainStations.length, 'train station')}
-              label=""
-              names={infra.trainStations.map(s => s.distanceKm != null ? `${s.name} (${s.distanceKm}km)` : s.name)}
-              link={pt?.train ?? undefined}
-              linkTitle={`${pt?.label ?? 'Public transport'} train routes`}
-            />
-          )}
-          {infra.tramStops && (
-            <GroupCard
-              icon={<IconTram />}
-              count="Tram"
-              label="access"
-              names={[infra.tramStops]}
-              link={pt?.tram ?? pt?.train ?? undefined}
-              linkTitle={`${pt?.label ?? 'Public transport'} tram routes`}
-            />
-          )}
-          {infra.busAvailability && (
-            <GroupCard
-              icon={<IconBus />}
-              count={infra.busAvailability}
-              label="bus access"
-              link={pt?.bus ?? pt?.train ?? undefined}
-              linkTitle={`${pt?.label ?? 'Public transport'} bus routes`}
-            />
-          )}
+          {(infra.trainStations?.length || infra.tramStops || infra.busAvailability) && (() => {
+            const ptLines: string[] = []
+            infra.trainStations?.forEach(s =>
+              ptLines.push(`🚆 ${s.name}${s.distanceKm != null ? ` (${s.distanceKm}km)` : ''}`)
+            )
+            if (infra.tramStops) ptLines.push(`🚊 Tram - ${infra.tramStops}`)
+            if (infra.busAvailability) ptLines.push(`🚌 Bus - ${infra.busAvailability}`)
+            return (
+              <div className="infra-group-card">
+                <div className="infra-group-card-header">
+                  <span className="infra-group-card-icon infra-pt-icons">
+                    {infra.trainStations?.length ? <IconTrain /> : null}
+                    {infra.tramStops ? <IconTram /> : null}
+                    {infra.busAvailability ? <IconBus /> : null}
+                  </span>
+                  <div className="infra-group-card-meta">
+                    <strong className="infra-group-card-count">Public transport</strong>
+                  </div>
+                </div>
+                <ul className="infra-group-card-names">
+                  {ptLines.map(l => <li key={l}>{l}</li>)}
+                </ul>
+              </div>
+            )
+          })()}
           {infra.majorRoads && infra.majorRoads.length > 0 && (
             <GroupCard
               icon={<IconRoad />}

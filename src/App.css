@@ -2761,6 +2761,15 @@ td {
   width: 1.3rem;
 }
 
+.infra-pt-icons {
+  gap: 4px;
+}
+
+.infra-pt-icons svg {
+  height: 1.1rem;
+  width: 1.1rem;
+}
+
 .infra-group-card-meta {
   display: flex;
   flex-direction: column;
