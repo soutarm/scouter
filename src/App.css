@@ -2786,20 +2786,28 @@ td {
 }
 
 .infra-group-card-names {
-  border-top: 1px solid rgba(74, 111, 81, 0.1);
+  background: #fff;
+  border: 1px solid rgba(74, 111, 81, 0.13);
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
   list-style: none;
-  margin: 0;
-  padding: 10px 0 0;
+  margin: 4px 0 0;
+  overflow: hidden;
+  padding: 0;
 }
 
 .infra-group-card-names li {
+  border-bottom: 1px solid rgba(74, 111, 81, 0.09);
   color: #3a5040;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 500;
-  line-height: 1.4;
+  line-height: 1.5;
+  padding: 8px 12px;
+}
+
+.infra-group-card-names li:last-child {
+  border-bottom: none;
 }
 
 /* Safety / Crime / Insurance */

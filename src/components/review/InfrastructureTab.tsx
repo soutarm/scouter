@@ -104,7 +104,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n !== 1 ? 's' : ''}`
 interface GroupCardProps {
   icon: React.ReactNode
   count: string
-  label: string
+  label?: string
   names?: string[]
   link?: string
   linkTitle?: string
@@ -118,7 +118,7 @@ const GroupCard = ({ icon, count, label, names, link, linkTitle, sublabel }: Gro
         <span className="infra-group-card-icon">{icon}</span>
         <div className="infra-group-card-meta">
           <strong className="infra-group-card-count">{count}</strong>
-          <span className="infra-group-card-label">{label}</span>
+          {label && <span className="infra-group-card-label">{label}</span>}
           {sublabel && <span className="infra-group-card-sublabel">{sublabel}</span>}
         </div>
       </div>
@@ -278,18 +278,16 @@ export const InfrastructureTab = ({ review }: Props) => {
               <GroupCard
                 icon={<IconPark />}
                 count={plural(infra.parks!, 'park')}
-                label=""
                 names={infra.parkNames}
               />
             )}
-            {infra.pointsOfInterest?.map((poi) => (
+            {infra.pointsOfInterest && infra.pointsOfInterest.length > 0 && (
               <GroupCard
-                key={poi.label}
                 icon={<IconPoi />}
-                count={poi.icon}
-                label={poi.label}
+                count="Points of interest"
+                names={infra.pointsOfInterest.map(p => `${p.icon} ${p.label}`)}
               />
-            ))}
+            )}
           </div>
           {infra.lifestyle && <p className="infra-group-narrative">{infra.lifestyle}</p>}
         </div>
