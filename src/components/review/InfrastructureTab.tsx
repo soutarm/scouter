@@ -276,7 +276,11 @@ export const InfrastructureTab = ({ review }: Props) => {
               <GroupCard
                 icon={<IconPoi />}
                 count="Local highlights"
-                names={infra.pointsOfInterest.map(p => `${p.icon} ${p.label}`)}
+                names={infra.pointsOfInterest.map(p => {
+                  // Guard against LLM returning a word instead of an emoji for icon
+                  const isEmoji = p.icon && /\p{Emoji}/u.test(p.icon) && !/^[a-zA-Z]/.test(p.icon)
+                  return isEmoji ? `${p.icon} ${p.label}` : p.label
+                })}
               />
             )}
           </div>

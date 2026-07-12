@@ -142,7 +142,7 @@ JSON shape:
     "medicalCentreNames": ["Proper name only, e.g. 'Croydon Medical Centre'. Up to 4. No descriptions."],
     "restaurants": number,
     "restaurantNames": ["Up to 5 well-known or notable restaurant or cafe names in the suburb. Proper name only, e.g. 'The Pines Restaurant'. Omit if none known."],
-    "pointsOfInterest": [{ "icon": string, "label": string }]
+    "pointsOfInterest": [{ "icon": "single emoji character, e.g. 🏛️ 🎭 ⚽ 🏊", "label": string }]
   },
   "climate": {
     "summerAverages": "Average high and low temperatures plus seasonal behaviour.",
@@ -205,7 +205,7 @@ JSON shape:
 
 Notes:
 - trainStations: list ALL stations within 4km of suburb centre. distanceKm = straight-line distance from suburb centre.
-- pointsOfInterest: only include genuinely distinct landmarks not already captured by other named lists (e.g. sporting grounds, community centres, galleries, libraries, major attractions). Do NOT duplicate parks, schools, or shopping centres here.
+- pointsOfInterest: only include genuinely distinct landmarks not already captured by other named lists (e.g. sporting grounds, community centres, galleries, libraries, major attractions). Do NOT duplicate parks, schools, or shopping centres here. The "icon" field MUST be a single emoji character - never a word or text string.
 - crimeTypes labels: Theft, Assault, Break & Enter, Vandalism, Drug offences, Vehicle theft.
 - demographics arrays must use these exact labels - ageGroups: 0-14, 15-24, 25-44, 45-64, 65+. householdTypes: Family households, Single-person households, Group households. tenureTypes: Owned outright, Mortgage, Rented.
 `
