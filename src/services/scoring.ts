@@ -55,8 +55,8 @@ const round1 = (n: number) => Math.round(n * 10) / 10
 //   suburb growth = benchmark → 6 / 10
 //
 // Scoring uses the ratio of suburb growth to benchmark growth:
-//   ratio 1.0 → 6,  ratio 1.5 → 10,  ratio 2.0+ → 10 (clamped)
-//   ratio 0.5 → 3,  ratio 0.0 or below → 1
+//   ratio 1.0 → 6,  ratio 2.0 → 10,  ratio 2.0+ → 10 (clamped)
+//   ratio 0.5 → 4,  ratio 0.0 or below → 1
 //
 // When both 12-month and 5-year data are available the final score is blended:
 //   70% 12-month ratio score + 30% 5-year ratio score (annualised)
@@ -104,7 +104,9 @@ export const STATE_CAPITAL_CITIES: Record<string, string> = {
   NT:  'Greater Darwin',
 }
 
-/** Score a single period's suburb growth against a benchmark using ratio logic. */
+/** Score a single period's suburb growth against a benchmark using ratio logic.
+ *  benchmark rate → 6/10, 2x benchmark → 10/10, half benchmark → 2/10.
+ */
 const ratioScore = (suburbGrowth: number, benchmark: number): number => {
   if (suburbGrowth < 0) {
     return clamp(4 + (suburbGrowth / Math.max(Math.abs(benchmark), 1)) * 2, 1, 4)
@@ -114,8 +116,8 @@ const ratioScore = (suburbGrowth: number, benchmark: number): number => {
   }
   const ratio = suburbGrowth / benchmark
   return ratio >= 1
-    ? clamp(6 + (ratio - 1) * 8, 6, 10)
-    : clamp(6 - (1 - ratio) * 6, 1, 6)
+    ? clamp(6 + (ratio - 1) * 4, 6, 10)
+    : clamp(6 - (1 - ratio) * 4, 1, 6)
 }
 
 /** Absolute fallback score when no benchmark exists. */
