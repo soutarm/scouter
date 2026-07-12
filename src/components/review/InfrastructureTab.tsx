@@ -168,10 +168,11 @@ export const InfrastructureTab = ({ review }: Props) => {
           {straightLineKm != null && (
             <GroupCard
               icon={<IconPin />}
-              count={`${straightLineKm} km`}
-              label={`to ${cbd?.name ?? 'CBD'}`}
-              sublabel="straight-line"
-              names={infra.cbdCommuteMinutes != null ? [`🕐 ${infra.cbdCommuteMinutes} min est. commute`] : undefined}
+              count={`Distance to ${cbd?.name ?? 'CBD'}`}
+              names={[
+                `📍 ${straightLineKm} km straight-line`,
+                ...(infra.cbdCommuteMinutes != null ? [`🕐 ${infra.cbdCommuteMinutes} min est. commute`] : [])
+              ]}
               link={mapsDirectionsUrl ?? undefined}
               linkTitle={`Open directions to ${cbd?.name ?? 'CBD'} in Google Maps`}
             />
