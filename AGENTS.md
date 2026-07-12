@@ -69,6 +69,21 @@ Key deployment settings:
 - Keep localStorage keys namespaced (`scouter.*`).
 - Never hardcode or commit API keys/secrets.
 
+## 🔢 Versioning
+
+The app version is displayed in the settings modal (`src/components/SettingsPanel.tsx`). Use [Semantic Versioning](https://semver.org/):
+
+- **Patch** (1.0.x) - bug fixes, prompt tweaks, copy changes, minor styling
+- **Minor** (1.x.0) - new features or UI sections added in a backwards-compatible way
+- **Major** (x.0.0) - breaking changes to data shape, major UX overhauls, or scoring model changes
+
+Rules:
+- Bump the version in `SettingsPanel.tsx` with every change that ships to `main`
+- Include the version in the commit message, e.g. `v1.0.1: fix flight path scoring`
+- Never skip versions or batch multiple bumps
+
+Current version: **v1.0.1**
+
 ## ✅ Validation Expectations
 
 - For **design-only iterations**: do **not** run lint/tests/build by default.
