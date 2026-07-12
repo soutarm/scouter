@@ -65,6 +65,32 @@ const round1 = (n: number) => Math.round(n * 10) / 10
 //
 // When no benchmark is available, falls back to an absolute scale:
 //   0% → 4,  5% → 7,  10%+ → 10  (negative capped at 4)
+//
+// Benchmarks are hardcoded from PropTrack HPI (April/May 2026) so scoring is
+// consistent regardless of which LLM or run generated the review.
+// Source: PropTrack Home Price Index April 2026 (realestate.com.au/insights)
+
+type StateBenchmark = {
+  /** 12-month annual growth % (PropTrack April 2026 year-on-year) */
+  annual12m: number
+  /** 5-year cumulative growth % (PropTrack, 2021-2026 estimate) */
+  cumulative5yr: number
+}
+
+/**
+ * Hardcoded state/territory benchmarks sourced from PropTrack HPI April 2026.
+ * These are fixed constants so property scores are stable across LLM runs.
+ */
+const STATE_BENCHMARKS: Record<string, StateBenchmark> = {
+  NSW: { annual12m: 6.5,  cumulative5yr: 32 },
+  VIC: { annual12m: 2.5,  cumulative5yr: 18 },
+  QLD: { annual12m: 17.5, cumulative5yr: 65 },
+  SA:  { annual12m: 13.9, cumulative5yr: 58 },
+  WA:  { annual12m: 21.5, cumulative5yr: 72 },
+  TAS: { annual12m: 3.5,  cumulative5yr: 30 },
+  ACT: { annual12m: 1.0,  cumulative5yr: 22 },
+  NT:  { annual12m: 16.9, cumulative5yr: 40 },
+}
 
 /** Score a single period's suburb growth against a benchmark using ratio logic. */
 const ratioScore = (suburbGrowth: number, benchmark: number): number => {
@@ -95,12 +121,10 @@ export const computePropertyScore = (review: Review): number => {
 
   const suburb12 = growths12.reduce((a, b) => a + b, 0) / growths12.length
 
-  const benchmarks12 = [review.stateMedianGrowth, review.capitalCityGrowth]
-    .map((g) => (g != null ? parsePercent(g) : null))
-    .filter((g): g is number => g !== null)
-
-  const score12 = benchmarks12.length
-    ? ratioScore(suburb12, benchmarks12.reduce((a, b) => a + b, 0) / benchmarks12.length)
+  // Use hardcoded state benchmark - never trust the LLM-generated benchmark fields
+  const benchmark = STATE_BENCHMARKS[review.state.toUpperCase()]
+  const score12 = benchmark
+    ? ratioScore(suburb12, benchmark.annual12m)
     : absoluteScore(suburb12)
 
   // 5-year blend — annualised
@@ -112,12 +136,8 @@ export const computePropertyScore = (review: Review): number => {
 
   const suburb5yr = growths5yr.reduce((a, b) => a + b, 0) / growths5yr.length
 
-  const benchmarks5yr = [review.stateMedianGrowth5yr, review.capitalCityGrowth5yr]
-    .map((g) => (g != null ? parsePercent5yr(g) : null))
-    .filter((g): g is number => g !== null)
-
-  const score5yr = benchmarks5yr.length
-    ? ratioScore(suburb5yr, benchmarks5yr.reduce((a, b) => a + b, 0) / benchmarks5yr.length)
+  const score5yr = benchmark
+    ? ratioScore(suburb5yr, benchmark.cumulative5yr / 5)  // annualise the 5yr cumulative
     : absoluteScore(suburb5yr)
 
   return round1(0.7 * score12 + 0.3 * score5yr)

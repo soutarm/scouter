@@ -83,6 +83,17 @@ ${homelyContext ? `\nThe following is community-sourced context from Homely.com.
 Return JSON only. Do not include markdown fences. Use current 2026 context where possible. Use AUD for money. Do not use em dashes or en dashes anywhere in the JSON output. Use a plain hyphen (-) instead of any dash character in price ranges and text.
 For flight path assessment in climate.noise.flightPath and climate.noise.flightPathLevel, source flight path information from Airservices Australia first: https://aircraftnoise.airservicesaustralia.com/category/what-are-the-flight-paths-in-my-area/. Do not state that a suburb is not under a flight path unless this is explicitly supported by that source. If this source is unavailable or unclear for the suburb, say so explicitly in caveats and use a conservative uncertainty statement instead of declaring no flight path impact.
 
+AUTHORITATIVE BENCHMARK DATA (PropTrack HPI, April 2026 - use these exact figures for the benchmark fields):
+State | 12-month annual growth | 5-year cumulative growth
+NSW   | +6.5%                  | +32% cumulative
+VIC   | +2.5%                  | +18% cumulative
+QLD   | +17.5%                 | +65% cumulative
+SA    | +13.9%                 | +58% cumulative
+WA    | +21.5%                 | +72% cumulative
+TAS   | +3.5%                  | +30% cumulative
+ACT   | +1.0%                  | +22% cumulative
+NT    | +16.9%                 | +40% cumulative
+
 JSON shape:
 {
   "exists": true,
@@ -105,10 +116,10 @@ JSON shape:
     { "propertyType": "Houses", "medianPrice": "AUD $...", "twelveMonthGrowth": "+...%", "fiveYearGrowth": "+...%", "medianWeeklyRent": "AUD $...", "grossYield": "...%" },
     { "propertyType": "Units / Townhouses", "medianPrice": "AUD $...", "twelveMonthGrowth": "...%", "fiveYearGrowth": "+...%", "medianWeeklyRent": "AUD $...", "grossYield": "...%" }
   ],
-  "stateMedianGrowth": "The current 12-month combined dwelling price growth for the state, sourced from the CoreLogic Home Value Index and PropTrack Home Price Index (mid-2026 reports). Because the two indices use different methodologies (hedonic regression vs repeat-sales), express the figure as a consensus range where they differ, e.g. '+2.0% to +3.4%', or a single figure if they agree closely. This is used as the benchmark midpoint for scoring the suburb's growth relative to the state average. Be consistent across queries for the same state.",
-  "capitalCityGrowth": "The current 12-month combined dwelling price growth for the capital city / greater metro region of the state, sourced from the CoreLogic Home Value Index and PropTrack Home Price Index (mid-2026 reports). Express as a consensus range where the indices differ, e.g. 'Greater Melbourne +1.8% to +2.6%', or a single figure if they agree closely. Include the city region name followed by the growth figure. For ACT use 'Greater Canberra'; for NT use 'Greater Darwin'; for TAS use 'Greater Hobart'. Be consistent across queries for the same region.",
-  "stateMedianGrowth5yr": "The cumulative or annualised 5-year combined dwelling price growth for the state (2021-2026), sourced from CoreLogic and PropTrack. Express as a consensus range where the indices differ, e.g. '+38% to +42%' cumulative or '+6.7% to +7.3% p.a.'. Be consistent and note whether the figure is cumulative or annualised.",
-  "capitalCityGrowth5yr": "The cumulative or annualised 5-year combined dwelling price growth for the capital city / greater metro region (2021-2026), sourced from CoreLogic and PropTrack. Include the city region name, e.g. 'Greater Melbourne +28% to +34%'. Note whether cumulative or annualised. Be consistent across queries for the same region.",
+  "stateMedianGrowth": "Use the exact 12-month figure from the AUTHORITATIVE BENCHMARK DATA table above for the suburb's state. Display as a single value, e.g. '+2.5%'.",
+  "capitalCityGrowth": "Use the exact 12-month figure from the AUTHORITATIVE BENCHMARK DATA table above. Prefix with the capital city name, e.g. 'Greater Melbourne +2.5%'. For ACT use 'Greater Canberra'; for NT use 'Greater Darwin'; for TAS use 'Greater Hobart'.",
+  "stateMedianGrowth5yr": "Use the exact 5-year cumulative figure from the AUTHORITATIVE BENCHMARK DATA table above for the suburb's state, e.g. '+18% cumulative'.",
+  "capitalCityGrowth5yr": "Use the exact 5-year cumulative figure from the AUTHORITATIVE BENCHMARK DATA table above. Prefix with the capital city name, e.g. 'Greater Melbourne +18% cumulative'.",
   "climate": {
     "summerAverages": "Average high and low temperatures plus seasonal behaviour.",
     "winterAverages": "Average high and low temperatures plus rainfall/cloud/frost behaviour.",
