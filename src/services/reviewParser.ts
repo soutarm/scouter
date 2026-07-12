@@ -72,7 +72,12 @@ export const parseReview = (content: string, liveBenchmarks?: StateBenchmarks): 
     return parsed
   }
   if (!parsed.summary || !Array.isArray(parsed.marketRows) || !parsed.infrastructure) {
-    throw new Error('The model returned JSON, but not the expected review shape.')
+    const missing = [
+      !parsed.summary && 'summary',
+      !Array.isArray(parsed.marketRows) && 'marketRows',
+      !parsed.infrastructure && 'infrastructure',
+    ].filter(Boolean).join(', ')
+    throw new Error(`The model returned JSON missing required fields: ${missing}. Try running again.`)
   }
   // Always compute scores from structured data — never trust LLM-generated values
   parsed.scores = computeScores(parsed, liveBenchmarks)
