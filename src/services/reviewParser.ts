@@ -1,4 +1,4 @@
-import type { Review } from '../types'
+import type { Review, StateBenchmarks } from '../types'
 import { computeScores } from './scoring'
 
 export const stripJsonFence = (value: string): string => {
@@ -51,7 +51,7 @@ export const repairTruncatedJson = (s: string): string => {
   return trimmed + stack.reverse().join('')
 }
 
-export const parseReview = (content: string): Review => {
+export const parseReview = (content: string, liveBenchmarks?: StateBenchmarks): Review => {
   const stripped = stripJsonFence(content)
   let parsed: Review
   try {
@@ -75,7 +75,7 @@ export const parseReview = (content: string): Review => {
     throw new Error('The model returned JSON, but not the expected review shape.')
   }
   // Always compute scores from structured data — never trust LLM-generated values
-  parsed.scores = computeScores(parsed)
+  parsed.scores = computeScores(parsed, liveBenchmarks)
   return parsed
 }
 

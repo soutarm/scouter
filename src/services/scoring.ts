@@ -1,4 +1,4 @@
-import type { Review, ReviewScores } from '../types'
+import type { Review, ReviewScores, StateBenchmarks } from '../types'
 import { extractTemperatureProfile } from '../components/review/ThermometerRange'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -78,10 +78,11 @@ type StateBenchmark = {
 }
 
 /**
- * Hardcoded state/territory benchmarks sourced from PropTrack HPI April 2026.
- * These are fixed constants so property scores are stable across LLM runs.
+ * Hardcoded fallback benchmarks sourced from PropTrack HPI April 2026.
+ * Used when the Worker KV cache is unavailable. Update quarterly.
+ * Last updated: July 2026
  */
-const STATE_BENCHMARKS: Record<string, StateBenchmark> = {
+const FALLBACK_BENCHMARKS: Record<string, StateBenchmark> = {
   NSW: { annual12m: 6.5,  cumulative5yr: 32 },
   VIC: { annual12m: 2.5,  cumulative5yr: 18 },
   QLD: { annual12m: 17.5, cumulative5yr: 65 },
@@ -112,7 +113,7 @@ const absoluteScore = (growth: number): number => {
   return clamp(4 + (growth / 5) * 3, 1, 10)
 }
 
-export const computePropertyScore = (review: Review): number => {
+export const computePropertyScore = (review: Review, liveBenchmarks?: StateBenchmarks): number => {
   const growths12 = review.marketRows
     .map((r) => parsePercent(r.twelveMonthGrowth))
     .filter((v): v is number => v !== null)
@@ -121,8 +122,10 @@ export const computePropertyScore = (review: Review): number => {
 
   const suburb12 = growths12.reduce((a, b) => a + b, 0) / growths12.length
 
-  // Use hardcoded state benchmark - never trust the LLM-generated benchmark fields
-  const benchmark = STATE_BENCHMARKS[review.state.toUpperCase()]
+  // Prefer live KV benchmarks; fall back to hardcoded constants.
+  // Never use LLM-generated benchmark fields - they vary between runs.
+  const stateKey = review.state.toUpperCase()
+  const benchmark = liveBenchmarks?.states[stateKey] ?? FALLBACK_BENCHMARKS[stateKey]
   const score12 = benchmark
     ? ratioScore(suburb12, benchmark.annual12m)
     : absoluteScore(suburb12)
@@ -383,8 +386,8 @@ export const computeEnvironmentScore = (review: Review): number => {
 // ── Overall ───────────────────────────────────────────────────────────────────
 // Equal weight across the 4 computed scores.
 
-export const computeScores = (review: Review): ReviewScores => {
-  const property = computePropertyScore(review)
+export const computeScores = (review: Review, liveBenchmarks?: StateBenchmarks): ReviewScores => {
+  const property = computePropertyScore(review, liveBenchmarks)
   const safety = computeSafetyScore(review)
   const infrastructure = computeInfrastructureScore(review)
   const environment = computeEnvironmentScore(review)

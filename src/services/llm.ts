@@ -1,5 +1,6 @@
-import type { LlmSettings, Review } from '../types'
+import type { LlmSettings, Review, StateBenchmarks } from '../types'
 import { parseReview } from './reviewParser'
+import { WORKER_BASE_URL } from './share'
 
 const REQUEST_TIMEOUT_MS = 60_000
 const MAX_RETRIES = 3
@@ -267,7 +268,7 @@ JSON shape:
 
 `
 
-export const callLlm = async (settings: LlmSettings, query: string, homelyContext?: string): Promise<Review> => {
+export const callLlm = async (settings: LlmSettings, query: string, homelyContext?: string, liveBenchmarks?: StateBenchmarks): Promise<Review> => {
   const prompt = buildPrompt(query, homelyContext)
   const controller = new AbortController()
   const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
@@ -300,7 +301,7 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
       }
       const content = extractAzureResponseText(payload)
       if (!content) throw new Error('Azure returned no review content.')
-      return parseReview(content)
+      return parseReview(content, liveBenchmarks)
     }
 
     if (settings.provider === 'gemini') {
@@ -339,7 +340,7 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
       const payload = JSON.parse(rawPayload) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }
       const content = extractGeminiResponseText(payload)
       if (!content) throw new Error('Gemini returned no review content.')
-      return parseReview(content)
+      return parseReview(content, liveBenchmarks)
     }
 
     if (settings.provider === 'anthropic') {
@@ -369,7 +370,7 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
       const payload = JSON.parse(rawPayload) as { content?: Array<{ type?: string; text?: string }> }
       const content = extractAnthropicResponseText(payload)
       if (!content) throw new Error('Anthropic returned no review content.')
-      return parseReview(content)
+      return parseReview(content, liveBenchmarks)
     }
 
     if (settings.provider === 'deepseek') {
@@ -396,7 +397,7 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
       const payload = JSON.parse(rawPayload) as { choices?: Array<{ message?: { content?: string } }> }
       const content = payload.choices?.[0]?.message?.content
       if (!content) throw new Error('DeepSeek returned no review content.')
-      return parseReview(content)
+      return parseReview(content, liveBenchmarks)
     }
 
     if (!settings.openAiApiKey || !settings.openAiModel) {
@@ -422,8 +423,22 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
     const payload = JSON.parse(rawPayload) as { choices?: Array<{ message?: { content?: string } }> }
     const content = payload.choices?.[0]?.message?.content
     if (!content) throw new Error('Provider returned no review content.')
-    return parseReview(content)
+    return parseReview(content, liveBenchmarks)
   } finally {
     window.clearTimeout(timeoutId)
+  }
+}
+
+/**
+ * Fetch cached property benchmarks from the Worker KV store.
+ * Returns null if unavailable - callers should fall back to hardcoded constants.
+ */
+export const fetchBenchmarks = async (): Promise<StateBenchmarks | null> => {
+  try {
+    const res = await fetch(`${WORKER_BASE_URL}/benchmarks`, { signal: AbortSignal.timeout(8_000) })
+    if (!res.ok) return null
+    return (await res.json()) as StateBenchmarks
+  } catch {
+    return null
   }
 }

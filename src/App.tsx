@@ -14,7 +14,7 @@ import {
   readSearchFromQueryString, writeSearchToQueryString,
   getSuggestedLocation,
 } from './services/location'
-import { callLlm, fetchHomelyContext } from './services/llm'
+import { callLlm, fetchBenchmarks, fetchHomelyContext } from './services/llm'
 import { buildShareUrl, clearSharedReviewHash, fetchReviewById, getSharedReviewFromHash, SHARED_REVIEW_HASH_KEY, storeReview } from './services/share'
 import { parseReferenceLink } from './services/reviewParser'
 import { SettingsPanel } from './components/SettingsPanel'
@@ -391,8 +391,11 @@ function App() {
       setHasSearched(true)
       setIsSearchOpen(false)
       try {
-        const homelyContext = await fetchHomelyContext(trimmedPlace, state)
-        const result = await callLlm(settings, trimmedQuery, homelyContext)
+        const [homelyContext, liveBenchmarks] = await Promise.all([
+          fetchHomelyContext(trimmedPlace, state),
+          fetchBenchmarks(),
+        ])
+        const result = await callLlm(settings, trimmedQuery, homelyContext, liveBenchmarks ?? undefined)
         const nextReview = {
           ...result,
           generatedAt: result.generatedAt || new Date().toISOString(),

@@ -10,5 +10,12 @@ preview_id = "REPLACE_WITH_KV_PREVIEW_NAMESPACE_ID"
 [vars]
 ALLOWED_ORIGIN = "https://scouter.mrated.dev,https://scouter-1ah.pages.dev"
 
+# Secret required: GEMINI_API_KEY
+# Set via: npx wrangler secret put GEMINI_API_KEY
+# Used by the weekly cron to refresh property benchmark data via Gemini.
+
+[[triggers.crons]]
+cron = "0 2 * * 1"  # Every Monday at 02:00 UTC
+
 [dev]
 port = 8787

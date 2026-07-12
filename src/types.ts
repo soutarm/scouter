@@ -1,5 +1,20 @@
 export type ProviderKind = 'azure' | 'openai' | 'gemini' | 'anthropic' | 'deepseek'
 
+export type StateBenchmark = {
+  /** 12-month annual dwelling price growth % */
+  annual12m: number
+  /** 5-year cumulative dwelling price growth % */
+  cumulative5yr: number
+}
+
+export type StateBenchmarks = {
+  /** ISO timestamp when these benchmarks were fetched */
+  fetchedAt: string
+  /** Source description shown in UI */
+  source: string
+  states: Record<string, StateBenchmark>
+}
+
 export type LlmSettings = {
   provider: ProviderKind
   azureEndpoint: string
