@@ -117,6 +117,7 @@ export type Review = {
       carComprehensive?: string
     }
     crimeTypes?: Array<{ label: string; level: 'Low' | 'Medium' | 'High' | 'Very High' }>
+    naturalRisks?: Array<{ label: string; level: 'Low' | 'Medium' | 'High' | 'Very High'; note?: string }>
   }
   infrastructure: {
     transit: string

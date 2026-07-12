@@ -6,16 +6,16 @@ type BarEntry = { label: string; level: Level }
 type FactorEntry = { icon: string; label: string; value: string }
 
 type Props = {
-  eyebrow: string
+  eyebrow?: string
   barsTitle: string
   bars: BarEntry[]
-  summary: string
+  summary?: string
   factors: FactorEntry[]
 }
 
 export const EnvironmentalFactorPanel = ({ eyebrow, barsTitle, bars, summary, factors }: Props) => (
   <div className="environment-section">
-    <p className="eyebrow">{eyebrow}</p>
+    {eyebrow && <p className="eyebrow">{eyebrow}</p>}
     <div className="noise-panel">
       <div className="noise-rating-card">
         <div className="crime-chart-card noise-bars-card">
@@ -26,7 +26,7 @@ export const EnvironmentalFactorPanel = ({ eyebrow, barsTitle, bars, summary, fa
             ))}
           </div>
         </div>
-        <p className="noise-summary">{summary}</p>
+        {summary && <p className="noise-summary">{summary}</p>}
       </div>
       <div className="noise-factors">
         {factors.map(({ icon, label, value }) => (

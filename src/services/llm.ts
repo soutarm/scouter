@@ -169,6 +169,14 @@ JSON shape:
       { "label": "Vandalism", "level": "Medium" },
       { "label": "Drug offences", "level": "Low" },
       { "label": "Vehicle theft", "level": "Medium" }
+    ],
+    "naturalRisks": [
+      { "label": "Bushfire", "level": "Low", "note": "Optional 1-sentence context about fire risk, vegetation type, or BAL rating if relevant." },
+      { "label": "Flood", "level": "Medium", "note": "Optional 1-sentence context about flood zone, creek proximity, or FEMA/state flood mapping." },
+      { "label": "Storm/Hail", "level": "Medium", "note": "Optional 1-sentence context about severe weather exposure." },
+      { "label": "Earthquake", "level": "Low", "note": "Optional 1-sentence context about seismic zone or historical activity." },
+      { "label": "Coastal Erosion", "level": "Low", "note": "Include only if the suburb is coastal or near tidal waterways. Omit otherwise." },
+      { "label": "Landslide", "level": "Low", "note": "Include only if the suburb has notable topographic relief or instability. Omit otherwise." }
     ]
   },
   "infrastructure": {

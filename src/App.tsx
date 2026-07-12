@@ -946,6 +946,10 @@ function App() {
         drawLevelDots('Crime type levels', review.crime.crimeTypes.map((ct) => ({ label: ct.label, level: ct.level })))
       }
 
+      if (review.crime.naturalRisks?.length) {
+        drawLevelDots('Natural hazard risks', review.crime.naturalRisks.map((r) => ({ label: r.label, level: r.level })))
+      }
+
       section('Infrastructure, Education & Logistics', [
         review.infrastructure.cbdDistanceKm != null ? `CBD distance: ${review.infrastructure.cbdDistanceKm} km (${review.infrastructure.cbdCommuteMinutes ?? '?'} min commute)` : '',
         review.infrastructure.trainStations?.length ? `Train stations: ${review.infrastructure.trainStations.map(s => `${s.name} (${s.lines})`).join(', ')}` : '',
