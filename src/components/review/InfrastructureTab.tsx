@@ -194,7 +194,7 @@ export const InfrastructureTab = ({ review }: Props) => {
           {review.infrastructure.trainStations.map((st) => (
             <div key={st.name} className="infra-station-row">
               <span className="infra-station-name"><IconTrain /> {st.name}</span>
-              <span className="infra-station-lines">{st.lines}</span>
+              <span className="infra-station-lines">{st.lines}{st.distanceKm != null ? ` · ${st.distanceKm}km` : ''}</span>
             </div>
           ))}
           {review.infrastructure.tramStops && (

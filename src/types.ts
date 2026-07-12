@@ -139,7 +139,7 @@ export type Review = {
     education: string
     lifestyle: string
     demographic: string
-    trainStations?: Array<{ name: string; lines: string }>
+    trainStations?: Array<{ name: string; lines: string; distanceKm?: number }>
     tramStops?: string
     busAvailability?: 'Excellent' | 'Good' | 'Limited' | 'None'
     majorRoads?: string[]

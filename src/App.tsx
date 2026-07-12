@@ -955,7 +955,7 @@ function App() {
 
       section('Infrastructure, Education & Logistics', [
         review.infrastructure.cbdDistanceKm != null ? `CBD distance: ${review.infrastructure.cbdDistanceKm} km (${review.infrastructure.cbdCommuteMinutes ?? '?'} min commute)` : '',
-        review.infrastructure.trainStations?.length ? `Train stations: ${review.infrastructure.trainStations.map(s => `${s.name} (${s.lines})`).join(', ')}` : '',
+        review.infrastructure.trainStations?.length ? `Train stations: ${review.infrastructure.trainStations.map(s => `${s.name} (${s.lines}${s.distanceKm != null ? `, ${s.distanceKm}km` : ''})`).join(', ')}` : '',
         review.infrastructure.tramStops ? `Tram: ${review.infrastructure.tramStops}` : '',
         review.infrastructure.busAvailability ? `Bus: ${review.infrastructure.busAvailability}` : '',
         review.infrastructure.majorRoads?.length ? `Major roads: ${review.infrastructure.majorRoads.join(', ')}` : '',
