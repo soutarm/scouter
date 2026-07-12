@@ -1,4 +1,16 @@
 import type { Review } from '../../types'
+
+/** If value is a range (e.g. "+1% to +4%"), return the midpoint ("+2.5%"). Otherwise return as-is. */
+const collapseRange = (value: string): string => {
+  const stripped = value.replace(/\s/g, '')
+  const m = stripped.match(/([+-]?\d+(?:\.\d+)?)%[^%]*?([+-]?\d+(?:\.\d+)?)%/)
+  if (!m) return value
+  const avg = (parseFloat(m[1]) + parseFloat(m[2])) / 2
+  const sign = avg >= 0 ? '+' : ''
+  // Round to 1 decimal, drop trailing .0
+  const formatted = avg % 1 === 0 ? `${avg.toFixed(0)}%` : `${avg.toFixed(1)}%`
+  return `${sign}${formatted}`
+}
 import logoRea from '../../assets/logo-rea.png'
 import logoDomain from '../../assets/logo-domain.png'
 import logoHomely from '../../assets/logo-homely.png'
@@ -124,8 +136,8 @@ export const PropertyTab = ({ review }: Props) => {
               <tr key={row.propertyType}>
                 <td>{row.propertyType}</td>
                 <td>{row.medianPrice}</td>
-                <td>{row.twelveMonthGrowth}</td>
-                {review.marketRows.some((r) => r.fiveYearGrowth) && <td>{row.fiveYearGrowth ?? '-'}</td>}
+                <td>{collapseRange(row.twelveMonthGrowth)}</td>
+                {review.marketRows.some((r) => r.fiveYearGrowth) && <td>{row.fiveYearGrowth ? collapseRange(row.fiveYearGrowth) : '-'}</td>}
                 <td>{row.medianWeeklyRent}</td>
                 <td>{row.grossYield}</td>
               </tr>

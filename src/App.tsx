@@ -129,6 +129,16 @@ const getConfiguredModelName = (settings: LlmSettings): string => {
   return settings.openAiModel.trim()
 }
 
+const collapseGrowthRange = (value: string): string => {
+  const stripped = value.replace(/\s/g, '')
+  const m = stripped.match(/([+-]?\d+(?:\.\d+)?)%[^%]*?([+-]?\d+(?:\.\d+)?)%/)
+  if (!m) return value
+  const avg = (parseFloat(m[1]) + parseFloat(m[2])) / 2
+  const sign = avg >= 0 ? '+' : ''
+  const formatted = avg % 1 === 0 ? `${avg.toFixed(0)}%` : `${avg.toFixed(1)}%`
+  return `${sign}${formatted}`
+}
+
 const formatErrorDetails = (caught: unknown): string => {
   if (caught instanceof Error) return caught.stack || caught.message
   if (caught instanceof DOMException) return `${caught.name}: ${caught.message}`
@@ -896,8 +906,8 @@ function App() {
       section('Property Market & Rental Realities', review.marketNarrative)
       review.marketRows.forEach((row) => {
         const growthStr = row.fiveYearGrowth
-          ? `${row.twelveMonthGrowth} (12-month), ${row.fiveYearGrowth} (5-year)`
-          : row.twelveMonthGrowth
+          ? `${collapseGrowthRange(row.twelveMonthGrowth)} (12-month), ${collapseGrowthRange(row.fiveYearGrowth)} (5-year)`
+          : collapseGrowthRange(row.twelveMonthGrowth)
         write(`${row.propertyType}: ${row.medianPrice}, ${growthStr} growth, ${row.medianWeeklyRent} rent, ${row.grossYield} yield`, 9, 'normal', 3)
       })
 
