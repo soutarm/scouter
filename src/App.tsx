@@ -378,6 +378,7 @@ function App() {
         setHasSearched(true)
         setIsSearchOpen(false)
         setReview(cached)
+        clearError()
         setActiveTab((options.tab as ReviewSectionKey) ?? 'property')
         setShowReferences(false)
         return
@@ -1409,7 +1410,21 @@ function App() {
 
             {!locationNotFound && (review.caveats?.length || review.briefCaveats?.length) && (
               <section className="caveats">
-                <h3>Caveats</h3>
+                <div className="caveats-header">
+                  <h3>Caveats</h3>
+                  {!isSharedReview && composedQuery && (
+                    <button
+                      type="button"
+                      className="regenerate-button"
+                      onClick={() => {
+                        removeLocation(composedQuery)
+                        runSearch(review.suburb, review.state as AustralianState)
+                      }}
+                    >
+                      Regenerate report
+                    </button>
+                  )}
+                </div>
                 <ul>
                   {(isSharedReview && review.briefCaveats?.length ? review.briefCaveats : review.caveats ?? []).map((caveat) => (
                     <li key={caveat}>{caveat}</li>
