@@ -131,10 +131,15 @@ JSON shape:
     "suburbLat": number,
     "suburbLng": number,
     "primarySchools": number,
+    "primarySchoolNames": ["Up to 4 actual primary school names in or immediately adjacent to the suburb"],
     "secondarySchools": number,
+    "secondarySchoolNames": ["Up to 4 actual secondary school/college names in or immediately adjacent to the suburb"],
     "shoppingPrecincts": number,
+    "shoppingPrecinctNames": ["Up to 4 actual shopping centre or retail precinct names"],
     "parks": number,
+    "parkNames": ["Up to 4 actual park or reserve names"],
     "medicalCentres": number,
+    "medicalCentreNames": ["Up to 4 actual medical centre, GP clinic or hospital names"],
     "pointsOfInterest": [{ "icon": string, "label": string }]
   },
   "climate": {

@@ -148,10 +148,15 @@ export type Review = {
     suburbLat?: number
     suburbLng?: number
     primarySchools?: number
+    primarySchoolNames?: string[]
     secondarySchools?: number
+    secondarySchoolNames?: string[]
     shoppingPrecincts?: number
+    shoppingPrecinctNames?: string[]
     parks?: number
+    parkNames?: string[]
     medicalCentres?: number
+    medicalCentreNames?: string[]
     pointsOfInterest?: Array<{ icon: string; label: string }>
   }
   demographics?: {

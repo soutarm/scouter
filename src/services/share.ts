@@ -53,10 +53,15 @@ type SharedReviewPayload = {
     suburbLat?: number
     suburbLng?: number
     primarySchools?: number
+    primarySchoolNames?: string[]
     secondarySchools?: number
+    secondarySchoolNames?: string[]
     shoppingPrecincts?: number
+    shoppingPrecinctNames?: string[]
     parks?: number
+    parkNames?: string[]
     medicalCentres?: number
+    medicalCentreNames?: string[]
     pointsOfInterest?: Review['infrastructure']['pointsOfInterest']
   }
   demographics?: {
@@ -138,10 +143,15 @@ const toSharedPayload = (review: Review): SharedReviewPayload => ({
     suburbLat: review.infrastructure.suburbLat,
     suburbLng: review.infrastructure.suburbLng,
     primarySchools: review.infrastructure.primarySchools,
+    primarySchoolNames: review.infrastructure.primarySchoolNames,
     secondarySchools: review.infrastructure.secondarySchools,
+    secondarySchoolNames: review.infrastructure.secondarySchoolNames,
     shoppingPrecincts: review.infrastructure.shoppingPrecincts,
+    shoppingPrecinctNames: review.infrastructure.shoppingPrecinctNames,
     parks: review.infrastructure.parks,
+    parkNames: review.infrastructure.parkNames,
     medicalCentres: review.infrastructure.medicalCentres,
+    medicalCentreNames: review.infrastructure.medicalCentreNames,
     pointsOfInterest: review.infrastructure.pointsOfInterest,
   },
   demographics: review.demographics
@@ -203,10 +213,15 @@ const toReview = (payload: SharedReviewPayload): Review => ({
     suburbLat: payload.infrastructure?.suburbLat,
     suburbLng: payload.infrastructure?.suburbLng,
     primarySchools: payload.infrastructure?.primarySchools,
+    primarySchoolNames: payload.infrastructure?.primarySchoolNames,
     secondarySchools: payload.infrastructure?.secondarySchools,
+    secondarySchoolNames: payload.infrastructure?.secondarySchoolNames,
     shoppingPrecincts: payload.infrastructure?.shoppingPrecincts,
+    shoppingPrecinctNames: payload.infrastructure?.shoppingPrecinctNames,
     parks: payload.infrastructure?.parks,
+    parkNames: payload.infrastructure?.parkNames,
     medicalCentres: payload.infrastructure?.medicalCentres,
+    medicalCentreNames: payload.infrastructure?.medicalCentreNames,
     pointsOfInterest: payload.infrastructure?.pointsOfInterest,
   },
   demographics: payload.demographics

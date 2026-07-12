@@ -4,7 +4,7 @@ import { STATE_CBD, STATE_PT_URLS, haversineKm } from '../../services/location'
 type Props = { review: Review }
 
 // ---------------------------------------------------------------------------
-// SVG icon set — each returns a <svg> sized for infra-stat-icon context
+// SVG icon set
 // ---------------------------------------------------------------------------
 
 const IconPin = () => (
@@ -49,6 +49,13 @@ const IconTram = () => (
   </svg>
 )
 
+const IconRoad = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M5 21 9 3M19 21 15 3M9 3h6M5 21h14" />
+    <path d="M12 7v2M12 12v2M12 17v2" strokeDasharray="2 2" />
+  </svg>
+)
+
 const IconSchool = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M3 21V9l9-6 9 6v12" />
@@ -89,6 +96,51 @@ const IconPoi = () => (
 )
 
 // ---------------------------------------------------------------------------
+// Small helpers
+// ---------------------------------------------------------------------------
+
+const plural = (n: number, word: string) => `${n} ${word}${n !== 1 ? 's' : ''}`
+
+interface GroupCardProps {
+  icon: React.ReactNode
+  count: string
+  label: string
+  names?: string[]
+  link?: string
+  linkTitle?: string
+  sublabel?: string
+}
+
+const GroupCard = ({ icon, count, label, names, link, linkTitle, sublabel }: GroupCardProps) => {
+  const inner = (
+    <>
+      <div className="infra-group-card-header">
+        <span className="infra-group-card-icon">{icon}</span>
+        <div className="infra-group-card-meta">
+          <strong className="infra-group-card-count">{count}</strong>
+          <span className="infra-group-card-label">{label}</span>
+          {sublabel && <span className="infra-group-card-sublabel">{sublabel}</span>}
+        </div>
+      </div>
+      {names && names.length > 0 && (
+        <ul className="infra-group-card-names">
+          {names.map((n) => <li key={n}>{n}</li>)}
+        </ul>
+      )}
+    </>
+  )
+
+  if (link) {
+    return (
+      <a className="infra-group-card infra-group-card-link" href={link} target="_blank" rel="noreferrer" title={linkTitle}>
+        {inner}
+      </a>
+    )
+  }
+  return <div className="infra-group-card">{inner}</div>
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -96,149 +148,153 @@ export const InfrastructureTab = ({ review }: Props) => {
   const stateKey = review.state.toUpperCase() as AustralianState
   const cbd = STATE_CBD[stateKey]
   const pt = STATE_PT_URLS[stateKey]
+  const infra = review.infrastructure
+
   const straightLineKm =
-    review.infrastructure.suburbLat != null && review.infrastructure.suburbLng != null && cbd
-      ? Math.round(haversineKm(review.infrastructure.suburbLat, review.infrastructure.suburbLng, cbd.lat, cbd.lng) * 10) / 10
-      : review.infrastructure.cbdDistanceKm ?? null
+    infra.suburbLat != null && infra.suburbLng != null && cbd
+      ? Math.round(haversineKm(infra.suburbLat, infra.suburbLng, cbd.lat, cbd.lng) * 10) / 10
+      : infra.cbdDistanceKm ?? null
+
   const mapsDirectionsUrl = cbd
     ? `https://www.google.com/maps/dir/${encodeURIComponent(`${review.suburb} ${review.state}`)}/${cbd.mapsQuery}`
     : null
-  const totalSchools = (review.infrastructure.primarySchools ?? 0) + (review.infrastructure.secondarySchools ?? 0)
+
+  const totalSchools = (infra.primarySchools ?? 0) + (infra.secondarySchools ?? 0)
+  const allSchoolNames = [
+    ...(infra.primarySchoolNames ?? []),
+    ...(infra.secondarySchoolNames ?? []),
+  ].slice(0, 5)
 
   return (
     <section className="tab-panel infra-panel">
-      <div className="infra-stats-row">
-        {straightLineKm != null && (
-          <a className="infra-stat infra-stat-link" href={mapsDirectionsUrl ?? '#'} target="_blank" rel="noreferrer"
-            title={`Straight-line distance to ${cbd?.name ?? 'CBD'} - open in Google Maps`}>
-            <span className="infra-stat-icon"><IconPin /></span>
-            <strong>{straightLineKm} km</strong>
-            <span>to {cbd?.name ?? 'CBD'}</span>
-            <span className="infra-stat-sublabel">straight-line</span>
-          </a>
-        )}
-        {review.infrastructure.cbdCommuteMinutes != null && (
-          <div className="infra-stat">
-            <span className="infra-stat-icon"><IconClock /></span>
-            <strong>{review.infrastructure.cbdCommuteMinutes} min</strong>
-            <span>est. commute</span>
-          </div>
-        )}
-        {review.infrastructure.busAvailability && (
-          <a className="infra-stat infra-stat-link" href={pt?.bus ?? pt?.train ?? '#'} target="_blank" rel="noreferrer"
-            title={`${pt?.label ?? 'Public transport'} bus routes`}>
-            <span className="infra-stat-icon"><IconBus /></span>
-            <strong>{review.infrastructure.busAvailability}</strong>
-            <span>bus access</span>
-          </a>
-        )}
-        {review.infrastructure.trainStations && review.infrastructure.trainStations.length > 0 && (
-          <a className="infra-stat infra-stat-link" href={pt?.train ?? '#'} target="_blank" rel="noreferrer"
-            title={`${pt?.label ?? 'Public transport'} train routes`}>
-            <span className="infra-stat-icon"><IconTrain /></span>
-            <strong>{review.infrastructure.trainStations.length}</strong>
-            <span>train station{review.infrastructure.trainStations.length !== 1 ? 's' : ''}</span>
-          </a>
-        )}
-        {review.infrastructure.tramStops && (
-          <a className="infra-stat infra-stat-link" href={pt?.tram ?? pt?.train ?? '#'} target="_blank" rel="noreferrer"
-            title={`${pt?.label ?? 'Public transport'} tram routes`}>
-            <span className="infra-stat-icon"><IconTram /></span>
-            <strong>Tram</strong>
-            <span>access</span>
-          </a>
-        )}
-        {totalSchools > 0 && (
-          <div className="infra-stat">
-            <span className="infra-stat-icon"><IconSchool /></span>
-            <strong>{totalSchools}</strong>
-            <span>school{totalSchools !== 1 ? 's' : ''}</span>
-            {review.infrastructure.primarySchools != null && review.infrastructure.secondarySchools != null && (
-              <span className="infra-stat-sublabel">
-                {review.infrastructure.primarySchools} primary · {review.infrastructure.secondarySchools} secondary
-              </span>
-            )}
-          </div>
-        )}
-        {review.infrastructure.shoppingPrecincts != null && review.infrastructure.shoppingPrecincts > 0 && (
-          <div className="infra-stat">
-            <span className="infra-stat-icon"><IconShopping /></span>
-            <strong>{review.infrastructure.shoppingPrecincts}</strong>
-            <span>shopping precinct{review.infrastructure.shoppingPrecincts !== 1 ? 's' : ''}</span>
-          </div>
-        )}
-        {review.infrastructure.parks != null && review.infrastructure.parks > 0 && (
-          <div className="infra-stat">
-            <span className="infra-stat-icon"><IconPark /></span>
-            <strong>{review.infrastructure.parks}</strong>
-            <span>park{review.infrastructure.parks !== 1 ? 's' : ''}</span>
-          </div>
-        )}
-        {review.infrastructure.medicalCentres != null && review.infrastructure.medicalCentres > 0 && (
-          <div className="infra-stat">
-            <span className="infra-stat-icon"><IconMedical /></span>
-            <strong>{review.infrastructure.medicalCentres}</strong>
-            <span>medical centre{review.infrastructure.medicalCentres !== 1 ? 's' : ''}</span>
-          </div>
-        )}
-        {review.infrastructure.pointsOfInterest?.map((poi) => (
-          <div key={poi.label} className="infra-stat">
-            <span className="infra-stat-icon"><IconPoi /></span>
-            <strong className="infra-stat-poi-label">{poi.label}</strong>
-          </div>
-        ))}
+
+      {/* ── Transport ── */}
+      <div className="infra-group">
+        <h3 className="infra-group-heading">Transport</h3>
+        <div className="infra-group-cards">
+          {straightLineKm != null && (
+            <GroupCard
+              icon={<IconPin />}
+              count={`${straightLineKm} km`}
+              label={`to ${cbd?.name ?? 'CBD'}`}
+              sublabel="straight-line"
+              link={mapsDirectionsUrl ?? undefined}
+              linkTitle={`Open directions to ${cbd?.name ?? 'CBD'} in Google Maps`}
+            />
+          )}
+          {infra.cbdCommuteMinutes != null && (
+            <GroupCard
+              icon={<IconClock />}
+              count={`${infra.cbdCommuteMinutes} min`}
+              label="est. commute"
+            />
+          )}
+          {infra.trainStations && infra.trainStations.length > 0 && (
+            <GroupCard
+              icon={<IconTrain />}
+              count={plural(infra.trainStations.length, 'train station')}
+              label=""
+              names={infra.trainStations.map(s => s.distanceKm != null ? `${s.name} (${s.distanceKm}km)` : s.name)}
+              link={pt?.train ?? undefined}
+              linkTitle={`${pt?.label ?? 'Public transport'} train routes`}
+            />
+          )}
+          {infra.tramStops && (
+            <GroupCard
+              icon={<IconTram />}
+              count="Tram"
+              label="access"
+              names={[infra.tramStops]}
+              link={pt?.tram ?? pt?.train ?? undefined}
+              linkTitle={`${pt?.label ?? 'Public transport'} tram routes`}
+            />
+          )}
+          {infra.busAvailability && (
+            <GroupCard
+              icon={<IconBus />}
+              count={infra.busAvailability}
+              label="bus access"
+              link={pt?.bus ?? pt?.train ?? undefined}
+              linkTitle={`${pt?.label ?? 'Public transport'} bus routes`}
+            />
+          )}
+          {infra.majorRoads && infra.majorRoads.length > 0 && (
+            <GroupCard
+              icon={<IconRoad />}
+              count={plural(infra.majorRoads.length, 'major road')}
+              label=""
+              names={infra.majorRoads}
+            />
+          )}
+        </div>
+        {infra.transit && <p className="infra-group-narrative">{infra.transit}</p>}
       </div>
 
-      {review.infrastructure.trainStations && review.infrastructure.trainStations.length > 0 && (
-        <div className="infra-station-list infra-station-list-inline">
-          {review.infrastructure.trainStations.map((st) => (
-            <div key={st.name} className="infra-station-row">
-              <span className="infra-station-name"><IconTrain /> {st.name}</span>
-              <span className="infra-station-lines">{st.lines}{st.distanceKm != null ? ` · ${st.distanceKm}km` : ''}</span>
-            </div>
-          ))}
-          {review.infrastructure.tramStops && (
-            <div className="infra-station-row">
-              <span className="infra-station-name"><IconTram /> Tram stops</span>
-              <span className="infra-station-lines">{review.infrastructure.tramStops}</span>
-            </div>
-          )}
+      {/* ── Services ── */}
+      {(totalSchools > 0 || (infra.medicalCentres ?? 0) > 0 || (infra.shoppingPrecincts ?? 0) > 0) && (
+        <div className="infra-group">
+          <h3 className="infra-group-heading">Services</h3>
+          <div className="infra-group-cards">
+            {totalSchools > 0 && (
+              <GroupCard
+                icon={<IconSchool />}
+                count={plural(totalSchools, 'school')}
+                label=""
+                sublabel={
+                  infra.primarySchools != null && infra.secondarySchools != null
+                    ? `${infra.primarySchools} primary · ${infra.secondarySchools} secondary`
+                    : undefined
+                }
+                names={allSchoolNames}
+              />
+            )}
+            {(infra.medicalCentres ?? 0) > 0 && (
+              <GroupCard
+                icon={<IconMedical />}
+                count={plural(infra.medicalCentres!, 'medical centre')}
+                label=""
+                names={infra.medicalCentreNames}
+              />
+            )}
+            {(infra.shoppingPrecincts ?? 0) > 0 && (
+              <GroupCard
+                icon={<IconShopping />}
+                count={plural(infra.shoppingPrecincts!, 'shopping precinct')}
+                label=""
+                names={infra.shoppingPrecinctNames}
+              />
+            )}
+          </div>
+          {infra.education && <p className="infra-group-narrative">{infra.education}</p>}
         </div>
       )}
 
-      {review.infrastructure.majorRoads && review.infrastructure.majorRoads.length > 0 && (
-        <div className="infra-card">
-          <h3>Major Roads &amp; Freeways</h3>
-          <ul className="infra-roads-list">
-            {review.infrastructure.majorRoads.map((road) => (
-              <li key={road}>{road}</li>
+      {/* ── Green Space & Lifestyle ── */}
+      {((infra.parks ?? 0) > 0 || (infra.pointsOfInterest?.length ?? 0) > 0) && (
+        <div className="infra-group">
+          <h3 className="infra-group-heading">Green Space &amp; Lifestyle</h3>
+          <div className="infra-group-cards">
+            {(infra.parks ?? 0) > 0 && (
+              <GroupCard
+                icon={<IconPark />}
+                count={plural(infra.parks!, 'park')}
+                label=""
+                names={infra.parkNames}
+              />
+            )}
+            {infra.pointsOfInterest?.map((poi) => (
+              <GroupCard
+                key={poi.label}
+                icon={<IconPoi />}
+                count={poi.icon}
+                label={poi.label}
+              />
             ))}
-          </ul>
+          </div>
+          {infra.lifestyle && <p className="infra-group-narrative">{infra.lifestyle}</p>}
         </div>
       )}
 
-      {(review.infrastructure.transit || review.infrastructure.education || review.infrastructure.lifestyle) && (
-        <div className="infra-narrative-grid">
-          {review.infrastructure.transit && (
-            <div className="infra-card">
-              <h3>Transit &amp; Commute</h3>
-              <p>{review.infrastructure.transit}</p>
-            </div>
-          )}
-          {review.infrastructure.education && (
-            <div className="infra-card">
-              <h3>Education &amp; Catchments</h3>
-              <p>{review.infrastructure.education}</p>
-            </div>
-          )}
-          {review.infrastructure.lifestyle && (
-            <div className="infra-card">
-              <h3>Lifestyle &amp; Amenities</h3>
-              <p>{review.infrastructure.lifestyle}</p>
-            </div>
-          )}
-        </div>
-      )}
     </section>
   )
 }
