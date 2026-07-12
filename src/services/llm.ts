@@ -271,7 +271,7 @@ JSON shape:
   },
   "caveats": ["Any uncertainty, unavailable fresh data, or source limitation."],
   "briefCaveats": ["Short one-line caveat statements suitable for compact UI."],
-  "references": ["Named data source, publication, or public agency used or recommended for verification, including a URL when available."]
+  "references": ["Named data source, publication, or public agency used or recommended for verification, including a URL when available. For ABS Census data, always include the specific census year used, e.g. 'Australian Bureau of Statistics, Census of Population and Housing 2021'."]
 }
 
 `
