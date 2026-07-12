@@ -2724,6 +2724,7 @@ td {
   flex-direction: column;
   gap: 10px;
   min-width: 140px;
+  overflow: hidden;
   padding: 14px 16px;
   text-decoration: none;
 }
@@ -2799,20 +2800,12 @@ td {
 
 .infra-group-card-names {
   background: #fff;
-  border: 1px solid rgba(74, 111, 81, 0.13);
-  border-radius: 12px;
+  border-top: 1px solid rgba(74, 111, 81, 0.13);
   display: flex;
   flex-direction: column;
   list-style: none;
   margin: 4px -16px -14px;
-  overflow: hidden;
   padding: 0;
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-  border-left: none;
-  border-right: none;
-  border-bottom: none;
-  border-top: 1px solid rgba(74, 111, 81, 0.13);
 }
 
 .infra-group-card-names li {
