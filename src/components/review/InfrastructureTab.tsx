@@ -183,7 +183,7 @@ export const InfrastructureTab = ({ review }: Props) => {
               ptLines.push(`🚆 ${s.name}${s.distanceKm != null ? ` (${s.distanceKm}km)` : ''}`)
             )
             if (infra.tramStops) ptLines.push(`🚊 Tram - ${infra.tramStops}`)
-            if (infra.busAvailability) ptLines.push(`🚌 Bus - ${infra.busAvailability}`)
+            if (infra.busAvailability) ptLines.push(`🚌 Bus access - ${infra.busAvailability}`)
             return (
               <div className="infra-group-card">
                 <div className="infra-group-card-header">
