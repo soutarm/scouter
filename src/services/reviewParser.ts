@@ -1,5 +1,5 @@
 import type { Review, StateBenchmarks } from '../types'
-import { computeScores } from './scoring'
+import { computeScores, FALLBACK_BENCHMARKS, STATE_CAPITAL_CITIES } from './scoring'
 
 export const stripJsonFence = (value: string): string => {
   const trimmed = value.trim()
@@ -81,6 +81,19 @@ export const parseReview = (content: string, liveBenchmarks?: StateBenchmarks): 
   }
   // Always compute scores from structured data — never trust LLM-generated values
   parsed.scores = computeScores(parsed, liveBenchmarks)
+
+  // Generate benchmark display strings from hardcoded/live benchmarks instead of relying on LLM
+  const stateKey = parsed.state?.toUpperCase()
+  const benchmark = (liveBenchmarks?.states[stateKey] ?? FALLBACK_BENCHMARKS[stateKey])
+  if (benchmark && stateKey) {
+    const city = STATE_CAPITAL_CITIES[stateKey] ?? stateKey
+    const sign = (n: number) => n >= 0 ? `+${n}%` : `${n}%`
+    parsed.stateMedianGrowth = sign(benchmark.annual12m)
+    parsed.capitalCityGrowth = `${city} ${sign(benchmark.annual12m)}`
+    parsed.stateMedianGrowth5yr = `${sign(benchmark.cumulative5yr)} cumulative`
+    parsed.capitalCityGrowth5yr = `${city} ${sign(benchmark.cumulative5yr)} cumulative`
+  }
+
   return parsed
 }
 

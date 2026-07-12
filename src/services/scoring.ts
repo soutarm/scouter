@@ -82,7 +82,7 @@ type StateBenchmark = {
  * Used when the Worker KV cache is unavailable. Update quarterly.
  * Last updated: July 2026
  */
-const FALLBACK_BENCHMARKS: Record<string, StateBenchmark> = {
+export const FALLBACK_BENCHMARKS: Record<string, StateBenchmark> = {
   NSW: { annual12m: 6.5,  cumulative5yr: 32 },
   VIC: { annual12m: 2.5,  cumulative5yr: 18 },
   QLD: { annual12m: 17.5, cumulative5yr: 65 },
@@ -91,6 +91,17 @@ const FALLBACK_BENCHMARKS: Record<string, StateBenchmark> = {
   TAS: { annual12m: 3.5,  cumulative5yr: 30 },
   ACT: { annual12m: 1.0,  cumulative5yr: 22 },
   NT:  { annual12m: 16.9, cumulative5yr: 40 },
+}
+
+export const STATE_CAPITAL_CITIES: Record<string, string> = {
+  NSW: 'Greater Sydney',
+  VIC: 'Greater Melbourne',
+  QLD: 'Greater Brisbane',
+  SA:  'Greater Adelaide',
+  WA:  'Greater Perth',
+  TAS: 'Greater Hobart',
+  ACT: 'Greater Canberra',
+  NT:  'Greater Darwin',
 }
 
 /** Score a single period's suburb growth against a benchmark using ratio logic. */
@@ -290,29 +301,17 @@ export const computeInfrastructureScore = (review: Review): number => {
   const busPts = busScore(infra.busAvailability)
   const transitScore = (trainPts + busPts) / 2
 
-  // Services
-  const serviceInputs: number[] = []
-  if (infra.primarySchools != null)
-    serviceInputs.push(steppedScore(infra.primarySchools, PRIMARY_STEPS[tier]))
-  if (infra.secondarySchools != null)
-    serviceInputs.push(steppedScore(infra.secondarySchools, SECONDARY_STEPS[tier]))
-  if (infra.medicalCentres != null)
-    serviceInputs.push(steppedScore(infra.medicalCentres, MEDICAL_STEPS[tier]))
-  if (infra.shoppingPrecincts != null)
-    serviceInputs.push(steppedScore(infra.shoppingPrecincts, SHOPPING_STEPS[tier]))
-  const servicesScore = serviceInputs.length
-    ? Math.max(3, serviceInputs.reduce((a, b) => a + b, 0) / serviceInputs.length)
-    : 5
+  // Services - missing fields score 0 (not excluded) to avoid inflation from sparse data
+  const primaryPts   = steppedScore(infra.primarySchools   ?? 0, PRIMARY_STEPS[tier])
+  const secondaryPts = steppedScore(infra.secondarySchools ?? 0, SECONDARY_STEPS[tier])
+  const medicalPts   = steppedScore(infra.medicalCentres   ?? 0, MEDICAL_STEPS[tier])
+  const shoppingPts  = steppedScore(infra.shoppingPrecincts ?? 0, SHOPPING_STEPS[tier])
+  const servicesScore = (primaryPts + secondaryPts + medicalPts + shoppingPts) / 4
 
-  // Amenity
-  const amenityInputs: number[] = []
-  if (infra.parks != null)
-    amenityInputs.push(steppedScore(infra.parks, PARKS_STEPS[tier]))
-  if (infra.pointsOfInterest != null)
-    amenityInputs.push(steppedScore(infra.pointsOfInterest.length, POI_STEPS[tier]))
-  const amenityScore = amenityInputs.length
-    ? Math.max(3, amenityInputs.reduce((a, b) => a + b, 0) / amenityInputs.length)
-    : 5
+  // Amenity - missing fields score 0
+  const parksPts = steppedScore(infra.parks ?? 0, PARKS_STEPS[tier])
+  const poiPts   = steppedScore(infra.pointsOfInterest?.length ?? 0, POI_STEPS[tier])
+  const amenityScore = (parksPts + poiPts) / 2
 
   const score = (transitScore + servicesScore + amenityScore) / 3
   return round1(clamp(score, 1, 10))

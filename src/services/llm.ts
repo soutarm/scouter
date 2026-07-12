@@ -79,37 +79,29 @@ export const buildPrompt = (query: string, homelyContext?: string) => `You are a
 
 Create a concise but useful suburb review for: ${query}.
 
-If you cannot confidently identify the Australian location, return "exists": false, use the requested place/state in "suburb" and "state", explain the issue in "summary" and "notFoundReason", and return empty or brief placeholder values for the remaining fields. If there is a likely intended Australian suburb or town, include it in "suggestedSuburb" and include its Australian state or territory abbreviation in "suggestedState". For example, if the request is "Warragul, TAS", explain that it appears to correspond to Warragul, VIC, and set "suggestedSuburb": "Warragul" and "suggestedState": "VIC".
+If you cannot confidently identify the Australian location, return "exists": false, use the requested place/state in "suburb" and "state", explain the issue in "summary" and "notFoundReason", and return empty or brief placeholder values for the remaining fields. If there is a likely intended Australian suburb or town, include it in "suggestedSuburb" and its state abbreviation in "suggestedState". For example, if the request is "Warragul, TAS", set "suggestedSuburb": "Warragul" and "suggestedState": "VIC".
 ${homelyContext ? `\nThe following is community-sourced context from Homely.com.au for this suburb. Use it to enrich the demographics and lifestyle sections where relevant, but treat it as anecdotal and supplement with your own knowledge:\n<homely_context>\n${homelyContext}\n</homely_context>\n` : ''}
-Return JSON only. Do not include markdown fences. Use current 2026 context where possible. Use AUD for money. Do not use em dashes or en dashes anywhere in the JSON output. Use a plain hyphen (-) instead of any dash character in price ranges and text.
-For flight path assessment in climate.noise.flightPath and climate.noise.flightPathLevel, source flight path information from Airservices Australia first: https://aircraftnoise.airservicesaustralia.com/category/what-are-the-flight-paths-in-my-area/. Do not state that a suburb is not under a flight path unless this is explicitly supported by that source. If this source is unavailable or unclear for the suburb, say so explicitly in caveats and use a conservative uncertainty statement instead of declaring no flight path impact.
+Return JSON only. No markdown fences. Use 2026 context. Use AUD. No em dashes or en dashes - use a plain hyphen instead.
 
-NATURAL HAZARD RATING RUBRIC - apply these criteria consistently across all suburbs. Each rating must reflect an objective, verifiable characteristic, not a subjective impression:
-- Bushfire:    Low = urban area with minimal vegetation interface, BAL-LOW or no designation. Medium = leafy suburban interface or bushland proximity, BAL-12.5 to BAL-19 likely on some blocks. High = in or adjacent to a designated bushfire-prone area, BAL-29+. Very High = BAL-40 or Flame Zone.
-- Flood:       Low = no mapped flood zone, no significant waterway proximity, well-drained. Medium = within or near a 1-in-100-year flood overlay, or local drainage issues documented. High = significant portion of suburb in a flood zone or frequently inundated. Very High = high-risk floodplain with regular inundation.
-- Storm/Hail:  Low = sheltered or inland region, low severe storm frequency. Medium = standard southeastern Australian exposure (Melbourne, Sydney, SE QLD baseline - most suburbs). High = known hail corridor or high-frequency severe storm region. Very High = extreme exposure (NT cyclone fringe, SE QLD hail belt core).
-- Earthquake:  Low = standard eastern Australia low-seismic zone (default for most of VIC, NSW, QLD, SA, TAS). Medium = near a known fault or moderate-seismic region. High = active fault zone. Very High = high-risk seismic zone.
-- Coastal Erosion: Omit unless the suburb is coastal or tidal. Low = stable coastline. Medium = some erosion history. High = active documented erosion.
-- Landslide:   Omit unless the suburb has notable topographic relief. Low = minor slopes, no documented instability. Medium = steep terrain with some documented slippage. High = known landslide history or formal geotechnical designation.
+LEVEL values throughout: one of Low, Medium, High, Very High. Low = best for air/noise/risk fields.
 
-AUTHORITATIVE BENCHMARK DATA (PropTrack HPI, April 2026 - use these exact figures ONLY for the stateMedianGrowth, capitalCityGrowth, stateMedianGrowth5yr, capitalCityGrowth5yr display fields. Do NOT copy these into marketRows - marketRows must contain suburb-specific estimates, not state averages):
-State | 12-month annual growth | 5-year cumulative growth
-NSW   | +6.5%                  | +32% cumulative
-VIC   | +2.5%                  | +18% cumulative
-QLD   | +17.5%                 | +65% cumulative
-SA    | +13.9%                 | +58% cumulative
-WA    | +21.5%                 | +72% cumulative
-TAS   | +3.5%                  | +30% cumulative
-ACT   | +1.0%                  | +22% cumulative
-NT    | +16.9%                 | +40% cumulative
+For flight path (climate.noise.flightPath + flightPathLevel): use Airservices Australia as primary source. If status is uncertain or inconclusive, use Low and note the uncertainty in caveats. Do not declare no flight path impact unless explicitly supported.
+
+NATURAL HAZARD RATING RUBRIC - apply objectively, not by impression:
+- Bushfire:    Low = urban/minimal vegetation, BAL-LOW. Medium = leafy interface, BAL-12.5 to BAL-19. High = bushfire-prone area, BAL-29+. Very High = BAL-40 or Flame Zone.
+- Flood:       Low = no flood zone, well-drained. Medium = near 1-in-100-year overlay or documented drainage issues. High = significant flood zone. Very High = high-risk floodplain.
+- Storm/Hail:  Low = sheltered/inland. Medium = standard SE Australian exposure (Melbourne/Sydney/SE QLD baseline). High = known hail corridor. Very High = NT cyclone fringe or SE QLD hail belt core.
+- Earthquake:  Low = standard eastern Australia (default for most VIC/NSW/QLD/SA/TAS). Medium = near known fault. High = active fault. Very High = high-risk seismic zone.
+- Coastal Erosion: Omit unless coastal/tidal. Low = stable. Medium = some erosion history. High = active documented erosion.
+- Landslide:   Omit unless notable topographic relief. Low = minor slopes. Medium = steep terrain, some slippage. High = known landslide history.
 
 JSON shape:
 {
   "exists": true,
-  "suburb": "Suburb name",
-  "state": "State abbreviation",
-  "postcode": "4-digit Australian postcode",
-  "generatedAt": "ISO timestamp",
+  "suburb": string,
+  "state": string,
+  "postcode": string,
+  "generatedAt": string,
   "summary": "Top-level practical assessment in 2-4 sentences.",
   "briefs": {
     "market": "One-sentence summary of market conditions (max ~120 chars).",
@@ -118,162 +110,96 @@ JSON shape:
     "infrastructure": "One-sentence summary of transit/amenity access (max ~120 chars)."
   },
   "notFoundReason": "Only present when exists is false.",
-  "suggestedSuburb": "Likely intended suburb or town. Only present when exists is false and a likely correction exists.",
-  "suggestedState": "Likely intended Australian state or territory abbreviation. Only present when exists is false and a likely correction exists.",
+  "suggestedSuburb": "Only present when exists is false and a correction exists.",
+  "suggestedState": "Only present when exists is false and a correction exists.",
   "marketNarrative": "Short market conditions paragraph.",
   "marketRows": [
-    { "propertyType": "Houses", "medianPrice": "AUD $...", "twelveMonthGrowth": "SUBURB-SPECIFIC estimate from your knowledge of this suburb's local sales data - NOT the state benchmark figure. Express as a range if uncertain, e.g. '+1% to +4%'.", "fiveYearGrowth": "SUBURB-SPECIFIC 5-year cumulative estimate for this suburb - NOT the state benchmark. E.g. '+12% to +22%'.", "medianWeeklyRent": "AUD $...", "grossYield": "...%" },
-    { "propertyType": "Units / Townhouses", "medianPrice": "AUD $...", "twelveMonthGrowth": "SUBURB-SPECIFIC estimate - NOT the state benchmark.", "fiveYearGrowth": "SUBURB-SPECIFIC 5-year estimate - NOT the state benchmark.", "medianWeeklyRent": "AUD $...", "grossYield": "...%" }
+    { "propertyType": "Houses", "medianPrice": string, "twelveMonthGrowth": "SUBURB-SPECIFIC estimate - not the state average. Use a range if uncertain, e.g. '+1% to +4%'.", "fiveYearGrowth": "SUBURB-SPECIFIC 5-year cumulative - not the state average.", "medianWeeklyRent": string, "grossYield": string },
+    { "propertyType": "Units / Townhouses", "medianPrice": string, "twelveMonthGrowth": "SUBURB-SPECIFIC estimate.", "fiveYearGrowth": "SUBURB-SPECIFIC 5-year cumulative.", "medianWeeklyRent": string, "grossYield": string }
   ],
-  "stateMedianGrowth": "BENCHMARK DISPLAY ONLY - use the exact 12-month figure from the AUTHORITATIVE BENCHMARK DATA table above for the suburb's state. E.g. '+2.5%'. Do not use this figure in marketRows.",
-  "capitalCityGrowth": "BENCHMARK DISPLAY ONLY - use the exact 12-month figure from the AUTHORITATIVE BENCHMARK DATA table above. Prefix with the capital city name, e.g. 'Greater Melbourne +2.5%'. For ACT use 'Greater Canberra'; for NT use 'Greater Darwin'; for TAS use 'Greater Hobart'. Do not use this figure in marketRows.",
-  "stateMedianGrowth5yr": "BENCHMARK DISPLAY ONLY - use the exact 5-year cumulative figure from the AUTHORITATIVE BENCHMARK DATA table above for the suburb's state, e.g. '+18% cumulative'. Do not use this figure in marketRows.",
-  "capitalCityGrowth5yr": "BENCHMARK DISPLAY ONLY - use the exact 5-year cumulative figure from the AUTHORITATIVE BENCHMARK DATA table above. Prefix with the capital city name, e.g. 'Greater Melbourne +18% cumulative'. Do not use this figure in marketRows.",
   "climate": {
     "summerAverages": "Average high and low temperatures plus seasonal behaviour.",
     "winterAverages": "Average high and low temperatures plus rainfall/cloud/frost behaviour.",
     "airQuality": {
-      "overallRating": "One of: Low, Medium, High, Very High (Low = cleanest)",
-      "overallSummary": "1-2 sentence summary of the suburb's typical air quality and any seasonal variation.",
-      "particulateMatter": "Typical PM2.5/PM10 levels, sources (traffic, industry, bushfire smoke) and health context.",
-      "particulateMatterLevel": "One of: Low, Medium, High, Very High",
-      "ozone": "Ground-level ozone risk, seasonal peaks, and any health advisories.",
-      "ozoneLevel": "One of: Low, Medium, High, Very High",
-      "pollen": "Pollen season severity, dominant plant species, and impact on allergy sufferers.",
-      "pollenLevel": "One of: Low, Medium, High, Very High",
-      "industrialPollution": "Nearby industrial or traffic pollution sources and their impact on air quality.",
-      "industrialPollutionLevel": "One of: Low, Medium, High, Very High"
+      "overallRating": LEVEL,
+      "overallSummary": "1-2 sentences on typical air quality and seasonal variation.",
+      "particulateMatter": "PM2.5/PM10 levels, sources, health context.",
+      "particulateMatterLevel": LEVEL,
+      "ozone": "Ground-level ozone risk, seasonal peaks, health advisories.",
+      "ozoneLevel": LEVEL,
+      "pollen": "Pollen season severity, dominant species, allergy impact.",
+      "pollenLevel": LEVEL,
+      "industrialPollution": "Nearby pollution sources and air quality impact.",
+      "industrialPollutionLevel": LEVEL
     },
     "noise": {
-      "flightPath": "Is the suburb under a flight path? Use Airservices Australia flight path data first, then state which airport, runway approach, frequency of overflights, and estimated noise level.",
-      "flightPathLevel": "One of: Low, Medium, High, Very High. If flight path status is uncertain or inconclusive, use Low and state the uncertainty in caveats.",
-      "railNoise": "Proximity to train or tram lines and resulting noise impact on residents.",
-      "railNoiseLevel": "One of: Low, Medium, High, Very High",
-      "roadNoise": "Proximity to major roads, freeways or arterials and traffic noise impact.",
-      "roadNoiseLevel": "One of: Low, Medium, High, Very High",
-      "industrialZones": "Nearby industrial, port, or manufacturing zones and any associated noise or air quality impact.",
-      "industrialZonesLevel": "One of: Low, Medium, High, Very High",
-      "overallRating": "One of: Low, Medium, High, Very High",
-      "overallSummary": "1-2 sentence summary of the suburb's overall noise and environmental amenity."
+      "flightPath": "Airport, runway approach, overflight frequency and noise level.",
+      "flightPathLevel": LEVEL,
+      "railNoise": "Proximity to train/tram lines and noise impact.",
+      "railNoiseLevel": LEVEL,
+      "roadNoise": "Proximity to major roads/freeways and traffic noise.",
+      "roadNoiseLevel": LEVEL,
+      "industrialZones": "Nearby industrial/port zones and noise impact.",
+      "industrialZonesLevel": LEVEL,
+      "overallRating": LEVEL,
+      "overallSummary": "1-2 sentences on overall noise and environmental amenity."
     },
     "wind": {
-      "overallRating": "One of: Low, Medium, High, Very High (Low = calm/sheltered, Very High = frequently windy/exposed)",
-      "overallSummary": "1-2 sentences describing the suburb's typical wind exposure and any notable seasonal patterns.",
-      "predominantDirection": "The most common wind direction, e.g. 'North-westerly'.",
-      "averageSpeedKmh": 15,
-      "seasonalVariation": "Description of how wind varies by season, including any strong wind events.",
-      "directions": [
-        { "direction": "N",  "frequency": 12, "avgSpeedKmh": 14 },
-        { "direction": "NE", "frequency": 8,  "avgSpeedKmh": 12 },
-        { "direction": "E",  "frequency": 10, "avgSpeedKmh": 11 },
-        { "direction": "SE", "frequency": 9,  "avgSpeedKmh": 13 },
-        { "direction": "S",  "frequency": 11, "avgSpeedKmh": 15 },
-        { "direction": "SW", "frequency": 18, "avgSpeedKmh": 20 },
-        { "direction": "W",  "frequency": 20, "avgSpeedKmh": 22 },
-        { "direction": "NW", "frequency": 12, "avgSpeedKmh": 16 }
-      ]
+      "overallRating": LEVEL,
+      "overallSummary": "1-2 sentences on wind exposure and seasonal patterns.",
+      "predominantDirection": string,
+      "averageSpeedKmh": number,
+      "seasonalVariation": "How wind varies by season.",
+      "directions": [{ "direction": string, "frequency": number, "avgSpeedKmh": number }]
     }
   },
   "crime": {
-    "narrative": "Crime and safety analysis with LGA, common incident types, and practical safety interpretation.",
-    "insuranceImpact": "How crime and risk levels affect home, contents and car insurance in this suburb. Mention relevant factors like theft rates, flood/fire risk, and postcode loading.",
-    "estimatedAnnualPremiums": {
-      "homeBuilding": "AUD $X,XXX - $X,XXX",
-      "homeContents": "AUD $XXX - $X,XXX",
-      "carComprehensive": "AUD $XXX - $X,XXX"
-    },
-    "crimeTypes": [
-      { "label": "Theft", "level": "Medium" },
-      { "label": "Assault", "level": "Low" },
-      { "label": "Break & Enter", "level": "Low" },
-      { "label": "Vandalism", "level": "Medium" },
-      { "label": "Drug offences", "level": "Low" },
-      { "label": "Vehicle theft", "level": "Medium" }
-    ],
-    "naturalRisks": [
-      { "label": "Bushfire", "level": "Low", "note": "1-sentence factual note citing BAL zone, vegetation interface, or planning overlay." },
-      { "label": "Flood", "level": "Medium", "note": "1-sentence factual note citing flood mapping, waterway proximity, or drainage issues." },
-      { "label": "Storm/Hail", "level": "Medium", "note": "1-sentence factual note on storm frequency or hail exposure for the region." },
-      { "label": "Earthquake", "level": "Low", "note": "1-sentence factual note on seismic zone classification." },
-      { "label": "Coastal Erosion", "level": "Low", "note": "Include only if the suburb is coastal or near tidal waterways. Omit otherwise." },
-      { "label": "Landslide", "level": "Low", "note": "Include only if the suburb has notable topographic relief or instability. Omit otherwise." }
-    ]
+    "narrative": "Crime and safety analysis with LGA, incident types, and practical interpretation.",
+    "insuranceImpact": "How crime and risk affect home, contents and car insurance. Mention theft rates, flood/fire risk, postcode loading.",
+    "estimatedAnnualPremiums": { "homeBuilding": string, "homeContents": string, "carComprehensive": string },
+    "crimeTypes": [{ "label": string, "level": LEVEL }],
+    "naturalRisks": [{ "label": string, "level": LEVEL, "note": "1-sentence factual note." }]
   },
   "infrastructure": {
     "transit": "Train, bus, road and commute context.",
     "education": "Primary, secondary, tertiary and catchment notes.",
-    "lifestyle": "Retail, dining, parks, health, culture, religious facilities (churches, mosques, temples, synagogues etc.) and daily amenity.",
+    "lifestyle": "Retail, dining, parks, health, culture, religious facilities and daily amenity.",
     "demographic": "Dominant resident profiles and census-style context.",
-    "trainStations": [{ "name": "Station name", "lines": "Line name(s)", "distanceKm": 1.2 }],  // List ALL train or metro stations within 4km of the suburb centre. distanceKm is the approximate straight-line distance from the suburb centre to the station.
-    "tramStops": "Description of tram stop availability, or null if not applicable.",
+    "trainStations": [{ "name": string, "lines": string, "distanceKm": number }],
+    "tramStops": "Tram stop availability description, or null.",
     "busAvailability": "One of: Excellent, Good, Limited, None",
-    "majorRoads": ["Nearest freeway or arterial road name and approximate distance"],
-    "cbdDistanceKm": 12,
-    "cbdCommuteMinutes": 25,
-    "suburbLat": -37.123,
-    "suburbLng": 144.456,
-    "primarySchools": 3,
-    "secondarySchools": 1,
-    "shoppingPrecincts": 2,
-    "parks": 5,
-    "medicalCentres": 2,
-    "pointsOfInterest": [
-      { "icon": "🏛", "label": "Notable landmark or facility name" },
-      { "icon": "⛪", "label": "Church / mosque / temple name if notable" }
-    ]
+    "majorRoads": [string],
+    "cbdDistanceKm": number,
+    "cbdCommuteMinutes": number,
+    "suburbLat": number,
+    "suburbLng": number,
+    "primarySchools": number,
+    "secondarySchools": number,
+    "shoppingPrecincts": number,
+    "parks": number,
+    "medicalCentres": number,
+    "pointsOfInterest": [{ "icon": string, "label": string }]
   },
   "demographics": {
     "summary": "Census-style population and resident profile summary.",
-    "population": "Approximate population if known.",
-    "medianAge": "Approximate median age if known.",
-    "ageGroups": [
-      { "label": "0-14", "value": 18 },
-      { "label": "15-24", "value": 12 },
-      { "label": "25-44", "value": 31 },
-      { "label": "45-64", "value": 24 },
-      { "label": "65+", "value": 15 }
-    ],
-    "householdTypes": [
-      { "label": "Family households", "value": 68 },
-      { "label": "Single-person households", "value": 24 },
-      { "label": "Group households", "value": 8 }
-    ],
-    "tenureTypes": [
-      { "label": "Owned outright", "value": 32 },
-      { "label": "Mortgage", "value": 38 },
-      { "label": "Rented", "value": 30 }
-    ],
-    "countryOfOrigin": [
-      { "label": "Australia", "value": 68 },
-      { "label": "England", "value": 5 },
-      { "label": "India", "value": 4 },
-      { "label": "China", "value": 3 },
-      { "label": "Other", "value": 20 }
-    ],
-    "residentProfiles": [
-      { "label": "Families", "value": 35 },
-      { "label": "Professionals", "value": 25 },
-      { "label": "Retirees / Elderly", "value": 15 },
-      { "label": "Students", "value": 10 },
-      { "label": "Singles", "value": 10 },
-      { "label": "Other", "value": 5 }
-    ],
-    "religion": [
-      { "label": "No religion", "value": 38 },
-      { "label": "Catholic", "value": 20 },
-      { "label": "Anglican", "value": 10 },
-      { "label": "Islam", "value": 5 },
-      { "label": "Buddhism", "value": 4 },
-      { "label": "Hinduism", "value": 3 },
-      { "label": "Other Christian", "value": 10 },
-      { "label": "Other", "value": 10 }
-    ]
+    "population": string,
+    "medianAge": string,
+    "ageGroups": [{ "label": string, "value": number }],
+    "householdTypes": [{ "label": string, "value": number }],
+    "tenureTypes": [{ "label": string, "value": number }],
+    "countryOfOrigin": [{ "label": string, "value": number }],
+    "residentProfiles": [{ "label": string, "value": number }],
+    "religion": [{ "label": string, "value": number }]
   },
-  "caveats": ["Any uncertainty, unavailable fresh data, or source limitation."],
-  "briefCaveats": ["Short one-line caveat statements suitable for compact UI."],
-  "references": ["Named data source, publication, or public agency used or recommended for verification, including a URL when available. For ABS Census data, always include the specific census year used, e.g. 'Australian Bureau of Statistics, Census of Population and Housing 2021'."]
+  "caveats": [string],
+  "briefCaveats": [string],
+  "references": ["Named source with URL where available. For ABS Census always include the year, e.g. 'ABS Census of Population and Housing 2021'."]
 }
 
+Notes:
+- trainStations: list ALL stations within 4km of suburb centre. distanceKm = straight-line distance from suburb centre.
+- crimeTypes labels: Theft, Assault, Break & Enter, Vandalism, Drug offences, Vehicle theft.
+- demographics arrays must use these exact labels - ageGroups: 0-14, 15-24, 25-44, 45-64, 65+. householdTypes: Family households, Single-person households, Group households. tenureTypes: Owned outright, Mortgage, Rented.
 `
 
 export const callLlm = async (settings: LlmSettings, query: string, homelyContext?: string, liveBenchmarks?: StateBenchmarks): Promise<Review> => {
@@ -296,7 +222,7 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
             input: [{ role: 'user', content: prompt }],
             text: { format: { type: 'json_object' }, verbosity: 'low' },
             reasoning: { effort: 'low' },
-            max_output_tokens: 12000,
+            max_output_tokens: 7000,
           }),
         },
         controller.signal,
@@ -325,7 +251,7 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.2, responseMimeType: 'application/json', maxOutputTokens: 12000 },
+            generationConfig: { temperature: 0.2, responseMimeType: 'application/json', maxOutputTokens: 7000 },
             ...(enableSearchTool ? { tools: [{ google_search: {} }] } : {}),
           }),
         },
@@ -367,7 +293,7 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
           body: JSON.stringify({
             model: settings.anthropicModel,
             temperature: 0.2,
-            max_tokens: 12000,
+            max_tokens: 7000,
             messages: [{ role: 'user', content: prompt }],
           }),
         },
@@ -395,7 +321,7 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
             temperature: 0.2,
             messages: [{ role: 'user', content: prompt }],
             response_format: { type: 'json_object' },
-            max_tokens: 12000,
+            max_tokens: 7000,
           }),
         },
         controller.signal,
@@ -421,7 +347,7 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
           temperature: 0.2,
           messages: [{ role: 'user', content: prompt }],
           response_format: { type: 'json_object' },
-          max_completion_tokens: 12000,
+          max_completion_tokens: 7000,
         }),
       },
       controller.signal,
