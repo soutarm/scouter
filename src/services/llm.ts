@@ -92,7 +92,7 @@ NATURAL HAZARD RATING RUBRIC - apply these criteria consistently across all subu
 - Coastal Erosion: Omit unless the suburb is coastal or tidal. Low = stable coastline. Medium = some erosion history. High = active documented erosion.
 - Landslide:   Omit unless the suburb has notable topographic relief. Low = minor slopes, no documented instability. Medium = steep terrain with some documented slippage. High = known landslide history or formal geotechnical designation.
 
-AUTHORITATIVE BENCHMARK DATA (PropTrack HPI, April 2026 - use these exact figures for the benchmark fields):
+AUTHORITATIVE BENCHMARK DATA (PropTrack HPI, April 2026 - use these exact figures ONLY for the stateMedianGrowth, capitalCityGrowth, stateMedianGrowth5yr, capitalCityGrowth5yr display fields. Do NOT copy these into marketRows - marketRows must contain suburb-specific estimates, not state averages):
 State | 12-month annual growth | 5-year cumulative growth
 NSW   | +6.5%                  | +32% cumulative
 VIC   | +2.5%                  | +18% cumulative
@@ -122,13 +122,13 @@ JSON shape:
   "suggestedState": "Likely intended Australian state or territory abbreviation. Only present when exists is false and a likely correction exists.",
   "marketNarrative": "Short market conditions paragraph.",
   "marketRows": [
-    { "propertyType": "Houses", "medianPrice": "AUD $...", "twelveMonthGrowth": "+...%", "fiveYearGrowth": "+...%", "medianWeeklyRent": "AUD $...", "grossYield": "...%" },
-    { "propertyType": "Units / Townhouses", "medianPrice": "AUD $...", "twelveMonthGrowth": "...%", "fiveYearGrowth": "+...%", "medianWeeklyRent": "AUD $...", "grossYield": "...%" }
+    { "propertyType": "Houses", "medianPrice": "AUD $...", "twelveMonthGrowth": "SUBURB-SPECIFIC estimate from your knowledge of this suburb's local sales data - NOT the state benchmark figure. Express as a range if uncertain, e.g. '+1% to +4%'.", "fiveYearGrowth": "SUBURB-SPECIFIC 5-year cumulative estimate for this suburb - NOT the state benchmark. E.g. '+12% to +22%'.", "medianWeeklyRent": "AUD $...", "grossYield": "...%" },
+    { "propertyType": "Units / Townhouses", "medianPrice": "AUD $...", "twelveMonthGrowth": "SUBURB-SPECIFIC estimate - NOT the state benchmark.", "fiveYearGrowth": "SUBURB-SPECIFIC 5-year estimate - NOT the state benchmark.", "medianWeeklyRent": "AUD $...", "grossYield": "...%" }
   ],
-  "stateMedianGrowth": "Use the exact 12-month figure from the AUTHORITATIVE BENCHMARK DATA table above for the suburb's state. Display as a single value, e.g. '+2.5%'.",
-  "capitalCityGrowth": "Use the exact 12-month figure from the AUTHORITATIVE BENCHMARK DATA table above. Prefix with the capital city name, e.g. 'Greater Melbourne +2.5%'. For ACT use 'Greater Canberra'; for NT use 'Greater Darwin'; for TAS use 'Greater Hobart'.",
-  "stateMedianGrowth5yr": "Use the exact 5-year cumulative figure from the AUTHORITATIVE BENCHMARK DATA table above for the suburb's state, e.g. '+18% cumulative'.",
-  "capitalCityGrowth5yr": "Use the exact 5-year cumulative figure from the AUTHORITATIVE BENCHMARK DATA table above. Prefix with the capital city name, e.g. 'Greater Melbourne +18% cumulative'.",
+  "stateMedianGrowth": "BENCHMARK DISPLAY ONLY - use the exact 12-month figure from the AUTHORITATIVE BENCHMARK DATA table above for the suburb's state. E.g. '+2.5%'. Do not use this figure in marketRows.",
+  "capitalCityGrowth": "BENCHMARK DISPLAY ONLY - use the exact 12-month figure from the AUTHORITATIVE BENCHMARK DATA table above. Prefix with the capital city name, e.g. 'Greater Melbourne +2.5%'. For ACT use 'Greater Canberra'; for NT use 'Greater Darwin'; for TAS use 'Greater Hobart'. Do not use this figure in marketRows.",
+  "stateMedianGrowth5yr": "BENCHMARK DISPLAY ONLY - use the exact 5-year cumulative figure from the AUTHORITATIVE BENCHMARK DATA table above for the suburb's state, e.g. '+18% cumulative'. Do not use this figure in marketRows.",
+  "capitalCityGrowth5yr": "BENCHMARK DISPLAY ONLY - use the exact 5-year cumulative figure from the AUTHORITATIVE BENCHMARK DATA table above. Prefix with the capital city name, e.g. 'Greater Melbourne +18% cumulative'. Do not use this figure in marketRows.",
   "climate": {
     "summerAverages": "Average high and low temperatures plus seasonal behaviour.",
     "winterAverages": "Average high and low temperatures plus rainfall/cloud/frost behaviour.",
