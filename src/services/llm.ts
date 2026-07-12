@@ -146,7 +146,7 @@ JSON shape:
     },
     "noise": {
       "flightPath": "Is the suburb under a flight path? Use Airservices Australia flight path data first, then state which airport, runway approach, frequency of overflights, and estimated noise level.",
-      "flightPathLevel": "One of: Low, Medium, High, Very High. If flight path status is uncertain, do not use Low; use Medium and state uncertainty in caveats.",
+      "flightPathLevel": "One of: Low, Medium, High, Very High. If flight path status is uncertain or inconclusive, use Low and state the uncertainty in caveats.",
       "railNoise": "Proximity to train or tram lines and resulting noise impact on residents.",
       "railNoiseLevel": "One of: Low, Medium, High, Very High",
       "roadNoise": "Proximity to major roads, freeways or arterials and traffic noise impact.",
