@@ -631,6 +631,13 @@ input:disabled {
   line-height: 1;
 }
 
+.settings-version {
+  color: #b0bdb2;
+  font-size: 0.68rem;
+  line-height: 1;
+  margin-left: auto;
+}
+
 .cache-pill {
   align-items: center;
   border-radius: 999px;
