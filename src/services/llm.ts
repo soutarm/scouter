@@ -84,6 +84,14 @@ ${homelyContext ? `\nThe following is community-sourced context from Homely.com.
 Return JSON only. Do not include markdown fences. Use current 2026 context where possible. Use AUD for money. Do not use em dashes or en dashes anywhere in the JSON output. Use a plain hyphen (-) instead of any dash character in price ranges and text.
 For flight path assessment in climate.noise.flightPath and climate.noise.flightPathLevel, source flight path information from Airservices Australia first: https://aircraftnoise.airservicesaustralia.com/category/what-are-the-flight-paths-in-my-area/. Do not state that a suburb is not under a flight path unless this is explicitly supported by that source. If this source is unavailable or unclear for the suburb, say so explicitly in caveats and use a conservative uncertainty statement instead of declaring no flight path impact.
 
+NATURAL HAZARD RATING RUBRIC - apply these criteria consistently across all suburbs. Each rating must reflect an objective, verifiable characteristic, not a subjective impression:
+- Bushfire:    Low = urban area with minimal vegetation interface, BAL-LOW or no designation. Medium = leafy suburban interface or bushland proximity, BAL-12.5 to BAL-19 likely on some blocks. High = in or adjacent to a designated bushfire-prone area, BAL-29+. Very High = BAL-40 or Flame Zone.
+- Flood:       Low = no mapped flood zone, no significant waterway proximity, well-drained. Medium = within or near a 1-in-100-year flood overlay, or local drainage issues documented. High = significant portion of suburb in a flood zone or frequently inundated. Very High = high-risk floodplain with regular inundation.
+- Storm/Hail:  Low = sheltered or inland region, low severe storm frequency. Medium = standard southeastern Australian exposure (Melbourne, Sydney, SE QLD baseline - most suburbs). High = known hail corridor or high-frequency severe storm region. Very High = extreme exposure (NT cyclone fringe, SE QLD hail belt core).
+- Earthquake:  Low = standard eastern Australia low-seismic zone (default for most of VIC, NSW, QLD, SA, TAS). Medium = near a known fault or moderate-seismic region. High = active fault zone. Very High = high-risk seismic zone.
+- Coastal Erosion: Omit unless the suburb is coastal or tidal. Low = stable coastline. Medium = some erosion history. High = active documented erosion.
+- Landslide:   Omit unless the suburb has notable topographic relief. Low = minor slopes, no documented instability. Medium = steep terrain with some documented slippage. High = known landslide history or formal geotechnical designation.
+
 AUTHORITATIVE BENCHMARK DATA (PropTrack HPI, April 2026 - use these exact figures for the benchmark fields):
 State | 12-month annual growth | 5-year cumulative growth
 NSW   | +6.5%                  | +32% cumulative
@@ -183,10 +191,10 @@ JSON shape:
       { "label": "Vehicle theft", "level": "Medium" }
     ],
     "naturalRisks": [
-      { "label": "Bushfire", "level": "Low", "note": "Optional 1-sentence context about fire risk, vegetation type, or BAL rating if relevant." },
-      { "label": "Flood", "level": "Medium", "note": "Optional 1-sentence context about flood zone, creek proximity, or FEMA/state flood mapping." },
-      { "label": "Storm/Hail", "level": "Medium", "note": "Optional 1-sentence context about severe weather exposure." },
-      { "label": "Earthquake", "level": "Low", "note": "Optional 1-sentence context about seismic zone or historical activity." },
+      { "label": "Bushfire", "level": "Low", "note": "1-sentence factual note citing BAL zone, vegetation interface, or planning overlay." },
+      { "label": "Flood", "level": "Medium", "note": "1-sentence factual note citing flood mapping, waterway proximity, or drainage issues." },
+      { "label": "Storm/Hail", "level": "Medium", "note": "1-sentence factual note on storm frequency or hail exposure for the region." },
+      { "label": "Earthquake", "level": "Low", "note": "1-sentence factual note on seismic zone classification." },
       { "label": "Coastal Erosion", "level": "Low", "note": "Include only if the suburb is coastal or near tidal waterways. Omit otherwise." },
       { "label": "Landslide", "level": "Low", "note": "Include only if the suburb has notable topographic relief or instability. Omit otherwise." }
     ]
