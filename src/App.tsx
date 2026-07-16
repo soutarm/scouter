@@ -74,13 +74,8 @@ const loadSettings = (): LlmSettings => {
     if (!raw) return defaultSettings
     const parsed = JSON.parse(raw) as Partial<LlmSettings>
     const merged = { ...defaultSettings, ...parsed }
-    // Anthropic is only available in local dev - reset to gemini if loaded in production
-    const provider = (merged.provider === 'anthropic' && !import.meta.env.DEV)
-      ? 'gemini'
-      : merged.provider
     return {
       ...merged,
-      provider,
       openAiModel: merged.openAiModel?.trim() || defaultSettings.openAiModel,
       geminiModel: merged.geminiModel?.trim() || defaultSettings.geminiModel,
       anthropicModel: merged.anthropicModel?.trim() || defaultSettings.anthropicModel,

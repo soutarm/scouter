@@ -157,7 +157,7 @@ export const SettingsPanel = ({
     >
       <option value="gemini">Google Gemini</option>
       <option value="openai">OpenAI GPT</option>
-      {import.meta.env.DEV && <option value="anthropic">Anthropic Claude</option>}
+      <option value="anthropic">Anthropic Claude</option>
       <option value="deepseek">DeepSeek</option>
       <option value="azure">Azure AI</option>
     </select>
@@ -219,7 +219,7 @@ export const SettingsPanel = ({
           Uses Google AI Studio&apos;s Gemini API directly from this browser. Keep keys restricted where possible.
         </p>
       </div>
-    ) : settings.provider === 'anthropic' && import.meta.env.DEV ? (
+    ) : settings.provider === 'anthropic' ? (
       <div className="settings-grid">
         <label>
           Model
@@ -250,7 +250,7 @@ export const SettingsPanel = ({
             onChange={(e) => onUpdate({ ...settings, anthropicApiKey: e.target.value })} />
         </label>
         <p className="settings-note settings-note--full">
-          Local dev only - uses the Scouter Worker to reach Anthropic (their API blocks browser requests).
+          Uses Anthropic&apos;s Messages API directly from this browser. Keep keys restricted where possible.
         </p>
       </div>
     ) : settings.provider === 'deepseek' ? (
@@ -359,7 +359,7 @@ export const SettingsPanel = ({
       <ProviderIcon ready={providerReady} label={providerReady ? `Ready · ${saveStatus}` : saveStatus} />
       <CacheIcon status={cacheStatus} />
       <span className="cache-pill-label">{cacheCount} {cacheCount === 1 ? 'location' : 'locations'}</span>
-      <span className="settings-version">v1.2.13</span>
+      <span className="settings-version">v1.2.14</span>
     </div>
   </section>
   )
