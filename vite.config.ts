@@ -15,6 +15,9 @@ export default defineConfig({
         target: 'https://api.anthropic.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/anthropic-api/, ''),
+        // Node's TLS stack may fail on machines with a corporate proxy (e.g. Zscaler).
+        // This only affects the local dev proxy - never runs in production.
+        secure: false,
       },
     },
   },
