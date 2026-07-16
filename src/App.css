@@ -170,13 +170,13 @@
   align-items: center;
   color: var(--brand-forest);
   display: inline-flex;
-  font-family: 'Newsreader', serif;
+  font-family: 'Figtree', sans-serif;
   font-size: clamp(2rem, 5.4vw, 4rem);
-  font-style: italic;
-  font-weight: 950;
+  font-style: normal;
+  font-weight: 900;
   gap: 0.025em;
-  letter-spacing: -0.055em;
-  line-height: 0.72;
+  letter-spacing: -0.04em;
+  line-height: 0.82;
   margin-bottom: 0;
   text-transform: uppercase;
   text-rendering: geometricPrecision;
