@@ -296,17 +296,23 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
       if (!settings.anthropicApiKey || !settings.anthropicModel) {
         throw new Error('Anthropic API key and model are required.')
       }
+      // In local dev, Vite proxies /anthropic-api -> https://api.anthropic.com
+      // (Anthropic blocks browser CORS so we can't call them directly)
       const response = await fetchWithRetry(
-        `${WORKER_BASE_URL}/llm/anthropic`,
+        '/anthropic-api/v1/messages',
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': settings.anthropicApiKey,
+            'anthropic-version': '2023-06-01',
+          },
           body: JSON.stringify({
-            apiKey: settings.anthropicApiKey,
             model: settings.anthropicModel,
-            maxTokens: 9000,
-            system: buildSystemPrompt(),
-            userMessage: buildUserMessage(query, homelyContext),
+            temperature: 0.2,
+            max_tokens: 9000,
+            system: [{ type: 'text', text: buildSystemPrompt(), cache_control: { type: 'ephemeral' } }],
+            messages: [{ role: 'user', content: buildUserMessage(query, homelyContext) }],
           }),
         },
         controller.signal,
