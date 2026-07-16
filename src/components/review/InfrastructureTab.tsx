@@ -118,7 +118,10 @@ const GroupCard = ({ icon, count, label, names, link, linkTitle, sublabel }: Gro
       </div>
       {names && names.length > 0 && (
         <ul className="infra-group-card-names">
-          {names.map((n) => <li key={n}>{n}</li>)}
+          {names.slice(0, 5).map((n) => <li key={n}>{n}</li>)}
+          {names.length > 5 && (
+            <li className="infra-group-card-names-more">+{names.length - 5} more</li>
+          )}
         </ul>
       )}
     </>
@@ -156,7 +159,7 @@ export const InfrastructureTab = ({ review }: Props) => {
   const allSchoolNames = [
     ...(infra.primarySchoolNames ?? []),
     ...(infra.secondarySchoolNames ?? []),
-  ].slice(0, 5)
+  ]
 
   return (
     <section className="tab-panel infra-panel">

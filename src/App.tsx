@@ -15,6 +15,7 @@ import {
   getSuggestedLocation,
 } from './services/location'
 import { callLlm, fetchBenchmarks, fetchHomelyContext } from './services/llm'
+import { fetchOsmContext } from './services/osm'
 import { buildShareUrl, clearSharedReviewHash, fetchReviewById, getSharedReviewFromHash, SHARED_REVIEW_HASH_KEY, storeReview } from './services/share'
 import { parseReferenceLink } from './services/reviewParser'
 import { SettingsPanel } from './components/SettingsPanel'
@@ -402,11 +403,12 @@ function App() {
       setHasSearched(true)
       setIsSearchOpen(false)
       try {
-        const [homelyContext, liveBenchmarks] = await Promise.all([
+        const [homelyContext, liveBenchmarks, osmContext] = await Promise.all([
           fetchHomelyContext(trimmedPlace, state),
           fetchBenchmarks(),
+          fetchOsmContext(trimmedPlace, state),
         ])
-        const result = await callLlm(settings, trimmedQuery, homelyContext, liveBenchmarks ?? undefined)
+        const result = await callLlm(settings, trimmedQuery, homelyContext, liveBenchmarks ?? undefined, osmContext ?? undefined)
         const nextReview = {
           ...result,
           generatedAt: result.generatedAt || new Date().toISOString(),
@@ -1015,7 +1017,7 @@ function App() {
   return (
     <main className="app-shell">
       <header className={`topbar${isSticky ? ' is-sticky' : ''}${showSettings ? ' settings-open' : ''}`}>
-        <h1 className="brand-wordmark" aria-label="Scouter">
+        <h1 className="brand-wordmark" aria-label="Scouter" onClick={() => { window.location.href = '/' }} style={{ cursor: 'pointer' }}>
           <span className="brand-letter brand-letter-s" aria-hidden="true">S</span>
           <span className="brand-letter" aria-hidden="true">C</span>
           <span className="brand-letter" aria-hidden="true">O</span>

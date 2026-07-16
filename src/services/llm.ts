@@ -128,17 +128,17 @@ JSON shape:
     "suburbLat": number,
     "suburbLng": number,
     "primarySchools": number,
-    "primarySchoolNames": ["Proper name only, e.g. 'Croydon Hills Primary School'. Up to 4."],
+    "primarySchoolNames": ["Proper name only, e.g. 'Croydon Hills Primary School'. Up to 8."],
     "secondarySchools": number,
-    "secondarySchoolNames": ["Proper name only, e.g. 'Oxley College'. Up to 4."],
+    "secondarySchoolNames": ["Proper name only, e.g. 'Oxley College'. Up to 8."],
     "shoppingPrecincts": number,
-    "shoppingPrecinctNames": ["Proper name only, e.g. 'Eastland Shopping Centre'. Up to 4. Never use descriptions."],
+    "shoppingPrecinctNames": ["Proper name only, e.g. 'Eastland Shopping Centre'. Up to 8. Never use descriptions."],
     "parks": number,
-    "parkNames": ["Proper name only, e.g. 'Warranwood Reserve'. Up to 4. No descriptions."],
+    "parkNames": ["Proper name only, e.g. 'Warranwood Reserve'. Up to 8. No descriptions."],
     "medicalCentres": number,
-    "medicalCentreNames": ["Proper name only, e.g. 'Croydon Medical Centre'. Up to 4. No descriptions."],
+    "medicalCentreNames": ["Proper name only, e.g. 'Croydon Medical Centre'. Up to 8. No descriptions."],
     "restaurants": number,
-    "restaurantNames": ["Up to 5 well-known or notable restaurant or cafe names in the suburb. Proper name only, e.g. 'The Pines Restaurant'. Omit if none known."],
+    "restaurantNames": ["Up to 8 well-known or notable restaurant or cafe names in the suburb. Proper name only, e.g. 'The Pines Restaurant'. Omit if none known."],
     "pointsOfInterest": [{ "icon": "single emoji character, e.g. 🏛️ 🎭 ⚽ 🏊", "label": string }]
   },
   "climate": {
@@ -207,18 +207,18 @@ Notes:
 - demographics arrays must use these exact labels - ageGroups: 0-14, 15-24, 25-44, 45-64, 65+. householdTypes: Family households, Single-person households, Group households. tenureTypes: Owned outright, Mortgage, Rented.
 `
 
-// Per-suburb user message - varies per request (suburb name + optional Homely context).
-export const buildUserMessage = (query: string, homelyContext?: string) => `Create a concise but useful suburb review for: ${query}.
+// Per-suburb user message - varies per request (suburb name + optional context blocks).
+export const buildUserMessage = (query: string, homelyContext?: string, osmContext?: string) => `Create a concise but useful suburb review for: ${query}.
 
 If you cannot confidently identify the Australian location, return "exists": false, use the requested place/state in "suburb" and "state", explain the issue in "summary" and "notFoundReason", and return empty or brief placeholder values for the remaining fields. If there is a likely intended Australian suburb or town, include it in "suggestedSuburb" and its state abbreviation in "suggestedState". For example, if the request is "Warragul, TAS", set "suggestedSuburb": "Warragul" and "suggestedState": "VIC".
-${homelyContext ? `\nThe following is community-sourced context from Homely.com.au for this suburb. Use it to enrich the demographics and lifestyle sections where relevant, but treat it as anecdotal and supplement with your own knowledge:\n<homely_context>\n${homelyContext}\n</homely_context>\n` : ''}`
+${osmContext ? `\nThe following infrastructure data was fetched live from OpenStreetMap for this suburb. Treat it as the authoritative ground truth for named infrastructure (roads, schools, parks, shops, medical centres). Use these exact names in the relevant fields (majorRoads, trainStations, primarySchoolNames, secondarySchoolNames, parkNames, shoppingPrecinctNames, medicalCentreNames). Do not invent names not present here:\n<osm_context>\n${osmContext}\n</osm_context>\n` : ''}${homelyContext ? `\nThe following is community-sourced context from Homely.com.au for this suburb. Use it to enrich the demographics and lifestyle sections where relevant, but treat it as anecdotal and supplement with your own knowledge:\n<homely_context>\n${homelyContext}\n</homely_context>\n` : ''}`
 
 // Combined prompt for providers that don't support a separate system field (OpenAI-compat, DeepSeek).
-export const buildPrompt = (query: string, homelyContext?: string) =>
-  `${buildSystemPrompt()}\n\n${buildUserMessage(query, homelyContext)}`
+export const buildPrompt = (query: string, homelyContext?: string, osmContext?: string) =>
+  `${buildSystemPrompt()}\n\n${buildUserMessage(query, homelyContext, osmContext)}`
 
-export const callLlm = async (settings: LlmSettings, query: string, homelyContext?: string, liveBenchmarks?: StateBenchmarks): Promise<Review> => {
-  const prompt = buildPrompt(query, homelyContext)
+export const callLlm = async (settings: LlmSettings, query: string, homelyContext?: string, liveBenchmarks?: StateBenchmarks, osmContext?: string): Promise<Review> => {
+  const prompt = buildPrompt(query, homelyContext, osmContext)
   const controller = new AbortController()
   const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
@@ -308,10 +308,9 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
           },
           body: JSON.stringify({
             model: settings.anthropicModel,
-            temperature: 0.2,
             max_tokens: 9000,
             system: [{ type: 'text', text: buildSystemPrompt(), cache_control: { type: 'ephemeral' } }],
-            messages: [{ role: 'user', content: buildUserMessage(query, homelyContext) }],
+            messages: [{ role: 'user', content: buildUserMessage(query, homelyContext, osmContext) }],
           }),
         },
         controller.signal,

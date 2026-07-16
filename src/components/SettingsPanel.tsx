@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { LlmSettings, ProviderKind } from '../types'
 
 type CacheStatus = 'stale' | 'busy' | 'updated'
@@ -14,53 +15,85 @@ type Props = {
   onClose?: () => void
 }
 
-const CUSTOM_GEMINI_MODEL = '__custom_gemini_model__'
-const CUSTOM_ANTHROPIC_MODEL = '__custom_anthropic_model__'
-const CUSTOM_OPENAI_MODEL = '__custom_openai_model__'
-const CUSTOM_DEEPSEEK_MODEL = '__custom_deepseek_model__'
+type ModelOption = { value: string; label: string }
 
-const openAiModelOptions = [
-  { value: 'gpt-5.5', label: 'GPT-5.5' },
-  { value: 'gpt-5.4', label: 'GPT-5.4' },
-  { value: 'gpt-5.4-mini', label: 'GPT-5.4 Mini' },
-  { value: 'gpt-5.4-nano', label: 'GPT-5.4 Nano' },
-  { value: 'gpt-5.1', label: 'GPT-5.1' },
-  { value: 'gpt-5.1-mini', label: 'GPT-5.1 Mini' },
+// Fallback lists used before a key is entered or if the fetch fails
+const FALLBACK_OPENAI: ModelOption[] = [
   { value: 'gpt-4.1', label: 'GPT-4.1' },
   { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
+  { value: 'gpt-4o', label: 'GPT-4o' },
 ]
 
-const geminiModelOptions = [
-  { value: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash (free)' },
-  { value: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro Preview' },
-  { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash Preview (free)' },
-  { value: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite (free)' },
-  { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (free)' },
-  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (free)' },
-  { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite (free)' },
+const FALLBACK_GEMINI: ModelOption[] = [
+  { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+  { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite' },
 ]
 
-const anthropicModelOptions = [
-  { value: 'claude-fable-5', label: 'Claude Fable 5' },
-  { value: 'claude-opus-4-8', label: 'Claude Opus 4.8' },
+const FALLBACK_ANTHROPIC: ModelOption[] = [
   { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
   { value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5' },
-  { value: 'claude-opus-4-7', label: 'Claude Opus 4.7' },
-  { value: 'claude-opus-4-6', label: 'Claude Opus 4.6' },
-  { value: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5' },
+  { value: 'claude-opus-4-5', label: 'Claude Opus 4.5' },
 ]
 
-const deepseekModelOptions = [
-  { value: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash' },
-  { value: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro' },
+const FALLBACK_DEEPSEEK: ModelOption[] = [
+  { value: 'deepseek-chat', label: 'DeepSeek Chat' },
+  { value: 'deepseek-reasoner', label: 'DeepSeek Reasoner' },
 ]
 
 const apiKeyLinks: Record<ProviderKind, { label: string; href: string }> = {
-  gemini: { label: 'Google Gemini API Key', href: 'https://aistudio.google.com/app/apikey' },
-  openai: { label: 'OpenAI GPT API Key', href: 'https://platform.openai.com/api-keys' },
+  gemini:    { label: 'Google Gemini API Key', href: 'https://aistudio.google.com/app/apikey' },
+  openai:    { label: 'OpenAI GPT API Key',    href: 'https://platform.openai.com/api-keys' },
   anthropic: { label: 'Anthropic Claude API Key', href: 'https://console.anthropic.com/settings/keys' },
-  deepseek: { label: 'DeepSeek API Key', href: 'https://platform.deepseek.com/api_keys' },
-  azure: { label: 'Azure AI API Key', href: 'https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/create-resource' },
+  deepseek:  { label: 'DeepSeek API Key',      href: 'https://platform.deepseek.com/api_keys' },
+  azure:     { label: 'Azure AI API Key',       href: 'https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/create-resource' },
+}
+
+// Fetch live model lists from provider APIs
+async function fetchOpenAiModels(apiKey: string, baseUrl: string): Promise<ModelOption[]> {
+  const base = baseUrl.replace(/\/$/, '') || 'https://api.openai.com'
+  const res = await fetch(`${base}/v1/models`, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+    signal: AbortSignal.timeout(8_000),
+  })
+  if (!res.ok) return []
+  const data = await res.json() as { data?: Array<{ id: string }> }
+  return (data.data ?? [])
+    .map(m => m.id)
+    .filter(id => /^gpt-|^o[1-9]/.test(id))
+    .sort((a, b) => b.localeCompare(a))
+    .map(id => ({ value: id, label: id }))
+}
+
+async function fetchAnthropicModels(apiKey: string): Promise<ModelOption[]> {
+  const res = await fetch('https://api.anthropic.com/v1/models', {
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    signal: AbortSignal.timeout(8_000),
+  })
+  if (!res.ok) return []
+  const data = await res.json() as { data?: Array<{ id: string; display_name?: string }> }
+  return (data.data ?? []).map(m => ({ value: m.id, label: m.display_name ?? m.id }))
+}
+
+async function fetchGeminiModels(apiKey: string): Promise<ModelOption[]> {
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}&pageSize=50`,
+    { signal: AbortSignal.timeout(8_000) },
+  )
+  if (!res.ok) return []
+  const data = await res.json() as { models?: Array<{ name: string; displayName?: string; supportedGenerationMethods?: string[] }> }
+  return (data.models ?? [])
+    .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+    .filter(m => m.name.includes('gemini'))
+    .map(m => ({
+      value: m.name.replace('models/', ''),
+      label: m.displayName ?? m.name.replace('models/', ''),
+    }))
+    .sort((a, b) => b.value.localeCompare(a.value))
 }
 
 const ProviderIcon = ({ ready, label }: { ready: boolean; label: string }) => (
@@ -96,7 +129,6 @@ const CacheIcon = ({ status }: { status: CacheStatus }) => {
       </svg>
     </span>
   )
-  // stale
   return (
     <span className="cache-pill cache-pill--stale" title="Cache ready" aria-label="Cache ready">
       <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -105,6 +137,16 @@ const CacheIcon = ({ status }: { status: CacheStatus }) => {
       </svg>
     </span>
   )
+}
+
+// Debounce a value by ms
+function useDebounced<T>(value: T, ms: number): T {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), ms)
+    return () => clearTimeout(t)
+  }, [value, ms])
+  return debounced
 }
 
 export const SettingsPanel = ({
@@ -118,11 +160,49 @@ export const SettingsPanel = ({
   onClearCurrentLocation,
   onClose,
 }: Props) => {
-  const isCustomOpenAiModel = !openAiModelOptions.some((option) => option.value === settings.openAiModel)
-  const isCustomGeminiModel = !geminiModelOptions.some((option) => option.value === settings.geminiModel)
-  const isCustomAnthropicModel = !anthropicModelOptions.some((option) => option.value === settings.anthropicModel)
-  const isCustomDeepseekModel = !deepseekModelOptions.some((option) => option.value === settings.deepseekModel)
-  const selectedApiKeyLink = apiKeyLinks[settings.provider]
+  const [openAiModels, setOpenAiModels] = useState<ModelOption[]>(FALLBACK_OPENAI)
+  const [geminiModels, setGeminiModels] = useState<ModelOption[]>(FALLBACK_GEMINI)
+  const [anthropicModels, setAnthropicModels] = useState<ModelOption[]>(FALLBACK_ANTHROPIC)
+  const [fetchingModels, setFetchingModels] = useState(false)
+  const lastFetchKey = useRef<string>('')
+
+  const debouncedOpenAiKey = useDebounced(settings.openAiApiKey, 800)
+  const debouncedGeminiKey = useDebounced(settings.geminiApiKey, 800)
+  const debouncedAnthropicKey = useDebounced(settings.anthropicApiKey, 800)
+
+  // Fetch models whenever the active provider's key changes (uses debounced keys to build cache key)
+  const doFetch = useCallback(async (provider: ProviderKind) => {
+    const fetchKey = `${provider}:${debouncedOpenAiKey}:${debouncedGeminiKey}:${debouncedAnthropicKey}:${settings.openAiBaseUrl}`
+    if (fetchKey === lastFetchKey.current) return
+    lastFetchKey.current = fetchKey
+
+    if (provider === 'openai' && debouncedOpenAiKey) {
+      setFetchingModels(true)
+      const models = await fetchOpenAiModels(debouncedOpenAiKey, settings.openAiBaseUrl)
+      if (models.length > 0) setOpenAiModels(models)
+      setFetchingModels(false)
+    } else if (provider === 'gemini' && debouncedGeminiKey) {
+      setFetchingModels(true)
+      const models = await fetchGeminiModels(debouncedGeminiKey)
+      if (models.length > 0) setGeminiModels(models)
+      setFetchingModels(false)
+    } else if (provider === 'anthropic' && debouncedAnthropicKey) {
+      setFetchingModels(true)
+      const models = await fetchAnthropicModels(debouncedAnthropicKey)
+      if (models.length > 0) setAnthropicModels(models)
+      setFetchingModels(false)
+    }
+  }, [debouncedOpenAiKey, debouncedGeminiKey, debouncedAnthropicKey, settings.openAiBaseUrl])
+
+  useEffect(() => {
+    doFetch(settings.provider)
+  }, [settings.provider, doFetch])
+
+  const isCustomOpenAiModel    = !openAiModels.some(o => o.value === settings.openAiModel)
+  const isCustomGeminiModel    = !geminiModels.some(o => o.value === settings.geminiModel)
+  const isCustomAnthropicModel = !anthropicModels.some(o => o.value === settings.anthropicModel)
+  const isCustomDeepseekModel  = !FALLBACK_DEEPSEEK.some(o => o.value === settings.deepseekModel)
+  const selectedApiKeyLink     = apiKeyLinks[settings.provider]
 
   return (
   <section
@@ -171,7 +251,7 @@ export const SettingsPanel = ({
         </label>
         <label>
           Deployment
-          <input placeholder="gpt-5.4-mini" value={settings.azureDeployment}
+          <input placeholder="gpt-4.1-mini" value={settings.azureDeployment}
             onChange={(e) => onUpdate({ ...settings, azureDeployment: e.target.value })} />
         </label>
         <label>
@@ -188,19 +268,22 @@ export const SettingsPanel = ({
     ) : settings.provider === 'gemini' ? (
       <div className="settings-grid">
         <label>
-          Model
+          API key
+          <input type="password" value={settings.geminiApiKey}
+            onChange={(e) => onUpdate({ ...settings, geminiApiKey: e.target.value })} />
+        </label>
+        <label>
+          Model{fetchingModels ? ' (loading…)' : ''}
           <select
             className="settings-provider-select"
-            value={isCustomGeminiModel ? CUSTOM_GEMINI_MODEL : settings.geminiModel}
+            value={isCustomGeminiModel ? '__custom__' : settings.geminiModel}
             onChange={(e) => {
-              const model = e.target.value
-              onUpdate({ ...settings, geminiModel: model === CUSTOM_GEMINI_MODEL ? '' : model })
+              const v = e.target.value
+              onUpdate({ ...settings, geminiModel: v === '__custom__' ? '' : v })
             }}
           >
-            {geminiModelOptions.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-            <option value={CUSTOM_GEMINI_MODEL}>Custom model</option>
+            {geminiModels.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            <option value="__custom__">Custom model</option>
           </select>
         </label>
         {isCustomGeminiModel && (
@@ -210,11 +293,6 @@ export const SettingsPanel = ({
               onChange={(e) => onUpdate({ ...settings, geminiModel: e.target.value })} />
           </label>
         )}
-        <label>
-          API key
-          <input type="password" value={settings.geminiApiKey}
-            onChange={(e) => onUpdate({ ...settings, geminiApiKey: e.target.value })} />
-        </label>
         <p className="settings-note settings-note--full">
           Uses Google AI Studio&apos;s Gemini API directly from this browser. Keep keys restricted where possible.
         </p>
@@ -222,19 +300,22 @@ export const SettingsPanel = ({
     ) : settings.provider === 'anthropic' ? (
       <div className="settings-grid">
         <label>
-          Model
+          API key
+          <input type="password" value={settings.anthropicApiKey}
+            onChange={(e) => onUpdate({ ...settings, anthropicApiKey: e.target.value })} />
+        </label>
+        <label>
+          Model{fetchingModels ? ' (loading…)' : ''}
           <select
             className="settings-provider-select"
-            value={isCustomAnthropicModel ? CUSTOM_ANTHROPIC_MODEL : settings.anthropicModel}
+            value={isCustomAnthropicModel ? '__custom__' : settings.anthropicModel}
             onChange={(e) => {
-              const model = e.target.value
-              onUpdate({ ...settings, anthropicModel: model === CUSTOM_ANTHROPIC_MODEL ? '' : model })
+              const v = e.target.value
+              onUpdate({ ...settings, anthropicModel: v === '__custom__' ? '' : v })
             }}
           >
-            {anthropicModelOptions.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-            <option value={CUSTOM_ANTHROPIC_MODEL}>Custom model</option>
+            {anthropicModels.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            <option value="__custom__">Custom model</option>
           </select>
         </label>
         {isCustomAnthropicModel && (
@@ -244,11 +325,6 @@ export const SettingsPanel = ({
               onChange={(e) => onUpdate({ ...settings, anthropicModel: e.target.value })} />
           </label>
         )}
-        <label>
-          API key
-          <input type="password" value={settings.anthropicApiKey}
-            onChange={(e) => onUpdate({ ...settings, anthropicApiKey: e.target.value })} />
-        </label>
         <p className="settings-note settings-note--full">
           Uses Anthropic&apos;s Messages API directly from this browser. Keep keys restricted where possible.
         </p>
@@ -256,19 +332,22 @@ export const SettingsPanel = ({
     ) : settings.provider === 'deepseek' ? (
       <div className="settings-grid">
         <label>
+          API key
+          <input type="password" value={settings.deepseekApiKey}
+            onChange={(e) => onUpdate({ ...settings, deepseekApiKey: e.target.value })} />
+        </label>
+        <label>
           Model
           <select
             className="settings-provider-select"
-            value={isCustomDeepseekModel ? CUSTOM_DEEPSEEK_MODEL : settings.deepseekModel}
+            value={isCustomDeepseekModel ? '__custom__' : settings.deepseekModel}
             onChange={(e) => {
-              const model = e.target.value
-              onUpdate({ ...settings, deepseekModel: model === CUSTOM_DEEPSEEK_MODEL ? '' : model })
+              const v = e.target.value
+              onUpdate({ ...settings, deepseekModel: v === '__custom__' ? '' : v })
             }}
           >
-            {deepseekModelOptions.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-            <option value={CUSTOM_DEEPSEEK_MODEL}>Custom model</option>
+            {FALLBACK_DEEPSEEK.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            <option value="__custom__">Custom model</option>
           </select>
         </label>
         {isCustomDeepseekModel && (
@@ -278,11 +357,6 @@ export const SettingsPanel = ({
               onChange={(e) => onUpdate({ ...settings, deepseekModel: e.target.value })} />
           </label>
         )}
-        <label>
-          API key
-          <input type="password" value={settings.deepseekApiKey}
-            onChange={(e) => onUpdate({ ...settings, deepseekApiKey: e.target.value })} />
-        </label>
         <p className="settings-note settings-note--full">
           Uses DeepSeek&apos;s Chat Completions API directly from this browser. Keep keys restricted where possible.
         </p>
@@ -295,33 +369,31 @@ export const SettingsPanel = ({
             onChange={(e) => onUpdate({ ...settings, openAiBaseUrl: e.target.value })} />
         </label>
         <label>
-          Model
+          API key
+          <input type="password" value={settings.openAiApiKey}
+            onChange={(e) => onUpdate({ ...settings, openAiApiKey: e.target.value })} />
+        </label>
+        <label>
+          Model{fetchingModels ? ' (loading…)' : ''}
           <select
             className="settings-provider-select"
-            value={isCustomOpenAiModel ? CUSTOM_OPENAI_MODEL : settings.openAiModel}
+            value={isCustomOpenAiModel ? '__custom__' : settings.openAiModel}
             onChange={(e) => {
-              const model = e.target.value
-              onUpdate({ ...settings, openAiModel: model === CUSTOM_OPENAI_MODEL ? '' : model })
+              const v = e.target.value
+              onUpdate({ ...settings, openAiModel: v === '__custom__' ? '' : v })
             }}
           >
-            {openAiModelOptions.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-            <option value={CUSTOM_OPENAI_MODEL}>Custom model</option>
+            {openAiModels.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            <option value="__custom__">Custom model</option>
           </select>
         </label>
         {isCustomOpenAiModel && (
           <label>
             Custom model
-            <input placeholder="openai-model-name" value={settings.openAiModel}
+            <input placeholder="model-name" value={settings.openAiModel}
               onChange={(e) => onUpdate({ ...settings, openAiModel: e.target.value })} />
           </label>
         )}
-        <label>
-          API key
-          <input type="password" value={settings.openAiApiKey}
-            onChange={(e) => onUpdate({ ...settings, openAiApiKey: e.target.value })} />
-        </label>
       </div>
     )}
 
@@ -359,7 +431,7 @@ export const SettingsPanel = ({
       <ProviderIcon ready={providerReady} label={providerReady ? `Ready · ${saveStatus}` : saveStatus} />
       <CacheIcon status={cacheStatus} />
       <span className="cache-pill-label">{cacheCount} {cacheCount === 1 ? 'location' : 'locations'}</span>
-      <span className="settings-version">v1.2.15</span>
+      <span className="settings-version">v1.2.18</span>
     </div>
   </section>
   )
