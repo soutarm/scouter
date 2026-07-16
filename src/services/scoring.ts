@@ -160,8 +160,9 @@ export const computePropertyScore = (review: Review, liveBenchmarks?: StateBench
 }
 
 // ── Safety score ─────────────────────────────────────────────────────────────
-// Based on crimeTypes levels.
-// Weights: Assault 2x, Break & Enter 2x, Vehicle theft 1.5x, others 1x.
+// Based on crimeTypes levels (70%) + naturalRisks levels (30%).
+// Crime weights: Assault 2x, Break & Enter 2x, Vehicle theft 1.5x, others 1x.
+// Natural risk weights: Bushfire 2x, Flood 2x, others 1x.
 // Low → 10, Medium → 5, High → 2, Very High → 1. Missing → 5.
 
 const CRIME_WEIGHTS: Record<string, number> = {
@@ -171,19 +172,45 @@ const CRIME_WEIGHTS: Record<string, number> = {
 }
 const DEFAULT_CRIME_WEIGHT = 1
 
+const NATURAL_RISK_WEIGHTS: Record<string, number> = {
+  'Bushfire': 2,
+  'Flood': 2,
+}
+const DEFAULT_NATURAL_RISK_WEIGHT = 1
+
 export const computeSafetyScore = (review: Review): number => {
   const types = review.crime.crimeTypes
-  if (!types?.length) return 5
+  const risks = review.crime.naturalRisks
 
-  let weightedSum = 0
-  let totalWeight = 0
-  for (const { label, level } of types) {
-    const w = CRIME_WEIGHTS[label] ?? DEFAULT_CRIME_WEIGHT
-    weightedSum += levelScore(level) * w
-    totalWeight += w
+  // Crime component
+  let crimeScore = 5
+  if (types?.length) {
+    let weightedSum = 0
+    let totalWeight = 0
+    for (const { label, level } of types) {
+      const w = CRIME_WEIGHTS[label] ?? DEFAULT_CRIME_WEIGHT
+      weightedSum += levelScore(level) * w
+      totalWeight += w
+    }
+    crimeScore = weightedSum / totalWeight
   }
 
-  return round1(clamp(weightedSum / totalWeight, 1, 10))
+  // Natural risk component
+  let naturalScore = 5
+  if (risks?.length) {
+    let weightedSum = 0
+    let totalWeight = 0
+    for (const { label, level } of risks) {
+      const w = NATURAL_RISK_WEIGHTS[label] ?? DEFAULT_NATURAL_RISK_WEIGHT
+      weightedSum += levelScore(level) * w
+      totalWeight += w
+    }
+    naturalScore = weightedSum / totalWeight
+  }
+
+  // Blend: 70% crime, 30% natural risk
+  const blended = crimeScore * 0.7 + naturalScore * 0.3
+  return round1(clamp(blended, 1, 10))
 }
 
 // ── Infrastructure score ──────────────────────────────────────────────────────
