@@ -419,6 +419,7 @@ function App() {
             ...result.infrastructure,
             ...(osmResult?.majorRoads.length ? { majorRoads: osmResult.majorRoads } : {}),
             ...(osmResult?.trainStations.length ? { trainStations: osmResult.trainStations } : {}),
+            ...(osmResult ? { suburbLat: osmResult.suburbLat, suburbLng: osmResult.suburbLng } : {}),
           },
         }
         setReview(nextReview)

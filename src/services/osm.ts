@@ -208,6 +208,9 @@ export type OsmResult = {
   trainStations: Array<{ name: string; lines: string; distanceKm: number }>
   /** Structured road list to directly override LLM output */
   majorRoads: string[]
+  /** Suburb centre coordinates derived from boundary bbox - more reliable than LLM-generated values */
+  suburbLat: number
+  suburbLng: number
 }
 
 /**
@@ -363,5 +366,7 @@ export async function fetchOsmContext(suburb: string, state: string): Promise<Os
     context: lines.join('\n'),
     trainStations,
     majorRoads: roads,
+    suburbLat: centreLat,
+    suburbLng: centreLon,
   }
 }
