@@ -23,8 +23,9 @@ type NominatimResult = {
 type OverpassElement = {
   type: 'node' | 'way' | 'relation'
   id: number
-  lat?: number
-  lon?: number
+  lat?: number   // present on nodes (out body)
+  lon?: number   // present on nodes (out body)
+  center?: { lat: number; lon: number }  // present on ways/relations (out center body)
   tags?: Record<string, string>
 }
 
@@ -93,14 +94,18 @@ async function overpassQuery(
   // Roads within suburb boundary
   way["highway"~"^(motorway|trunk|primary|secondary)$"](${sb});
 
-  // Train stations within 4km of suburb centre
+  // Train stations within 4km of suburb centre (nodes AND ways - some stations are mapped as ways)
   node["railway"="station"](${rb});
+  way["railway"="station"](${rb});
   node["railway"="halt"](${rb});
+  way["railway"="halt"](${rb});
 
   // Ferry terminals and water transport within 4km of suburb centre
   node["amenity"="ferry_terminal"](${rb});
   way["amenity"="ferry_terminal"](${rb});
+  way["route"="ferry"](${rb});
   relation["route"="ferry"](${rb});
+  relation["amenity"="ferry_terminal"](${rb});
 
   // Tram stops within suburb
   node["railway"="tram_stop"](${sb});
@@ -141,7 +146,7 @@ async function overpassQuery(
   node["leisure"~"^(sports_centre|stadium|swimming_pool|fitness_centre)$"](${sb});
   way["leisure"~"^(sports_centre|stadium|swimming_pool|fitness_centre)$"](${sb});
 );
-out center tags;
+out center body;
 `
 
   try {
@@ -186,21 +191,42 @@ const isSecondary = (el: OverpassElement): boolean => {
   return false
 }
 
+// Haversine distance in km between two lat/lng points
+const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+export type OsmResult = {
+  /** Prompt text block for LLM injection */
+  context: string
+  /** Structured station list to directly override LLM output */
+  trainStations: Array<{ name: string; lines: string; distanceKm: number }>
+  /** Structured road list to directly override LLM output */
+  majorRoads: string[]
+}
+
 /**
- * Fetches OSM infrastructure data for a suburb and returns a compact
- * grounding text block ready for LLM prompt injection.
+ * Fetches OSM infrastructure data for a suburb and returns structured data
+ * plus a grounding text block for the LLM prompt.
  * Returns null if geocoding fails (suburb not found).
  */
-export async function fetchOsmContext(suburb: string, state: string): Promise<string | null> {
+export async function fetchOsmContext(suburb: string, state: string): Promise<OsmResult | null> {
   const geo = await nominatimGeocode(suburb, state)
   if (!geo) return null
 
   // Suburb bbox: the administrative boundary with a tiny buffer (~100m) to catch edge features
   const suburbBbox = expandBbox(parseBbox(geo.boundingbox), 0.001)
 
-  // Station bbox: 4km radius from suburb centre to match the prompt instruction
-  const centreLat = parseFloat(geo.lat)
-  const centreLon = parseFloat(geo.lon)
+  // Derive suburb centre from the boundary bbox midpoint - more reliable than geo.lat/lon
+  // which can point to a specific feature (e.g. a train station) rather than the suburb centroid
+  const bbox = parseBbox(geo.boundingbox)
+  const centreLat = (bbox[0] + bbox[2]) / 2  // (s + n) / 2
+  const centreLon = (bbox[1] + bbox[3]) / 2  // (w + e) / 2
   const stationBbox = bboxFromCentre(centreLat, centreLon, 4)
 
   const elements = await overpassQuery(suburbBbox, stationBbox)
@@ -213,15 +239,38 @@ export async function fetchOsmContext(suburb: string, state: string): Promise<st
   )
   const roads = dedupe(roadElements.map(nameOf)).slice(0, 12)
 
-  // --- Train stations ---
-  const trainEls = elements.filter(el => el.tags?.railway === 'station' || el.tags?.railway === 'halt')
-  const trainStations = dedupe(trainEls.map(nameOf)).slice(0, 8)
+  // --- Train stations: structured with real distances ---
+  const trainElsRaw = elements.filter(el => el.tags?.railway === 'station' || el.tags?.railway === 'halt')
+  // Dedupe by name, keeping first occurrence (nodes have lat/lon, ways have center.lat/lon)
+  const seenStations = new Set<string>()
+  const trainStationStructured: Array<{ name: string; lines: string; distanceKm: number }> = []
+  for (const el of trainElsRaw) {
+    const name = nameOf(el)
+    if (!name || seenStations.has(name.toLowerCase())) continue
+    seenStations.add(name.toLowerCase())
+    const elLat = el.lat ?? el.center?.lat
+    const elLon = el.lon ?? el.center?.lon
+    const distanceKm = elLat != null && elLon != null
+      ? Math.round(haversineKm(centreLat, centreLon, elLat, elLon) * 10) / 10
+      : 0
+    const lines = el.tags?.['railway:line'] ?? el.tags?.network ?? ''
+    trainStationStructured.push({ name, lines, distanceKm })
+  }
+  // Sort by distance, cap at 8
+  trainStationStructured.sort((a, b) => a.distanceKm - b.distanceKm)
+  const trainStations = trainStationStructured.slice(0, 8)
+  const trainStationNames = trainStations.map(s => s.name)
 
   // --- Ferry terminals / water transport ---
   const ferryEls = elements.filter(el =>
     el.tags?.amenity === 'ferry_terminal' || el.tags?.route === 'ferry',
   )
-  const ferryServices = dedupe(ferryEls.map(nameOf)).slice(0, 4)
+  // Normalise directional route names like "Westgate Punt: Spotswood - Fishermans Bend" -> "Westgate Punt"
+  const ferryNameOf = (el: OverpassElement): string => {
+    const n = nameOf(el)
+    return n.includes(':') ? n.split(':')[0].trim() : n
+  }
+  const ferryServices = dedupe(ferryEls.map(ferryNameOf)).slice(0, 4)
 
   // --- Tram stops ---
   const tramEls = elements.filter(el => el.tags?.railway === 'tram_stop')

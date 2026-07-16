@@ -1262,7 +1262,27 @@ function App() {
 
       {isLoading && (
         <section className="busy-card" aria-live="polite">
-          <div className="spinner" />
+          <svg className="compass-spinner" viewBox="0 0 80 80" aria-hidden="true" fill="none">
+            {/* Outer ring */}
+            <circle cx="40" cy="40" r="36" stroke="#b8d9c4" strokeWidth="1.5" />
+            {/* Cardinal tick marks */}
+            <line x1="40" y1="4"  x2="40" y2="11" stroke="#7aad90" strokeWidth="2" strokeLinecap="round" />
+            <line x1="40" y1="69" x2="40" y2="76" stroke="#7aad90" strokeWidth="2" strokeLinecap="round" />
+            <line x1="4"  y1="40" x2="11" y2="40" stroke="#7aad90" strokeWidth="2" strokeLinecap="round" />
+            <line x1="69" y1="40" x2="76" y2="40" stroke="#7aad90" strokeWidth="2" strokeLinecap="round" />
+            {/* Intercardinal tick marks (shorter) */}
+            <line x1="14.5" y1="14.5" x2="19.5" y2="19.5" stroke="#b8d9c4" strokeWidth="1.5" strokeLinecap="round" />
+            <line x1="65.5" y1="14.5" x2="60.5" y2="19.5" stroke="#b8d9c4" strokeWidth="1.5" strokeLinecap="round" />
+            <line x1="14.5" y1="65.5" x2="19.5" y2="60.5" stroke="#b8d9c4" strokeWidth="1.5" strokeLinecap="round" />
+            <line x1="65.5" y1="65.5" x2="60.5" y2="60.5" stroke="#b8d9c4" strokeWidth="1.5" strokeLinecap="round" />
+            {/* Needle - north (dark, points up) */}
+            <g className="compass-needle">
+              <polygon points="40,12 43.5,40 40,47 36.5,40" fill="#1f4d36" />
+              <polygon points="40,68 43.5,40 40,47 36.5,40" fill="#b8d9c4" />
+            </g>
+            {/* Centre dot */}
+            <circle cx="40" cy="40" r="3.5" fill="#1f4d36" />
+          </svg>
           <div className="busy-copy"><h2>{busyMessages[busyMessageIndex]}</h2></div>
           <BusyIconMorph activeIndex={busyMessageIndex} />
         </section>
