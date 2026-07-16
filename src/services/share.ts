@@ -5,9 +5,13 @@ import type { DemographicDatum, MarketRow, Review, ReviewScores } from '../types
 // ---------------------------------------------------------------------------
 // Worker URL - set via Vite env var at build time, falls back to prod URL
 // ---------------------------------------------------------------------------
+const DEFAULT_WORKER_URL = import.meta.env.DEV
+  ? 'http://localhost:8787'
+  : 'https://scouter-reviews.soutarm.workers.dev'
+
 export const WORKER_BASE_URL =
   (import.meta.env.VITE_WORKER_URL as string | undefined)?.replace(/\/$/, '') ??
-  'https://scouter-reviews.soutarm.workers.dev'
+  DEFAULT_WORKER_URL
 
 // ---------------------------------------------------------------------------
 // Legacy hash-based key (kept for backwards-compat decoding of old links)

@@ -5,6 +5,7 @@ export interface Env {
 }
 
 const MAX_PAYLOAD_BYTES = 100_000   // 100 KB hard limit
+const MAX_ANTHROPIC_PAYLOAD_BYTES = 150_000
 const TTL_SECONDS = 60 * 60 * 24 * 365  // 1 year
 const BENCHMARKS_KV_KEY = 'benchmarks:au'
 const BENCHMARKS_TTL_SECONDS = 60 * 60 * 24 * 8  // 8 days (longer than weekly cron)
@@ -14,6 +15,17 @@ const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789
 const nanoid = (size = 10): string => {
   const bytes = crypto.getRandomValues(new Uint8Array(size))
   return Array.from(bytes).map((b) => ALPHABET[b % ALPHABET.length]).join('')
+}
+
+const resolveCorsOrigin = (request: Request, configuredOrigin = '*') => {
+  const requestOrigin = request.headers.get('Origin')
+  if (!requestOrigin || configuredOrigin === '*') return '*'
+
+  const allowedOrigins = configuredOrigin.split(',').map((origin) => origin.trim()).filter(Boolean)
+  const isLocalDev = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(requestOrigin)
+  if (allowedOrigins.includes(requestOrigin) || isLocalDev) return requestOrigin
+
+  return allowedOrigins[0] ?? '*'
 }
 
 const corsHeaders = (origin: string) => ({
@@ -67,6 +79,16 @@ Rules:
 type BenchmarkPayload = {
   source: string
   states: Record<string, { annual12m: number; cumulative5yr: number }>
+}
+
+type AnthropicProxyPayload = {
+  apiKey?: string
+  model?: string
+  system?: string
+  userMessage?: string
+  maxTokens?: number
+  // Legacy: older client sends full prompt as single field
+  prompt?: string
 }
 
 const refreshBenchmarks = async (env: Env): Promise<BenchmarkPayload | null> => {
@@ -128,7 +150,7 @@ const refreshBenchmarks = async (env: Env): Promise<BenchmarkPayload | null> => 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
-    const allowedOrigin = env.ALLOWED_ORIGIN ?? '*'
+    const allowedOrigin = resolveCorsOrigin(request, env.ALLOWED_ORIGIN)
 
     // CORS preflight
     if (request.method === 'OPTIONS') {
@@ -146,6 +168,78 @@ export default {
         headers: {
           'Content-Type': 'application/json',
           'Cache-Control': 'public, max-age=86400',
+          ...corsHeaders(allowedOrigin),
+        },
+      })
+    }
+
+    // POST /llm/anthropic - proxy Anthropic requests because their API blocks browser CORS.
+    // The user-provided API key is only forwarded to Anthropic and is never stored.
+    if (request.method === 'POST' && url.pathname === '/llm/anthropic') {
+      const contentLength = Number(request.headers.get('Content-Length') ?? 0)
+      if (contentLength > MAX_ANTHROPIC_PAYLOAD_BYTES) {
+        return json({ error: 'Payload too large' }, 413, allowedOrigin)
+      }
+
+      let payload: AnthropicProxyPayload
+      try {
+        payload = await request.json() as AnthropicProxyPayload
+      } catch {
+        return json({ error: 'Invalid JSON' }, 400, allowedOrigin)
+      }
+
+      const hasNewFormat = payload.system && payload.userMessage
+      const hasLegacyFormat = payload.prompt
+      if (!payload.apiKey || !payload.model || (!hasNewFormat && !hasLegacyFormat)) {
+        return json({ error: 'apiKey, model and (system+userMessage or prompt) are required' }, 400, allowedOrigin)
+      }
+
+      // Build the Anthropic request body.
+      // New format: system is sent separately with cache_control so the large static
+      // prompt prefix is cached across requests; only the per-suburb user message is fresh.
+      // Legacy format: full prompt in messages (no caching benefit, backwards compat only).
+      const anthropicBody = hasNewFormat
+        ? {
+            model: payload.model,
+            temperature: 0.2,
+            max_tokens: payload.maxTokens ?? 9000,
+            system: [
+              {
+                type: 'text',
+                text: payload.system,
+                cache_control: { type: 'ephemeral' },
+              },
+            ],
+            messages: [{ role: 'user', content: payload.userMessage }],
+          }
+        : {
+            model: payload.model,
+            temperature: 0.2,
+            max_tokens: payload.maxTokens ?? 9000,
+            messages: [{ role: 'user', content: payload.prompt }],
+          }
+
+      let anthropicRes: Response
+      try {
+        anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': payload.apiKey,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify(anthropicBody),
+          signal: AbortSignal.timeout(55_000),
+        })
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown upstream request error'
+        return json({ error: `Anthropic upstream request failed: ${message}` }, 502, allowedOrigin)
+      }
+
+      return new Response(await anthropicRes.text(), {
+        status: anthropicRes.status,
+        headers: {
+          'Content-Type': anthropicRes.headers.get('Content-Type') ?? 'application/json',
           ...corsHeaders(allowedOrigin),
         },
       })

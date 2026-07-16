@@ -75,12 +75,9 @@ export const fetchHomelyContext = async (suburb: string, state: string): Promise
   }
 }
 
-export const buildPrompt = (query: string, homelyContext?: string) => `You are an Australian suburb research analyst.
+// Static system instructions - identical across all requests, safe to cache.
+export const buildSystemPrompt = () => `You are an Australian suburb research analyst.
 
-Create a concise but useful suburb review for: ${query}.
-
-If you cannot confidently identify the Australian location, return "exists": false, use the requested place/state in "suburb" and "state", explain the issue in "summary" and "notFoundReason", and return empty or brief placeholder values for the remaining fields. If there is a likely intended Australian suburb or town, include it in "suggestedSuburb" and its state abbreviation in "suggestedState". For example, if the request is "Warragul, TAS", set "suggestedSuburb": "Warragul" and "suggestedState": "VIC".
-${homelyContext ? `\nThe following is community-sourced context from Homely.com.au for this suburb. Use it to enrich the demographics and lifestyle sections where relevant, but treat it as anecdotal and supplement with your own knowledge:\n<homely_context>\n${homelyContext}\n</homely_context>\n` : ''}
 Return JSON only. No markdown fences. Use 2026 context. Use AUD. No em dashes or en dashes - use a plain hyphen instead.
 
 LEVEL values throughout: one of Low, Medium, High, Very High. Low = best for air/noise/risk fields.
@@ -210,6 +207,16 @@ Notes:
 - demographics arrays must use these exact labels - ageGroups: 0-14, 15-24, 25-44, 45-64, 65+. householdTypes: Family households, Single-person households, Group households. tenureTypes: Owned outright, Mortgage, Rented.
 `
 
+// Per-suburb user message - varies per request (suburb name + optional Homely context).
+export const buildUserMessage = (query: string, homelyContext?: string) => `Create a concise but useful suburb review for: ${query}.
+
+If you cannot confidently identify the Australian location, return "exists": false, use the requested place/state in "suburb" and "state", explain the issue in "summary" and "notFoundReason", and return empty or brief placeholder values for the remaining fields. If there is a likely intended Australian suburb or town, include it in "suggestedSuburb" and its state abbreviation in "suggestedState". For example, if the request is "Warragul, TAS", set "suggestedSuburb": "Warragul" and "suggestedState": "VIC".
+${homelyContext ? `\nThe following is community-sourced context from Homely.com.au for this suburb. Use it to enrich the demographics and lifestyle sections where relevant, but treat it as anecdotal and supplement with your own knowledge:\n<homely_context>\n${homelyContext}\n</homely_context>\n` : ''}`
+
+// Combined prompt for providers that don't support a separate system field (OpenAI-compat, DeepSeek).
+export const buildPrompt = (query: string, homelyContext?: string) =>
+  `${buildSystemPrompt()}\n\n${buildUserMessage(query, homelyContext)}`
+
 export const callLlm = async (settings: LlmSettings, query: string, homelyContext?: string, liveBenchmarks?: StateBenchmarks): Promise<Review> => {
   const prompt = buildPrompt(query, homelyContext)
   const controller = new AbortController()
@@ -290,19 +297,16 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
         throw new Error('Anthropic API key and model are required.')
       }
       const response = await fetchWithRetry(
-        'https://api.anthropic.com/v1/messages',
+        `${WORKER_BASE_URL}/llm/anthropic`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': settings.anthropicApiKey,
-            'anthropic-version': '2023-06-01',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            apiKey: settings.anthropicApiKey,
             model: settings.anthropicModel,
-            temperature: 0.2,
-            max_tokens: 9000,
-            messages: [{ role: 'user', content: prompt }],
+            maxTokens: 9000,
+            system: buildSystemPrompt(),
+            userMessage: buildUserMessage(query, homelyContext),
           }),
         },
         controller.signal,

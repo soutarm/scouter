@@ -250,7 +250,7 @@ export const SettingsPanel = ({
             onChange={(e) => onUpdate({ ...settings, anthropicApiKey: e.target.value })} />
         </label>
         <p className="settings-note settings-note--full">
-          Uses Anthropic&apos;s Messages API directly from this browser. Keep keys restricted where possible.
+          Uses the Scouter Worker to reach Anthropic because their API blocks browser requests. Keys are forwarded only for this request.
         </p>
       </div>
     ) : settings.provider === 'deepseek' ? (
@@ -359,7 +359,7 @@ export const SettingsPanel = ({
       <ProviderIcon ready={providerReady} label={providerReady ? `Ready · ${saveStatus}` : saveStatus} />
       <CacheIcon status={cacheStatus} />
       <span className="cache-pill-label">{cacheCount} {cacheCount === 1 ? 'location' : 'locations'}</span>
-      <span className="settings-version">v1.2.8</span>
+      <span className="settings-version">v1.2.11</span>
     </div>
   </section>
   )
