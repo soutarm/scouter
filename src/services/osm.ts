@@ -259,7 +259,6 @@ export async function fetchOsmContext(suburb: string, state: string): Promise<Os
   // Sort by distance, cap at 8
   trainStationStructured.sort((a, b) => a.distanceKm - b.distanceKm)
   const trainStations = trainStationStructured.slice(0, 8)
-  const trainStationNames = trainStations.map(s => s.name)
 
   // --- Ferry terminals / water transport ---
   const ferryEls = elements.filter(el =>
@@ -339,7 +338,7 @@ export async function fetchOsmContext(suburb: string, state: string): Promise<Os
   }
 
   add('Major roads', roads)
-  add('Train stations nearby', trainStations)
+  add('Train stations nearby', trainStations.map(s => `${s.name}${s.distanceKm ? ` (${s.distanceKm}km)` : ''}`))
   if (ferryServices.length > 0) add('Ferry/water transport nearby', ferryServices)
   if (tramStops.length > 0) add('Tram stops nearby', tramStops)
   if (busStopCount > 0) lines.push(`Bus stops: ${busStopCount} stops mapped in area`)
@@ -360,5 +359,9 @@ export async function fetchOsmContext(suburb: string, state: string): Promise<Os
   lines.push('')
   lines.push('IMPORTANT: Use the above OSM data as the authoritative source for named infrastructure (roads, schools, parks, shops, medical). Do not invent or substitute names not present in this data. For dining/restaurants where OSM coverage is partial, you may supplement with well-known establishments you have knowledge of, but clearly note if uncertain.')
 
-  return lines.join('\n')
+  return {
+    context: lines.join('\n'),
+    trainStations,
+    majorRoads: roads,
+  }
 }

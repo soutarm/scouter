@@ -403,17 +403,23 @@ function App() {
       setHasSearched(true)
       setIsSearchOpen(false)
       try {
-        const [homelyContext, liveBenchmarks, osmContext] = await Promise.all([
+        const [homelyContext, liveBenchmarks, osmResult] = await Promise.all([
           fetchHomelyContext(trimmedPlace, state),
           fetchBenchmarks(),
           fetchOsmContext(trimmedPlace, state),
         ])
-        const result = await callLlm(settings, trimmedQuery, homelyContext, liveBenchmarks ?? undefined, osmContext ?? undefined)
+        const result = await callLlm(settings, trimmedQuery, homelyContext, liveBenchmarks ?? undefined, osmResult?.context)
         const nextReview = {
           ...result,
           generatedAt: result.generatedAt || new Date().toISOString(),
           sourceProvider: settings.provider,
           sourceModel: getConfiguredModelName(settings),
+          // Override LLM-generated infrastructure with authoritative OSM data
+          infrastructure: {
+            ...result.infrastructure,
+            ...(osmResult?.majorRoads.length ? { majorRoads: osmResult.majorRoads } : {}),
+            ...(osmResult?.trainStations.length ? { trainStations: osmResult.trainStations } : {}),
+          },
         }
         setReview(nextReview)
         if (nextReview.exists !== false) {
