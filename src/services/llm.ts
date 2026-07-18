@@ -187,13 +187,7 @@ JSON shape:
   "demographics": {
     "summary": "Census-style population and resident profile summary.",
     "population": string,
-    "medianAge": string,
-    "ageGroups": [{ "label": string, "value": number }],
-    "householdTypes": [{ "label": string, "value": number }],
-    "tenureTypes": [{ "label": string, "value": number }],
-    "countryOfOrigin": [{ "label": string, "value": number }],
-    "residentProfiles": [{ "label": string, "value": number }],
-    "religion": [{ "label": string, "value": number }]
+    "medianAge": string
   },
   "caveats": [string],
   "briefCaveats": [string],
@@ -204,7 +198,6 @@ Notes:
 - trainStations: list ALL stations within 4km of suburb centre. distanceKm = straight-line distance from suburb centre.
 - pointsOfInterest: only include genuinely distinct landmarks not already captured by other named lists (e.g. sporting grounds, community centres, galleries, libraries, major attractions). Do NOT duplicate parks, schools, or shopping centres here. The "icon" field MUST be a single emoji character - never a word or text string.
 - crimeTypes labels: Theft, Assault, Break & Enter, Vandalism, Drug offences, Vehicle theft.
-- demographics arrays must use these exact labels - ageGroups: 0-14, 15-24, 25-44, 45-64, 65+. householdTypes: Family households, Single-person households, Group households. tenureTypes: Owned outright, Mortgage, Rented.
 `
 
 // Per-suburb user message - varies per request (suburb name + optional context blocks).

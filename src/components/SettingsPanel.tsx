@@ -431,7 +431,7 @@ export const SettingsPanel = ({
       <ProviderIcon ready={providerReady} label={providerReady ? `Ready · ${saveStatus}` : saveStatus} />
       <CacheIcon status={cacheStatus} />
       <span className="cache-pill-label">{cacheCount} {cacheCount === 1 ? 'location' : 'locations'}</span>
-      <span className="settings-version">v1.2.18</span>
+      <span className="settings-version">v1.2.20</span>
     </div>
   </section>
   )

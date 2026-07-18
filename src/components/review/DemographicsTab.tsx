@@ -60,6 +60,10 @@ export const DemographicsTab = ({ review }: Props) => {
         {review.demographics?.religion?.length ? (
           <DemographicPieChart title="Religion" data={review.demographics.religion} />
         ) : null}
+
+        {review.demographics?.householdIncome?.length ? (
+          <DemographicPieChart title="Household income" data={review.demographics.householdIncome} />
+        ) : null}
       </div>
     </section>
   )

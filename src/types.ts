@@ -46,6 +46,7 @@ export type MarketRow = {
   fiveYearGrowth?: string
   medianWeeklyRent: string
   grossYield: string
+  councilRates?: string
 }
 
 export type SuburbSuggestion = {
@@ -171,6 +172,7 @@ export type Review = {
     countryOfOrigin?: DemographicDatum[]
     residentProfiles?: DemographicDatum[]
     religion?: DemographicDatum[]
+    householdIncome?: DemographicDatum[]
   }
   caveats: string[]
   briefCaveats?: string[]

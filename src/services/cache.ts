@@ -9,7 +9,7 @@ export const MAX_RECENT_SEARCHES = 12
 
 // Increment when the scoring model changes so cached scores are recomputed on read.
 const SCORES_VERSION = 9
-const CACHE_VERSION = 2
+const CACHE_VERSION = 3
 
 type ReviewCacheEntry = {
   review: Review

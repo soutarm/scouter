@@ -16,6 +16,7 @@ import {
 } from './services/location'
 import { callLlm, fetchBenchmarks, fetchHomelyContext } from './services/llm'
 import { fetchOsmContext } from './services/osm'
+import { fetchAbsDemographics } from './services/abs'
 import { buildShareUrl, clearSharedReviewHash, fetchReviewById, getSharedReviewFromHash, SHARED_REVIEW_HASH_KEY, storeReview } from './services/share'
 import { parseReferenceLink } from './services/reviewParser'
 import { SettingsPanel } from './components/SettingsPanel'
@@ -403,10 +404,11 @@ function App() {
       setHasSearched(true)
       setIsSearchOpen(false)
       try {
-        const [homelyContext, liveBenchmarks, osmResult] = await Promise.all([
+        const [homelyContext, liveBenchmarks, osmResult, absResult] = await Promise.all([
           fetchHomelyContext(trimmedPlace, state),
           fetchBenchmarks(),
           fetchOsmContext(trimmedPlace, state),
+          fetchAbsDemographics(trimmedPlace, state),
         ])
         const result = await callLlm(settings, trimmedQuery, homelyContext, liveBenchmarks ?? undefined, osmResult?.context)
         const nextReview = {
@@ -421,6 +423,20 @@ function App() {
             ...(osmResult?.trainStations.length ? { trainStations: osmResult.trainStations } : {}),
             ...(osmResult ? { suburbLat: osmResult.suburbLat, suburbLng: osmResult.suburbLng } : {}),
           },
+          // Override LLM-guessed demographic charts with real ABS Census 2021 data
+          demographics: result.demographics ? {
+            ...result.demographics,
+            ...(absResult?.ageGroups ? { ageGroups: absResult.ageGroups } : {}),
+            ...(absResult?.householdTypes ? { householdTypes: absResult.householdTypes } : {}),
+            ...(absResult?.tenureTypes ? { tenureTypes: absResult.tenureTypes } : {}),
+            ...(absResult?.countryOfOrigin ? { countryOfOrigin: absResult.countryOfOrigin } : {}),
+            ...(absResult?.residentProfiles ? { residentProfiles: absResult.residentProfiles } : {}),
+            ...(absResult?.religion ? { religion: absResult.religion } : {}),
+            ...(absResult?.householdIncome ? { householdIncome: absResult.householdIncome } : {}),
+          } : result.demographics,
+          references: absResult
+            ? [...(result.references ?? []), 'ABS Census of Population and Housing 2021']
+            : result.references,
         }
         setReview(nextReview)
         if (nextReview.exists !== false) {
@@ -993,6 +1009,7 @@ function App() {
           review.demographics.residentProfiles?.length ? `Who lives here: ${review.demographics.residentProfiles.map((i) => `${i.label} ${i.value}%`).join(', ')}` : '',
           review.demographics.householdTypes?.length ? `Household types: ${review.demographics.householdTypes.map((i) => `${i.label} ${i.value}%`).join(', ')}` : '',
           review.demographics.countryOfOrigin?.length ? `Country of origin: ${review.demographics.countryOfOrigin.map((i) => `${i.label} ${i.value}%`).join(', ')}` : '',
+          review.demographics.householdIncome?.length ? `Household income: ${review.demographics.householdIncome.map((i) => `${i.label} ${i.value}%`).join(', ')}` : '',
         ].filter(Boolean).join('\n\n'))
 
         const ageData = review.demographics.ageGroups?.length
@@ -1003,6 +1020,7 @@ function App() {
         drawDemographicBars('Housing tenure', review.demographics.tenureTypes)
         drawDemographicBars('Country of origin', review.demographics.countryOfOrigin)
         drawDemographicBars('Religion', review.demographics.religion)
+        drawDemographicBars('Household income', review.demographics.householdIncome)
       }
 
       if (review.caveats?.length) section('Caveats', review.caveats.map((c) => `- ${c}`).join('\n'))

@@ -80,6 +80,7 @@ type SharedReviewPayload = {
     countryOfOrigin?: DemographicDatum[]
     residentProfiles?: DemographicDatum[]
     religion?: DemographicDatum[]
+    householdIncome?: DemographicDatum[]
   }
   caveats?: string[]
   briefCaveats?: string[]
@@ -173,6 +174,7 @@ const toSharedPayload = (review: Review): SharedReviewPayload => ({
       countryOfOrigin: review.demographics.countryOfOrigin,
       residentProfiles: review.demographics.residentProfiles,
       religion: review.demographics.religion,
+      householdIncome: review.demographics.householdIncome,
     }
     : undefined,
   caveats: review.caveats,
@@ -245,6 +247,7 @@ const toReview = (payload: SharedReviewPayload): Review => ({
       countryOfOrigin: payload.demographics.countryOfOrigin,
       residentProfiles: payload.demographics.residentProfiles,
       religion: payload.demographics.religion,
+      householdIncome: payload.demographics.householdIncome,
     }
     : undefined,
   caveats: payload.caveats ?? [],
