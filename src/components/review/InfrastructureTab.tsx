@@ -69,10 +69,8 @@ const IconShopping = () => (
 
 const IconPark = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M12 22V12" />
-    <path d="M5 12h14" />
-    <path d="M7 12c0-4 2.5-7 5-8.5C14.5 5 17 8 17 12" />
-    <path d="M5 17c0-2.5 3-4 7-4s7 1.5 7 4" />
+    <path d="M12 22v-6" />
+    <path d="M12 16c-3.5 0-6-2.2-6-5.5C6 7 8.5 4 12 2c3.5 2 6 5 6 8.5 0 3.3-2.5 5.5-6 5.5z" />
   </svg>
 )
 
@@ -86,6 +84,13 @@ const IconMedical = () => (
 const IconPoi = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+  </svg>
+)
+
+const IconWine = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M7 3h10l-1 6a4 4 0 0 1-8 0z" />
+    <path d="M12 13v6M8 21h8" />
   </svg>
 )
 
@@ -270,7 +275,7 @@ export const InfrastructureTab = ({ review }: Props) => {
             )}
             {(infra.restaurants ?? 0) > 0 && (
               <GroupCard
-                icon={<IconPoi />}
+                icon={<IconWine />}
                 count={plural(infra.restaurants!, 'restaurant')}
                 names={infra.restaurantNames}
               />

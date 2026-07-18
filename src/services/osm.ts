@@ -145,6 +145,10 @@ async function overpassQuery(
   way["amenity"~"^(library|theatre|cinema|community_centre|place_of_worship|swimming_pool|sports_centre)$"](${sb});
   node["leisure"~"^(sports_centre|stadium|swimming_pool|fitness_centre)$"](${sb});
   way["leisure"~"^(sports_centre|stadium|swimming_pool|fitness_centre)$"](${sb});
+
+  // Museums and major visitor attractions within suburb
+  node["tourism"~"^(museum|attraction|gallery|zoo|aquarium)$"](${sb});
+  way["tourism"~"^(museum|attraction|gallery|zoo|aquarium)$"](${sb});
 );
 out center body;
 `
@@ -322,7 +326,8 @@ export async function fetchOsmContext(suburb: string, state: string): Promise<Os
   const poiEls = elements.filter(el =>
     ['library', 'theatre', 'cinema', 'community_centre', 'place_of_worship',
      'swimming_pool', 'sports_centre'].includes(el.tags?.amenity ?? '') ||
-    ['sports_centre', 'stadium', 'swimming_pool', 'fitness_centre'].includes(el.tags?.leisure ?? ''),
+    ['sports_centre', 'stadium', 'swimming_pool', 'fitness_centre'].includes(el.tags?.leisure ?? '') ||
+    ['museum', 'attraction', 'gallery', 'zoo', 'aquarium'].includes(el.tags?.tourism ?? ''),
   )
   const pois = dedupe(poiEls.map(nameOf)).slice(0, 8)
 
@@ -360,7 +365,7 @@ export async function fetchOsmContext(suburb: string, state: string): Promise<Os
   add('Points of interest', pois)
 
   lines.push('')
-  lines.push('IMPORTANT: Use the above OSM data as the authoritative source for named infrastructure (roads, schools, parks, shops, medical). Do not invent or substitute names not present in this data. For dining/restaurants where OSM coverage is partial, you may supplement with well-known establishments you have knowledge of, but clearly note if uncertain.')
+  lines.push('IMPORTANT: Use the above OSM data as the authoritative source for named infrastructure (roads, schools, parks, shops, medical). Do not invent or substitute names not present in this data. Any museums, galleries, or major attractions listed under "Points of interest" are confirmed to exist in this suburb and MUST be included in your own pointsOfInterest output with an appropriate emoji - do not omit them. For dining/restaurants where OSM coverage is partial, you may supplement with well-known establishments you have knowledge of, but clearly note if uncertain.')
 
   return {
     context: lines.join('\n'),

@@ -219,6 +219,8 @@ function App() {
   const reviewRef = useRef<HTMLElement | null>(null)
   const comparePanelRef = useRef<HTMLElement | null>(null)
   const tabContentRef = useRef<HTMLDivElement | null>(null)
+  const topbarRef = useRef<HTMLElement | null>(null)
+  const tabsNavRef = useRef<HTMLElement | null>(null)
 
   const providerReady = useMemo(() => {
     if (settings.provider === 'azure') return Boolean(settings.azureEndpoint && settings.azureDeployment && settings.azureApiKey)
@@ -541,7 +543,23 @@ function App() {
     return () => clearTimeout(id)
   }, [review])
 
-
+  // Measure the sticky topbar's rendered height so the tab nav can stick directly beneath it,
+  // and combine it with the tab nav's own height so scrolling to a tab never leaves its
+  // score chip hidden behind the two stacked sticky bars.
+  useEffect(() => {
+    if (!hasSearched || isSearchOpen) return
+    const updateHeight = () => {
+      const topbarHeight = topbarRef.current?.offsetHeight ?? 0
+      const tabsHeight = tabsNavRef.current?.offsetHeight ?? 0
+      if (topbarHeight) document.documentElement.style.setProperty('--topbar-height', `${topbarHeight}px`)
+      if (topbarHeight || tabsHeight) {
+        document.documentElement.style.setProperty('--sticky-offset', `${topbarHeight + tabsHeight}px`)
+      }
+    }
+    updateHeight()
+    window.addEventListener('resize', updateHeight)
+    return () => window.removeEventListener('resize', updateHeight)
+  }, [hasSearched, isSearchOpen])
 
   // Update page title based on active review
   useEffect(() => {
@@ -570,6 +588,15 @@ function App() {
   const openSearchPanel = useCallback(() => {
     setIsSearchOpen(true)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
+
+  const handleTabSelect = useCallback((key: ReviewSectionKey) => {
+    setActiveTab(key)
+    // Scroll the newly selected tab's content back into view rather than leaving
+    // the page at whatever scroll position the previous tab was read at.
+    setTimeout(() => {
+      tabContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 60)
   }, [])
 
   const removeLocation = useCallback((search: string) => {
@@ -1041,7 +1068,7 @@ function App() {
 
   return (
     <main className="app-shell">
-      <header className={`topbar${isSticky ? ' is-sticky' : ''}${showSettings ? ' settings-open' : ''}`}>
+      <header ref={topbarRef} className={`topbar${isSticky ? ' is-sticky' : ''}${showSettings ? ' settings-open' : ''}`}>
         <h1 className="brand-wordmark" aria-label="Scouter" onClick={() => { window.location.href = '/' }} style={{ cursor: 'pointer' }}>
           <span className="brand-letter brand-letter-s" aria-hidden="true">S</span>
           <span className="brand-letter" aria-hidden="true">C</span>
@@ -1399,13 +1426,7 @@ function App() {
                   {review.scores ? (
                     <ScoreRing
                       scores={review.scores}
-                      onCategoryClick={(key) => {
-                        setActiveTab(key as ReviewSectionKey)
-                        // On mobile, scroll the tab content into view after the state update
-                        setTimeout(() => {
-                          tabContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                        }, 60)
-                      }}
+                      onCategoryClick={(key) => handleTabSelect(key as ReviewSectionKey)}
                     />
                   ) : (
                     <div>
@@ -1429,20 +1450,20 @@ function App() {
                   </div>
                 </section>
 
-                <nav className="tabs" aria-label="Review sections">
+                <nav ref={tabsNavRef} className="tabs" aria-label="Review sections">
                   {tabs.map((tab) => (
                     <button
                       key={tab.key}
                       type="button"
                       className={`${activeTab === tab.key ? 'active' : ''}${tab.key === 'map' ? ' tab-map-btn' : ''}`}
-                      onClick={() => setActiveTab(tab.key)}
+                      onClick={() => handleTabSelect(tab.key)}
                     >
                       {TAB_ICONS[tab.key]}<span className={tab.key === 'map' ? 'tab-map-label' : ''}>{tab.label}</span>
                     </button>
                   ))}
                 </nav>
 
-                <div ref={tabContentRef}>
+                <div ref={tabContentRef} className="tab-content-anchor">
                   <TabPageHeader
                     tabKey={activeTab}
                     scores={review.scores}

@@ -69,6 +69,12 @@
   .topbar.is-sticky .topbar-actions--desktop {
     justify-self: end;
   }
+
+  .tabs {
+    position: sticky;
+    top: var(--topbar-height, 76px);
+    z-index: 90;
+  }
 }
 
 .topbar.is-sticky.settings-open {
@@ -1720,6 +1726,11 @@ button:focus-visible {
   gap: 6px;
   margin: 18px 0;
   padding: 6px;
+}
+
+/* Keeps the per-tab score chip clear of the stacked sticky topbar + tab nav when a tab is selected */
+.tab-content-anchor {
+  scroll-margin-top: var(--sticky-offset, 96px);
 }
 
 .tabs button {

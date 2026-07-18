@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { stripJsonFence, repairTruncatedJson, parseReferenceLink } from './reviewParser'
+import { stripJsonFence, stripTrailingCommas, repairTruncatedJson, parseReferenceLink, parseReview } from './reviewParser'
 
 // ── stripJsonFence ────────────────────────────────────────────────────────────
 
@@ -23,6 +23,38 @@ describe('stripJsonFence', () => {
 
   it('handles whitespace padding', () => {
     expect(stripJsonFence('  {"a":1}  ')).toBe('{"a":1}')
+  })
+})
+
+// ── stripTrailingCommas ───────────────────────────────────────────────────────
+
+describe('stripTrailingCommas', () => {
+  it('returns valid JSON unchanged', () => {
+    const json = '{"a":1,"b":[1,2]}'
+    expect(stripTrailingCommas(json)).toBe(json)
+  })
+
+  it('strips a trailing comma before a closing brace mid-document', () => {
+    const input = '{"a":1,"nested":{"b":2,},"c":3}'
+    const result = stripTrailingCommas(input)
+    expect(() => JSON.parse(result)).not.toThrow()
+    expect(JSON.parse(result)).toEqual({ a: 1, nested: { b: 2 }, c: 3 })
+  })
+
+  it('strips a trailing comma before a closing bracket', () => {
+    const result = stripTrailingCommas('{"a":[1,2,3,]}')
+    expect(JSON.parse(result)).toEqual({ a: [1, 2, 3] })
+  })
+
+  it('ignores commas inside string values', () => {
+    const input = '{"a":"one, two, three,"}'
+    expect(stripTrailingCommas(input)).toBe(input)
+  })
+
+  it('handles a trailing comma across whitespace/newlines', () => {
+    const input = '{\n  "a": 1,\n  "b": 2,\n}'
+    const result = stripTrailingCommas(input)
+    expect(JSON.parse(result)).toEqual({ a: 1, b: 2 })
   })
 })
 
@@ -68,6 +100,36 @@ describe('repairTruncatedJson', () => {
   it('handles deeply nested truncation', () => {
     const result = repairTruncatedJson('{"a":{"b":{"c":[1,{"d":2')
     expect(() => JSON.parse(result)).not.toThrow()
+  })
+})
+
+// ── parseReview ───────────────────────────────────────────────────────────────
+
+describe('parseReview', () => {
+  const validReviewWithMidDocumentTrailingComma = `{
+  "exists": true,
+  "suburb": "Croydon Hills",
+  "state": "VIC",
+  "generatedAt": "2024-07-30T12:00:00Z",
+  "summary": "A leafy suburb.",
+  "marketNarrative": "Steady growth.",
+  "marketRows": [
+    { "propertyType": "Houses", "medianPrice": "$900k", "twelveMonthGrowth": "+3%", "medianWeeklyRent": "$550", "grossYield": "3.2%" },
+  ],
+  "climate": { "summerAverages": "25-30C", "winterAverages": "8-14C" },
+  "crime": { "narrative": "Low crime.", "insuranceImpact": "Standard." },
+  "infrastructure": { "transit": "Good.", "education": "Good.", "lifestyle": "Good.", "demographic": "Mixed." },
+  "caveats": []
+}`
+
+  it('recovers from a mid-document trailing comma (the LLM JSON bug)', () => {
+    const result = parseReview(validReviewWithMidDocumentTrailingComma)
+    expect(result.suburb).toBe('Croydon Hills')
+    expect(result.marketRows).toHaveLength(1)
+  })
+
+  it('still throws a descriptive error for genuinely unparseable content', () => {
+    expect(() => parseReview('not json at all')).toThrow(/invalid JSON/)
   })
 })
 

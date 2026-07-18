@@ -12,6 +12,28 @@ export const stripJsonFence = (value: string): string => {
   return fenced
 }
 
+// Strips trailing commas before a closing } or ] anywhere in the document - the
+// most common way LLMs produce syntactically invalid (but otherwise complete) JSON.
+export const stripTrailingCommas = (s: string): string => {
+  let result = ''
+  let inString = false
+  let escape = false
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i]
+    if (escape) { result += ch; escape = false; continue }
+    if (ch === '\\' && inString) { result += ch; escape = true; continue }
+    if (ch === '"') { inString = !inString; result += ch; continue }
+    if (!inString && ch === ',') {
+      // Look ahead past whitespace to see if the next real character closes a container
+      let j = i + 1
+      while (j < s.length && /\s/.test(s[j])) j++
+      if (s[j] === '}' || s[j] === ']') continue // drop this comma
+    }
+    result += ch
+  }
+  return result
+}
+
 export const repairTruncatedJson = (s: string): string => {
   // Walk the string tracking open brackets and whether we're inside a string,
   // so we know exactly what needs closing and where the last "safe" character was.
@@ -53,16 +75,25 @@ export const repairTruncatedJson = (s: string): string => {
 
 export const parseReview = (content: string, liveBenchmarks?: StateBenchmarks): Review => {
   const stripped = stripJsonFence(content)
-  let parsed: Review
-  try {
-    parsed = JSON.parse(stripped) as Review
-  } catch (e) {
+  const attempts = [
+    stripped,
+    stripTrailingCommas(stripped),
+    repairTruncatedJson(stripped),
+    stripTrailingCommas(repairTruncatedJson(stripped)),
+  ]
+  let parsed: Review | undefined
+  let firstError: unknown
+  for (const attempt of attempts) {
     try {
-      parsed = JSON.parse(repairTruncatedJson(stripped)) as Review
-    } catch {
-      const snippet = stripped.slice(0, 300).replace(/\n/g, ' ')
-      throw new Error(`The model returned invalid JSON. Parse error: ${e instanceof Error ? e.message : e}. Content preview: ${snippet}`)
+      parsed = JSON.parse(attempt) as Review
+      break
+    } catch (e) {
+      if (firstError === undefined) firstError = e
     }
+  }
+  if (!parsed) {
+    const snippet = stripped.slice(0, 300).replace(/\n/g, ' ')
+    throw new Error(`The model returned invalid JSON. Parse error: ${firstError instanceof Error ? firstError.message : firstError}. Content preview: ${snippet}`)
   }
   // Handle legacy string crime field from cached/old responses
   if (typeof parsed.crime === 'string') {
