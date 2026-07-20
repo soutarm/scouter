@@ -40,7 +40,7 @@ import { extractTemperatureProfile } from './components/review/ThermometerRange'
 // ---------------------------------------------------------------------------
 
 const defaultSettings: LlmSettings = {
-  provider: 'azure',
+  provider: 'gemini',
   azureEndpoint: '',
   azureDeployment: '',
   azureApiKey: '',
@@ -175,6 +175,67 @@ const ErrorNotice = ({ message, details }: { message: string; details?: string }
   </section>
 )
 
+type CacheStatus = 'stale' | 'busy' | 'updated'
+
+const ProviderIcon = ({ ready, label }: { ready: boolean; label: string }) => (
+  <span
+    className={ready ? 'cache-pill cache-pill--provider-ready' : 'cache-pill cache-pill--provider-waiting'}
+    title={label}
+    aria-label={label}
+  >
+    {ready ? (
+      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M9 2L4 9h4l-1 5 5-7H8l1-5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
+      </svg>
+    ) : (
+      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.6"/>
+        <path d="M8 5v3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        <circle cx="8" cy="11" r="0.8" fill="currentColor"/>
+      </svg>
+    )}
+  </span>
+)
+
+const CacheIcon = ({ status }: { status: CacheStatus }) => {
+  if (status === 'busy') return (
+    <span className="cache-pill cache-pill--busy" title="Updating cache…" aria-label="Cache busy">
+      <span className="cache-pill-spinner" aria-hidden="true" />
+    </span>
+  )
+  if (status === 'updated') return (
+    <span className="cache-pill cache-pill--updated" title="Cache updated" aria-label="Cache updated">
+      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M3 8.5l3.5 3.5 6.5-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    </span>
+  )
+  return (
+    <span className="cache-pill cache-pill--stale" title="Cache ready" aria-label="Cache ready">
+      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.6"/>
+        <path d="M8 5v3.5l2 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+      </svg>
+    </span>
+  )
+}
+
+const APP_VERSION = 'v1.2.22'
+
+const StatusPill = ({ providerReady, saveStatus, cacheCount, cacheStatus }: {
+  providerReady: boolean
+  saveStatus: string
+  cacheCount: number
+  cacheStatus: CacheStatus
+}) => (
+  <div className="status-pill-float" aria-live="polite">
+    <ProviderIcon ready={providerReady} label={providerReady ? `Ready · ${saveStatus}` : saveStatus} />
+    <CacheIcon status={cacheStatus} />
+    <span className="cache-pill-label">{cacheCount} {cacheCount === 1 ? 'location' : 'locations'}</span>
+    <span className="settings-version">{APP_VERSION}</span>
+  </div>
+)
+
 // ---------------------------------------------------------------------------
 // Misc UI helpers
 // ---------------------------------------------------------------------------
@@ -221,6 +282,7 @@ function App() {
   const tabContentRef = useRef<HTMLDivElement | null>(null)
   const topbarRef = useRef<HTMLElement | null>(null)
   const tabsNavRef = useRef<HTMLElement | null>(null)
+  const [isTabsStuck, setIsTabsStuck] = useState(false)
 
   const providerReady = useMemo(() => {
     if (settings.provider === 'azure') return Boolean(settings.azureEndpoint && settings.azureDeployment && settings.azureApiKey)
@@ -559,6 +621,31 @@ function App() {
     updateHeight()
     window.addEventListener('resize', updateHeight)
     return () => window.removeEventListener('resize', updateHeight)
+  }, [hasSearched, isSearchOpen])
+
+  // Detect when the sticky tab nav is actually floating over content (vs sitting in normal
+  // flow) so its shadow only shows once it's stuck to the topbar, not before.
+  useEffect(() => {
+    if (!hasSearched || isSearchOpen) return
+    let ticking = false
+    const checkStuck = () => {
+      ticking = false
+      const tabsTop = tabsNavRef.current?.getBoundingClientRect().top
+      const topbarHeight = topbarRef.current?.offsetHeight ?? 0
+      if (tabsTop != null) setIsTabsStuck(tabsTop <= topbarHeight + 0.5)
+    }
+    const onScroll = () => {
+      if (ticking) return
+      ticking = true
+      window.requestAnimationFrame(checkStuck)
+    }
+    checkStuck()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll)
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+    }
   }, [hasSearched, isSearchOpen])
 
   // Update page title based on active review
@@ -1196,10 +1283,6 @@ function App() {
           <div className={`settings-panel-portal${isSticky ? ' settings-panel-portal--sticky' : ''}`}>
             <SettingsPanel
               settings={settings}
-              providerReady={providerReady}
-              saveStatus={saveStatus}
-              cacheCount={cacheLocationCount}
-              cacheStatus={cacheStatus}
               onUpdate={updateSettings}
               onClearCache={clearCacheAndRecentSearches}
               onClearCurrentLocation={clearCurrentLocation}
@@ -1450,7 +1533,7 @@ function App() {
                   </div>
                 </section>
 
-                <nav ref={tabsNavRef} className="tabs" aria-label="Review sections">
+                <nav ref={tabsNavRef} className={`tabs${isTabsStuck ? ' tabs-stuck' : ''}`} aria-label="Review sections">
                   {tabs.map((tab) => (
                     <button
                       key={tab.key}
@@ -1520,6 +1603,13 @@ function App() {
       <footer className="site-footer">
         <p>© {new Date().getFullYear()} Michael Soutar. For research purposes only. Verify all information independently.</p>
       </footer>
+
+      <StatusPill
+        providerReady={providerReady}
+        saveStatus={saveStatus}
+        cacheCount={cacheLocationCount}
+        cacheStatus={cacheStatus}
+      />
 
     </main>
   )

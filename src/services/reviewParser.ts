@@ -1,3 +1,4 @@
+import { jsonrepair } from 'jsonrepair'
 import type { Review, StateBenchmarks } from '../types'
 import { computeScores, FALLBACK_BENCHMARKS, STATE_CAPITAL_CITIES } from './scoring'
 
@@ -75,17 +76,23 @@ export const repairTruncatedJson = (s: string): string => {
 
 export const parseReview = (content: string, liveBenchmarks?: StateBenchmarks): Review => {
   const stripped = stripJsonFence(content)
-  const attempts = [
-    stripped,
-    stripTrailingCommas(stripped),
-    repairTruncatedJson(stripped),
-    stripTrailingCommas(repairTruncatedJson(stripped)),
+  // Each attempt is a thunk (not a precomputed string) so a repair step that itself
+  // throws (jsonrepair does, when it can't make sense of the input) is just skipped.
+  const attempts: Array<() => string> = [
+    () => stripped,
+    () => stripTrailingCommas(stripped),
+    () => repairTruncatedJson(stripped),
+    () => stripTrailingCommas(repairTruncatedJson(stripped)),
+    // Last resort: a full tolerant-JSON repair pass. Handles cases the targeted fixes
+    // above don't, e.g. an unescaped quote inside a string value (a common LLM mistake
+    // that produces "Expected ',' or '}'" parse errors deep inside a text field).
+    () => jsonrepair(stripped),
   ]
   let parsed: Review | undefined
   let firstError: unknown
   for (const attempt of attempts) {
     try {
-      parsed = JSON.parse(attempt) as Review
+      parsed = JSON.parse(attempt()) as Review
       break
     } catch (e) {
       if (firstError === undefined) firstError = e

@@ -129,7 +129,40 @@ describe('parseReview', () => {
   })
 
   it('still throws a descriptive error for genuinely unparseable content', () => {
-    expect(() => parseReview('not json at all')).toThrow(/invalid JSON/)
+    expect(() => parseReview('{{{{')).toThrow(/invalid JSON/)
+  })
+
+  it('reports missing fields (not a parse error) when jsonrepair coerces bare text into a valid JSON string', () => {
+    // jsonrepair is lenient enough to wrap unquoted text as a JSON string literal,
+    // so this now fails the shape check rather than JSON.parse itself - still a
+    // clear, correct error, just a different message than a raw parse failure.
+    expect(() => parseReview('not json at all')).toThrow(/missing required fields/)
+  })
+
+  // Reproduces a real bug report: the model wrote an unescaped quote inside a long
+  // "summary" string (e.g. a quoted place name), producing "Expected ',' or '}'
+  // after property value" deep inside the field - not fixable by comma/truncation
+  // repairs, but recoverable via the jsonrepair fallback pass.
+  const reviewWithUnescapedQuoteInSummary = `{
+  "exists": true,
+  "suburb": "Croydon Hills",
+  "state": "VIC",
+  "generatedAt": "2024-07-30T12:00:00Z",
+  "summary": "Croydon Hills is a leafy suburb near the "Yarra" valley, prized for its 12" hilltop views.",
+  "marketNarrative": "Steady growth.",
+  "marketRows": [
+    { "propertyType": "Houses", "medianPrice": "$900k", "twelveMonthGrowth": "+3%", "medianWeeklyRent": "$550", "grossYield": "3.2%" }
+  ],
+  "climate": { "summerAverages": "25-30C", "winterAverages": "8-14C" },
+  "crime": { "narrative": "Low crime.", "insuranceImpact": "Standard." },
+  "infrastructure": { "transit": "Good.", "education": "Good.", "lifestyle": "Good.", "demographic": "Mixed." },
+  "caveats": []
+}`
+
+  it('recovers from an unescaped quote inside a string value (the LLM JSON bug)', () => {
+    const result = parseReview(reviewWithUnescapedQuoteInSummary)
+    expect(result.suburb).toBe('Croydon Hills')
+    expect(result.summary).toContain('Yarra')
   })
 })
 

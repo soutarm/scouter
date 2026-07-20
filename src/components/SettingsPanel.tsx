@@ -1,14 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { LlmSettings, ProviderKind } from '../types'
-
-type CacheStatus = 'stale' | 'busy' | 'updated'
+import { testLlmConnection } from '../services/llm'
 
 type Props = {
   settings: LlmSettings
-  providerReady: boolean
-  saveStatus: string
-  cacheCount: number
-  cacheStatus: CacheStatus
   onUpdate: (next: LlmSettings) => void
   onClearCache: () => void
   onClearCurrentLocation: () => void
@@ -42,101 +37,74 @@ const FALLBACK_DEEPSEEK: ModelOption[] = [
 ]
 
 const apiKeyLinks: Record<ProviderKind, { label: string; href: string }> = {
-  gemini:    { label: 'Google Gemini API Key', href: 'https://aistudio.google.com/app/apikey' },
-  openai:    { label: 'OpenAI GPT API Key',    href: 'https://platform.openai.com/api-keys' },
-  anthropic: { label: 'Anthropic Claude API Key', href: 'https://console.anthropic.com/settings/keys' },
-  deepseek:  { label: 'DeepSeek API Key',      href: 'https://platform.deepseek.com/api_keys' },
-  azure:     { label: 'Azure AI API Key',       href: 'https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/create-resource' },
+  gemini:    { label: 'Get Google Gemini API Key', href: 'https://aistudio.google.com/app/apikey' },
+  openai:    { label: 'Get OpenAI GPT API Key',    href: 'https://platform.openai.com/api-keys' },
+  anthropic: { label: 'Get Anthropic Claude API Key', href: 'https://console.anthropic.com/settings/keys' },
+  deepseek:  { label: 'Get DeepSeek API Key',      href: 'https://platform.deepseek.com/api_keys' },
+  azure:     { label: 'Get Azure AI API Key',       href: 'https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/create-resource' },
 }
 
-// Fetch live model lists from provider APIs
+// Fetch live model lists from provider APIs. Every path returns [] rather than
+// throwing - a thrown error here would otherwise leave the "fetching" state (and
+// the loading… label) stuck forever, since nothing downstream ever catches it.
 async function fetchOpenAiModels(apiKey: string, baseUrl: string): Promise<ModelOption[]> {
-  const base = baseUrl.replace(/\/$/, '') || 'https://api.openai.com'
-  const res = await fetch(`${base}/v1/models`, {
-    headers: { Authorization: `Bearer ${apiKey}` },
-    signal: AbortSignal.timeout(8_000),
-  })
-  if (!res.ok) return []
-  const data = await res.json() as { data?: Array<{ id: string }> }
-  return (data.data ?? [])
-    .map(m => m.id)
-    .filter(id => /^gpt-|^o[1-9]/.test(id))
-    .sort((a, b) => b.localeCompare(a))
-    .map(id => ({ value: id, label: id }))
+  try {
+    // baseUrl already includes the /v1 segment (matches how llm.ts builds the
+    // chat-completions URL) - appending /v1/models here would double it up and 404.
+    const base = baseUrl.replace(/\/$/, '') || 'https://api.openai.com/v1'
+    const res = await fetch(`${base}/models`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(8_000),
+    })
+    if (!res.ok) return []
+    const data = await res.json() as { data?: Array<{ id: string }> }
+    return (data.data ?? [])
+      .map(m => m.id)
+      .filter(id => /^gpt-|^o[1-9]/.test(id))
+      .sort((a, b) => b.localeCompare(a))
+      .map(id => ({ value: id, label: id }))
+  } catch {
+    return []
+  }
 }
 
 async function fetchAnthropicModels(apiKey: string): Promise<ModelOption[]> {
-  const res = await fetch('https://api.anthropic.com/v1/models', {
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    signal: AbortSignal.timeout(8_000),
-  })
-  if (!res.ok) return []
-  const data = await res.json() as { data?: Array<{ id: string; display_name?: string }> }
-  return (data.data ?? []).map(m => ({ value: m.id, label: m.display_name ?? m.id }))
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/models', {
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      signal: AbortSignal.timeout(8_000),
+    })
+    if (!res.ok) return []
+    const data = await res.json() as { data?: Array<{ id: string; display_name?: string }> }
+    return (data.data ?? []).map(m => ({ value: m.id, label: m.display_name ?? m.id }))
+  } catch {
+    return []
+  }
 }
 
 async function fetchGeminiModels(apiKey: string): Promise<ModelOption[]> {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}&pageSize=50`,
-    { signal: AbortSignal.timeout(8_000) },
-  )
-  if (!res.ok) return []
-  const data = await res.json() as { models?: Array<{ name: string; displayName?: string; supportedGenerationMethods?: string[] }> }
-  return (data.models ?? [])
-    .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
-    .filter(m => m.name.includes('gemini'))
-    .map(m => ({
-      value: m.name.replace('models/', ''),
-      label: m.displayName ?? m.name.replace('models/', ''),
-    }))
-    .sort((a, b) => b.value.localeCompare(a.value))
-}
-
-const ProviderIcon = ({ ready, label }: { ready: boolean; label: string }) => (
-  <span
-    className={ready ? 'cache-pill cache-pill--provider-ready' : 'cache-pill cache-pill--provider-waiting'}
-    title={label}
-    aria-label={label}
-  >
-    {ready ? (
-      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <path d="M9 2L4 9h4l-1 5 5-7H8l1-5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
-      </svg>
-    ) : (
-      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.6"/>
-        <path d="M8 5v3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-        <circle cx="8" cy="11" r="0.8" fill="currentColor"/>
-      </svg>
-    )}
-  </span>
-)
-
-const CacheIcon = ({ status }: { status: CacheStatus }) => {
-  if (status === 'busy') return (
-    <span className="cache-pill cache-pill--busy" title="Updating cache…" aria-label="Cache busy">
-      <span className="cache-pill-spinner" aria-hidden="true" />
-    </span>
-  )
-  if (status === 'updated') return (
-    <span className="cache-pill cache-pill--updated" title="Cache updated" aria-label="Cache updated">
-      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <path d="M3 8.5l3.5 3.5 6.5-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    </span>
-  )
-  return (
-    <span className="cache-pill cache-pill--stale" title="Cache ready" aria-label="Cache ready">
-      <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.6"/>
-        <path d="M8 5v3.5l2 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-      </svg>
-    </span>
-  )
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}&pageSize=50`,
+      { signal: AbortSignal.timeout(8_000) },
+    )
+    if (!res.ok) return []
+    const data = await res.json() as { models?: Array<{ name: string; displayName?: string; supportedGenerationMethods?: string[] }> }
+    return (data.models ?? [])
+      .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+      .filter(m => m.name.includes('gemini'))
+      .map(m => ({
+        value: m.name.replace('models/', ''),
+        label: m.displayName ?? m.name.replace('models/', ''),
+      }))
+      .sort((a, b) => b.value.localeCompare(a.value))
+  } catch {
+    return []
+  }
 }
 
 // Debounce a value by ms
@@ -151,10 +119,6 @@ function useDebounced<T>(value: T, ms: number): T {
 
 export const SettingsPanel = ({
   settings,
-  providerReady,
-  saveStatus,
-  cacheCount,
-  cacheStatus,
   onUpdate,
   onClearCache,
   onClearCurrentLocation,
@@ -165,38 +129,72 @@ export const SettingsPanel = ({
   const [anthropicModels, setAnthropicModels] = useState<ModelOption[]>(FALLBACK_ANTHROPIC)
   const [fetchingModels, setFetchingModels] = useState(false)
   const lastFetchKey = useRef<string>('')
+  const [isTesting, setIsTesting] = useState(false)
+  const [testResult, setTestResult] = useState<{ settings: LlmSettings; ok: boolean; message: string } | null>(null)
 
   const debouncedOpenAiKey = useDebounced(settings.openAiApiKey, 800)
   const debouncedGeminiKey = useDebounced(settings.geminiApiKey, 800)
   const debouncedAnthropicKey = useDebounced(settings.anthropicApiKey, 800)
 
-  // Fetch models whenever the active provider's key changes (uses debounced keys to build cache key)
+  // Fetch models whenever the active provider's key changes (uses debounced keys to build cache key).
+  // lastFetchKey is only updated on a successful (non-empty) result, so a failed attempt
+  // (bad key, transient network error, a bug since fixed, etc.) doesn't permanently block
+  // retrying - the next time doFetch runs for the same inputs, it tries again instead of
+  // silently no-op'ing forever.
   const doFetch = useCallback(async (provider: ProviderKind) => {
     const fetchKey = `${provider}:${debouncedOpenAiKey}:${debouncedGeminiKey}:${debouncedAnthropicKey}:${settings.openAiBaseUrl}`
     if (fetchKey === lastFetchKey.current) return
-    lastFetchKey.current = fetchKey
 
+    // try/finally is a safety net: fetchOpenAiModels et al. already catch their own
+    // errors and resolve to [], but this guarantees the loading state can never get
+    // stuck even if something unexpected throws.
     if (provider === 'openai' && debouncedOpenAiKey) {
       setFetchingModels(true)
-      const models = await fetchOpenAiModels(debouncedOpenAiKey, settings.openAiBaseUrl)
-      if (models.length > 0) setOpenAiModels(models)
-      setFetchingModels(false)
+      try {
+        const models = await fetchOpenAiModels(debouncedOpenAiKey, settings.openAiBaseUrl)
+        if (models.length > 0) { setOpenAiModels(models); lastFetchKey.current = fetchKey }
+      } finally {
+        setFetchingModels(false)
+      }
     } else if (provider === 'gemini' && debouncedGeminiKey) {
       setFetchingModels(true)
-      const models = await fetchGeminiModels(debouncedGeminiKey)
-      if (models.length > 0) setGeminiModels(models)
-      setFetchingModels(false)
+      try {
+        const models = await fetchGeminiModels(debouncedGeminiKey)
+        if (models.length > 0) { setGeminiModels(models); lastFetchKey.current = fetchKey }
+      } finally {
+        setFetchingModels(false)
+      }
     } else if (provider === 'anthropic' && debouncedAnthropicKey) {
       setFetchingModels(true)
-      const models = await fetchAnthropicModels(debouncedAnthropicKey)
-      if (models.length > 0) setAnthropicModels(models)
-      setFetchingModels(false)
+      try {
+        const models = await fetchAnthropicModels(debouncedAnthropicKey)
+        if (models.length > 0) { setAnthropicModels(models); lastFetchKey.current = fetchKey }
+      } finally {
+        setFetchingModels(false)
+      }
     }
   }, [debouncedOpenAiKey, debouncedGeminiKey, debouncedAnthropicKey, settings.openAiBaseUrl])
 
   useEffect(() => {
     doFetch(settings.provider)
   }, [settings.provider, doFetch])
+
+  const handleTestLlm = useCallback(async () => {
+    setIsTesting(true)
+    const result = await testLlmConnection(settings)
+    setIsTesting(false)
+    setTestResult({
+      settings,
+      ok: result.ok,
+      message: result.ok
+        ? `Responded in ${result.durationMs}ms: "${result.reply}"`
+        : `${result.error} (${result.durationMs}ms)`,
+    })
+  }, [settings])
+
+  // A settings object is a fresh reference on every field edit, so a stored result
+  // naturally stops matching (and hides itself) the moment anything changes.
+  const showTestResult = testResult !== null && testResult.settings === settings
 
   const isCustomOpenAiModel    = !openAiModels.some(o => o.value === settings.openAiModel)
   const isCustomGeminiModel    = !geminiModels.some(o => o.value === settings.geminiModel)
@@ -231,6 +229,8 @@ export const SettingsPanel = ({
       </div>
     </div>
     <select
+      id="llm-provider"
+      name="llm-provider"
       className="settings-provider-select"
       value={settings.provider}
       onChange={(e) => onUpdate({ ...settings, provider: e.target.value as ProviderKind })}
@@ -246,22 +246,24 @@ export const SettingsPanel = ({
       <div className="settings-grid">
         <label>
           Endpoint
-          <input placeholder="https://example.openai.azure.com" value={settings.azureEndpoint}
+          <input id="llm-azure-endpoint" name="llm-azure-endpoint" autoComplete="url"
+            placeholder="https://example.openai.azure.com" value={settings.azureEndpoint}
             onChange={(e) => onUpdate({ ...settings, azureEndpoint: e.target.value })} />
         </label>
         <label>
           Deployment
-          <input placeholder="gpt-4.1-mini" value={settings.azureDeployment}
+          <input id="llm-azure-deployment" name="llm-azure-deployment"
+            placeholder="gpt-4.1-mini" value={settings.azureDeployment}
             onChange={(e) => onUpdate({ ...settings, azureDeployment: e.target.value })} />
         </label>
         <label>
           API version
-          <input value={settings.azureApiVersion}
+          <input id="llm-azure-api-version" name="llm-azure-api-version" value={settings.azureApiVersion}
             onChange={(e) => onUpdate({ ...settings, azureApiVersion: e.target.value })} />
         </label>
         <label>
           API key
-          <input type="password" value={settings.azureApiKey}
+          <input id="llm-azure-api-key" name="llm-azure-api-key" type="password" value={settings.azureApiKey}
             onChange={(e) => onUpdate({ ...settings, azureApiKey: e.target.value })} />
         </label>
       </div>
@@ -269,12 +271,14 @@ export const SettingsPanel = ({
       <div className="settings-grid">
         <label>
           API key
-          <input type="password" value={settings.geminiApiKey}
+          <input id="llm-gemini-api-key" name="llm-gemini-api-key" type="password" value={settings.geminiApiKey}
             onChange={(e) => onUpdate({ ...settings, geminiApiKey: e.target.value })} />
         </label>
         <label>
           Model{fetchingModels ? ' (loading…)' : ''}
           <select
+            id="llm-gemini-model"
+            name="llm-gemini-model"
             className="settings-provider-select"
             value={isCustomGeminiModel ? '__custom__' : settings.geminiModel}
             onChange={(e) => {
@@ -289,7 +293,8 @@ export const SettingsPanel = ({
         {isCustomGeminiModel && (
           <label>
             Custom model
-            <input placeholder="gemini-model-name" value={settings.geminiModel}
+            <input id="llm-gemini-model-custom" name="llm-gemini-model-custom"
+              placeholder="gemini-model-name" value={settings.geminiModel}
               onChange={(e) => onUpdate({ ...settings, geminiModel: e.target.value })} />
           </label>
         )}
@@ -301,12 +306,14 @@ export const SettingsPanel = ({
       <div className="settings-grid">
         <label>
           API key
-          <input type="password" value={settings.anthropicApiKey}
+          <input id="llm-anthropic-api-key" name="llm-anthropic-api-key" type="password" value={settings.anthropicApiKey}
             onChange={(e) => onUpdate({ ...settings, anthropicApiKey: e.target.value })} />
         </label>
         <label>
           Model{fetchingModels ? ' (loading…)' : ''}
           <select
+            id="llm-anthropic-model"
+            name="llm-anthropic-model"
             className="settings-provider-select"
             value={isCustomAnthropicModel ? '__custom__' : settings.anthropicModel}
             onChange={(e) => {
@@ -321,7 +328,8 @@ export const SettingsPanel = ({
         {isCustomAnthropicModel && (
           <label>
             Custom model
-            <input placeholder="claude-model-name" value={settings.anthropicModel}
+            <input id="llm-anthropic-model-custom" name="llm-anthropic-model-custom"
+              placeholder="claude-model-name" value={settings.anthropicModel}
               onChange={(e) => onUpdate({ ...settings, anthropicModel: e.target.value })} />
           </label>
         )}
@@ -333,12 +341,14 @@ export const SettingsPanel = ({
       <div className="settings-grid">
         <label>
           API key
-          <input type="password" value={settings.deepseekApiKey}
+          <input id="llm-deepseek-api-key" name="llm-deepseek-api-key" type="password" value={settings.deepseekApiKey}
             onChange={(e) => onUpdate({ ...settings, deepseekApiKey: e.target.value })} />
         </label>
         <label>
           Model
           <select
+            id="llm-deepseek-model"
+            name="llm-deepseek-model"
             className="settings-provider-select"
             value={isCustomDeepseekModel ? '__custom__' : settings.deepseekModel}
             onChange={(e) => {
@@ -353,7 +363,8 @@ export const SettingsPanel = ({
         {isCustomDeepseekModel && (
           <label>
             Custom model
-            <input placeholder="deepseek-model-name" value={settings.deepseekModel}
+            <input id="llm-deepseek-model-custom" name="llm-deepseek-model-custom"
+              placeholder="deepseek-model-name" value={settings.deepseekModel}
               onChange={(e) => onUpdate({ ...settings, deepseekModel: e.target.value })} />
           </label>
         )}
@@ -365,17 +376,19 @@ export const SettingsPanel = ({
       <div className="settings-grid">
         <label>
           Base URL
-          <input value={settings.openAiBaseUrl}
+          <input id="llm-openai-base-url" name="llm-openai-base-url" autoComplete="url" value={settings.openAiBaseUrl}
             onChange={(e) => onUpdate({ ...settings, openAiBaseUrl: e.target.value })} />
         </label>
         <label>
           API key
-          <input type="password" value={settings.openAiApiKey}
+          <input id="llm-openai-api-key" name="llm-openai-api-key" type="password" value={settings.openAiApiKey}
             onChange={(e) => onUpdate({ ...settings, openAiApiKey: e.target.value })} />
         </label>
         <label>
           Model{fetchingModels ? ' (loading…)' : ''}
           <select
+            id="llm-openai-model"
+            name="llm-openai-model"
             className="settings-provider-select"
             value={isCustomOpenAiModel ? '__custom__' : settings.openAiModel}
             onChange={(e) => {
@@ -390,18 +403,40 @@ export const SettingsPanel = ({
         {isCustomOpenAiModel && (
           <label>
             Custom model
-            <input placeholder="model-name" value={settings.openAiModel}
+            <input id="llm-openai-model-custom" name="llm-openai-model-custom"
+              placeholder="model-name" value={settings.openAiModel}
               onChange={(e) => onUpdate({ ...settings, openAiModel: e.target.value })} />
           </label>
         )}
+        <p className="settings-note settings-note--full">
+          Works with any OpenAI-compatible endpoint. For a free option with open-weight models
+          (Llama, Gemma, DeepSeek, etc.), set Base URL to <code>https://openrouter.ai/api/v1</code> and
+          pick one of OpenRouter&apos;s <code>:free</code> models.
+        </p>
       </div>
     )}
 
-    <div className="settings-api-links" aria-label="API key setup links">
-      <span>Get API key</span>
-      <a href={selectedApiKeyLink.href} target="_blank" rel="noreferrer">
+    <div className="settings-api-links" aria-label="API key and test actions">
+      <a href={selectedApiKeyLink.href} target="_blank" rel="noreferrer" className="settings-link-action">
         {selectedApiKeyLink.label}
       </a>
+      <button
+        type="button"
+        className="settings-link-action"
+        onClick={handleTestLlm}
+        disabled={isTesting}
+      >
+        {isTesting ? 'Testing…' : 'Test LLM'}
+      </button>
+      {showTestResult && (
+        <span
+          className={`settings-test-icon ${testResult.ok ? 'settings-test-icon--success' : 'settings-test-icon--error'}`}
+          title={testResult.message}
+          aria-label={testResult.message}
+        >
+          {testResult.ok ? '✓' : '✕'}
+        </span>
+      )}
     </div>
 
     <p className="settings-storage-note">
@@ -426,12 +461,6 @@ export const SettingsPanel = ({
           Clear current location
         </button>
       </div>
-    </div>
-    <div className="settings-status-row" aria-live="polite">
-      <ProviderIcon ready={providerReady} label={providerReady ? `Ready · ${saveStatus}` : saveStatus} />
-      <CacheIcon status={cacheStatus} />
-      <span className="cache-pill-label">{cacheCount} {cacheCount === 1 ? 'location' : 'locations'}</span>
-      <span className="settings-version">v1.2.21</span>
     </div>
   </section>
   )

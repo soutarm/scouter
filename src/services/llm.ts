@@ -372,6 +372,156 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
   }
 }
 
+export type LlmTestResult =
+  | { ok: true; reply: string; durationMs: number }
+  | { ok: false; error: string; durationMs: number }
+
+const TEST_PROMPT = 'Reply with just the single word "Hello" and nothing else.'
+const TEST_TIMEOUT_MS = 20_000
+
+/**
+ * Fires a minimal, cheap request at the configured provider to confirm the
+ * endpoint/model/key combination actually works, without going through the
+ * full review prompt or JSON parsing. Times the round trip for display.
+ */
+export const testLlmConnection = async (settings: LlmSettings): Promise<LlmTestResult> => {
+  const start = performance.now()
+  const result = await testLlmConnectionInner(settings)
+  const durationMs = Math.round(performance.now() - start)
+  return { ...result, durationMs }
+}
+
+const testLlmConnectionInner = async (
+  settings: LlmSettings,
+): Promise<{ ok: true; reply: string } | { ok: false; error: string }> => {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), TEST_TIMEOUT_MS)
+
+  try {
+    if (settings.provider === 'azure') {
+      if (!settings.azureEndpoint || !settings.azureDeployment || !settings.azureApiKey) {
+        return { ok: false, error: 'Azure endpoint, deployment and API key are required.' }
+      }
+      const response = await fetch(
+        `${settings.azureEndpoint.replace(/\/$/, '')}/openai/responses?api-version=${settings.azureApiVersion}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'api-key': settings.azureApiKey },
+          body: JSON.stringify({
+            model: settings.azureDeployment,
+            input: [{ role: 'user', content: TEST_PROMPT }],
+            max_output_tokens: 20,
+          }),
+          signal: controller.signal,
+        },
+      )
+      const rawPayload = await response.text()
+      if (!response.ok) return { ok: false, error: `${response.status} ${rawPayload.slice(0, 200)}` }
+      const payload = JSON.parse(rawPayload) as {
+        output_text?: string
+        output?: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }>
+      }
+      const content = extractAzureResponseText(payload)
+      return content ? { ok: true, reply: content.trim() } : { ok: false, error: 'Azure returned no content.' }
+    }
+
+    if (settings.provider === 'gemini') {
+      if (!settings.geminiApiKey || !settings.geminiModel) {
+        return { ok: false, error: 'Gemini API key and model are required.' }
+      }
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(settings.geminiModel)}:generateContent?key=${encodeURIComponent(settings.geminiApiKey)}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: TEST_PROMPT }] }],
+            generationConfig: { temperature: 0, maxOutputTokens: 20 },
+          }),
+          signal: controller.signal,
+        },
+      )
+      const rawPayload = await response.text()
+      if (!response.ok) return { ok: false, error: `${response.status} ${rawPayload.slice(0, 200)}` }
+      const payload = JSON.parse(rawPayload) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }
+      const content = extractGeminiResponseText(payload)
+      return content ? { ok: true, reply: content.trim() } : { ok: false, error: 'Gemini returned no content.' }
+    }
+
+    if (settings.provider === 'anthropic') {
+      if (!settings.anthropicApiKey || !settings.anthropicModel) {
+        return { ok: false, error: 'Anthropic API key and model are required.' }
+      }
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': settings.anthropicApiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: settings.anthropicModel,
+          max_tokens: 20,
+          messages: [{ role: 'user', content: TEST_PROMPT }],
+        }),
+        signal: controller.signal,
+      })
+      const rawPayload = await response.text()
+      if (!response.ok) return { ok: false, error: `${response.status} ${rawPayload.slice(0, 200)}` }
+      const payload = JSON.parse(rawPayload) as { content?: Array<{ type?: string; text?: string }> }
+      const content = extractAnthropicResponseText(payload)
+      return content ? { ok: true, reply: content.trim() } : { ok: false, error: 'Anthropic returned no content.' }
+    }
+
+    if (settings.provider === 'deepseek') {
+      if (!settings.deepseekApiKey || !settings.deepseekModel) {
+        return { ok: false, error: 'DeepSeek API key and model are required.' }
+      }
+      const response = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.deepseekApiKey}` },
+        body: JSON.stringify({
+          model: settings.deepseekModel,
+          temperature: 0,
+          messages: [{ role: 'user', content: TEST_PROMPT }],
+          max_tokens: 20,
+        }),
+        signal: controller.signal,
+      })
+      const rawPayload = await response.text()
+      if (!response.ok) return { ok: false, error: `${response.status} ${rawPayload.slice(0, 200)}` }
+      const payload = JSON.parse(rawPayload) as { choices?: Array<{ message?: { content?: string } }> }
+      const content = payload.choices?.[0]?.message?.content
+      return content ? { ok: true, reply: content.trim() } : { ok: false, error: 'DeepSeek returned no content.' }
+    }
+
+    if (!settings.openAiApiKey || !settings.openAiModel) {
+      return { ok: false, error: 'OpenAI-compatible API key and model are required.' }
+    }
+    const response = await fetch(`${settings.openAiBaseUrl.replace(/\/$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.openAiApiKey}` },
+      body: JSON.stringify({
+        model: settings.openAiModel,
+        temperature: 0,
+        messages: [{ role: 'user', content: TEST_PROMPT }],
+        max_completion_tokens: 20,
+      }),
+      signal: controller.signal,
+    })
+    const rawPayload = await response.text()
+    if (!response.ok) return { ok: false, error: `${response.status} ${rawPayload.slice(0, 200)}` }
+    const payload = JSON.parse(rawPayload) as { choices?: Array<{ message?: { content?: string } }> }
+    const content = payload.choices?.[0]?.message?.content
+    return content ? { ok: true, reply: content.trim() } : { ok: false, error: 'Provider returned no content.' }
+  } catch (caught) {
+    return { ok: false, error: friendlyRequestError(caught) }
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
+
 /**
  * Fetch cached property benchmarks from the Worker KV store.
  * Returns null if unavailable - callers should fall back to hardcoded constants.

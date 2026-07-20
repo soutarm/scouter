@@ -74,7 +74,7 @@ export const HeroSearchSection = ({
     {showSetupCta ? (
       <section className="search-card setup-cta-card" aria-live="polite">
         <div className="setup-cta-row">
-          <h3>Add your LLM provider settings to start scouting suburbs.</h3>
+          <h3>Add your AI settings to start scouting suburbs.</h3>
           <button type="button" className="primary-lite" onClick={onOpenSettings}>
             Add LLM config
           </button>
