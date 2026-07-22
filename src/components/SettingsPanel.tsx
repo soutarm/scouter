@@ -50,7 +50,7 @@ type OpenAiPreset = {
 const OPENAI_PRESETS: OpenAiPreset[] = [
   {
     id: 'openai',
-    label: 'OpenAI',
+    label: 'GPT',
     baseUrl: 'https://api.openai.com/v1',
     apiKeyLink: { label: 'Get OpenAI API Key', href: 'https://platform.openai.com/api-keys' },
     fallbackModels: [
