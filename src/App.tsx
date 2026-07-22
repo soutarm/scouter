@@ -14,7 +14,7 @@ import {
   readSearchFromQueryString, writeSearchToQueryString,
   getSuggestedLocation,
 } from './services/location'
-import { callLlm, fetchBenchmarks, fetchHomelyContext } from './services/llm'
+import { callLlm, fetchBenchmarks, fetchHomelyContext, friendlyRequestError } from './services/llm'
 import { fetchOsmContext } from './services/osm'
 import { fetchAbsDemographics } from './services/abs'
 import { buildShareUrl, clearSharedReviewHash, fetchReviewById, getSharedReviewFromHash, SHARED_REVIEW_HASH_KEY, storeReview } from './services/share'
@@ -524,7 +524,7 @@ function App() {
           })
         }
       } catch (caught) {
-        showError('We could not generate that review.', caught)
+        showError(friendlyRequestError(caught), caught)
       } finally {
         setIsLoading(false)
       }
