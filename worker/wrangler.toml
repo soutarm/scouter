@@ -4,8 +4,8 @@ compatibility_date = "2024-09-23"
 
 [[kv_namespaces]]
 binding = "REVIEWS"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
-preview_id = "REPLACE_WITH_KV_PREVIEW_NAMESPACE_ID"
+id = "623fdd03a0c54fcaa1bab2712c91c097"
+preview_id = "623fdd03a0c54fcaa1bab2712c91c097"
 
 [vars]
 ALLOWED_ORIGIN = "https://scouter.mrated.dev,https://scouter-1ah.pages.dev"
