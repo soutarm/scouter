@@ -12,7 +12,7 @@ const BENCHMARKS_KV_KEY = 'benchmarks:au'
 const BENCHMARKS_TTL_SECONDS = 60 * 60 * 24 * 8  // 8 days (longer than weekly cron)
 
 const FREE_TIER_MAX_PAYLOAD_BYTES = 20_000
-const FREE_TIER_MODEL = 'nvidia/nemotron-3-super-120b-a12b:free'
+const FREE_TIER_MODEL = 'openai/gpt-oss-20b:free'
 const FREE_TIER_PER_IP_DAILY_LIMIT = 5
 const FREE_TIER_GLOBAL_DAILY_LIMIT = 300
 const RATE_LIMIT_TTL_SECONDS = 60 * 60 * 25  // 25h, covers a full UTC day plus buffer
@@ -456,9 +456,12 @@ export default {
         incrementRateLimit(env, ipKey, ipCount),
       ])
 
-      let openRouterRes: Response
+      // Both the request and reading the response body can fail independently
+      // (e.g. the connection drops mid-stream after headers arrive) - both are
+      // covered here so any upstream failure returns a clean 502 instead of an
+      // uncaught exception.
       try {
-        openRouterRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        const openRouterRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -469,6 +472,7 @@ export default {
           body: JSON.stringify({
             model: FREE_TIER_MODEL,
             temperature: 0.2,
+            reasoning: { effort: 'low' },
             messages: [
               { role: 'system', content: FREE_TIER_SYSTEM_PROMPT },
               { role: 'user', content: buildFreeTierUserMessage(`${suburb}, ${state}`, homelyContext, osmContext) },
@@ -478,18 +482,18 @@ export default {
           }),
           signal: AbortSignal.timeout(55_000),
         })
+        const bodyText = await openRouterRes.text()
+        return new Response(bodyText, {
+          status: openRouterRes.status,
+          headers: {
+            'Content-Type': openRouterRes.headers.get('Content-Type') ?? 'application/json',
+            ...corsHeaders(allowedOrigin),
+          },
+        })
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown upstream request error'
         return json({ error: `OpenRouter upstream request failed: ${message}` }, 502, allowedOrigin)
       }
-
-      return new Response(await openRouterRes.text(), {
-        status: openRouterRes.status,
-        headers: {
-          'Content-Type': openRouterRes.headers.get('Content-Type') ?? 'application/json',
-          ...corsHeaders(allowedOrigin),
-        },
-      })
     }
 
     // POST /reviews — store a new review, return { id }

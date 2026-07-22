@@ -126,7 +126,7 @@ const providerLabelByKind: Record<LlmSettings['provider'], string> = {
 
 // 'free' model name is fixed server-side (worker/index.ts FREE_TIER_MODEL) - keep in sync.
 const getConfiguredModelName = (settings: LlmSettings): string => {
-  if (settings.provider === 'free') return 'Nemotron 3 Super 120B (free)'
+  if (settings.provider === 'free') return 'GPT-OSS 20B (free)'
   if (settings.provider === 'azure') return settings.azureDeployment.trim()
   if (settings.provider === 'gemini') return settings.geminiModel.trim()
   if (settings.provider === 'anthropic') return settings.anthropicModel.trim()

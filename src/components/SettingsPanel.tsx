@@ -247,7 +247,7 @@ export const SettingsPanel = ({
     {settings.provider === 'free' ? (
       <div className="settings-grid">
         <p className="settings-note settings-note--full">
-          Uses Scouter&apos;s shared free-tier model (Nemotron 3 Super 120B via OpenRouter), no API key
+          Uses Scouter&apos;s shared free-tier model (GPT-OSS 20B via OpenRouter), no API key
           needed. Limited to a few reviews per day per visitor. Switch to another provider above
           and add your own API key for unlimited use, faster responses, and higher-quality output.
         </p>
