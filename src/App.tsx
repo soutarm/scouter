@@ -156,27 +156,73 @@ const formatErrorDetails = (caught: unknown): string => {
   }
 }
 
-const ErrorNotice = ({ message, details }: { message: string; details?: string }) => (
-  <section className="error-card" role="alert" aria-live="polite">
-    <div className="error-card-header">
-      <div>
-        <p className="eyebrow">Something needs attention</p>
-        <h2>{message}</h2>
+// Bundles enough context (version, provider/model, query, browser) that a pasted
+// report is actionable without a follow-up round of "which suburb / what version".
+const buildErrorReport = (
+  message: string,
+  details: string,
+  context: { version: string; provider: string; query: string },
+): string => {
+  const lines = [
+    'Scouter error report',
+    `Time: ${new Date().toISOString()}`,
+    `Version: ${context.version}`,
+    `Provider: ${context.provider}`,
+  ]
+  if (context.query) lines.push(`Query: ${context.query}`)
+  lines.push(`Browser: ${navigator.userAgent}`)
+  lines.push('', `Message: ${message}`)
+  if (details) lines.push('', 'Details:', details)
+  return lines.join('\n')
+}
+
+const ErrorNotice = ({ message, details, reportText }: { message: string; details?: string; reportText: string }) => {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(reportText)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2200)
+    } catch {
+      // Clipboard access can be blocked (permissions, insecure context) - button just stays as-is
+    }
+  }
+
+  return (
+    <section className="error-card" role="alert" aria-live="polite">
+      <div className="error-card-header">
+        <div>
+          <p className="eyebrow">Something needs attention</p>
+          <h2>{message}</h2>
+        </div>
+        <button
+          type="button"
+          className="error-copy-btn"
+          onClick={handleCopy}
+          aria-label={copied ? 'Error report copied to clipboard' : 'Copy error report to clipboard'}
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="8" y="8" width="12" height="12" rx="2" />
+            <path d="M5 15.5H4.5A1.5 1.5 0 0 1 3 14V4.5A1.5 1.5 0 0 1 4.5 3H14a1.5 1.5 0 0 1 1.5 1.5V5" />
+          </svg>
+          {copied ? 'Copied' : 'Copy'}
+        </button>
       </div>
-    </div>
-    <p className="error-card-copy">
-      {details
-        ? 'You can try again, check your provider settings, or open the details below if you need the technical error.'
-        : 'You can try again or check your provider settings before continuing.'}
-    </p>
-    {details && (
-      <details className="error-details">
-        <summary>View full error details</summary>
-        <pre>{details}</pre>
-      </details>
-    )}
-  </section>
-)
+      <p className="error-card-copy">
+        {details
+          ? 'You can try again, check your provider settings, or open the details below if you need the technical error.'
+          : 'You can try again or check your provider settings before continuing.'}
+      </p>
+      {details && (
+        <details className="error-details">
+          <summary>View full error details</summary>
+          <pre>{details}</pre>
+        </details>
+      )}
+    </section>
+  )
+}
 
 type CacheStatus = 'stale' | 'busy' | 'updated'
 
@@ -1427,7 +1473,17 @@ function App() {
         </section>
       )}
 
-      {error && <ErrorNotice message={error} details={errorDetails} />}
+      {error && (
+        <ErrorNotice
+          message={error}
+          details={errorDetails}
+          reportText={buildErrorReport(error, errorDetails, {
+            version: APP_VERSION,
+            provider: `${providerLabelByKind[settings.provider]} — ${getConfiguredModelName(settings)}`,
+            query: composedQuery,
+          })}
+        />
+      )}
 
       {review && (
         <section className="review-wrap" ref={reviewRef}>

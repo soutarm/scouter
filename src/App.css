@@ -1369,8 +1369,37 @@ button:focus-visible {
 }
 
 .error-card-header {
-  display: block;
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
   width: 100%;
+}
+
+.error-copy-btn {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(247, 255, 242, 0.22);
+  border-radius: 999px;
+  color: #f7fff2;
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  font-weight: 700;
+  gap: 6px;
+  padding: 7px 13px;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.error-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(247, 255, 242, 0.36);
+}
+
+.error-copy-btn:focus-visible {
+  outline: 3px solid rgba(247, 255, 242, 0.36);
+  outline-offset: 2px;
 }
 
 .error-card h2 {
