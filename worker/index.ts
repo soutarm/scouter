@@ -247,6 +247,30 @@ const buildFreeTierUserMessage = (query: string, homelyContext?: string, osmCont
 If you cannot confidently identify the Australian location, return "exists": false, use the requested place/state in "suburb" and "state", explain the issue in "summary" and "notFoundReason", and return empty or brief placeholder values for the remaining fields. If there is a likely intended Australian suburb or town, include it in "suggestedSuburb" and its state abbreviation in "suggestedState". For example, if the request is "Warragul, TAS", set "suggestedSuburb": "Warragul" and "suggestedState": "VIC".
 ${osmContext ? `\nThe following infrastructure data was fetched live from OpenStreetMap for this suburb. Treat it as the authoritative ground truth for named infrastructure (roads, schools, parks, shops, medical centres). Use these exact names in the relevant fields (majorRoads, trainStations, primarySchoolNames, secondarySchoolNames, parkNames, shoppingPrecinctNames, medicalCentreNames). Do not invent names not present here:\n<osm_context>\n${osmContext}\n</osm_context>\n` : ''}${homelyContext ? `\nThe following is community-sourced context from Homely.com.au for this suburb. Use it to enrich the demographics and lifestyle sections where relevant, but treat it as anecdotal and supplement with your own knowledge:\n<homely_context>\n${homelyContext}\n</homely_context>\n` : ''}`
 
+// Mirrors the acceptance check in src/services/reviewParser.ts's parseReview -
+// used to decide whether a free-tier response is worth returning as-is or
+// worth retrying. Deliberately permissive (a plain JSON.parse, no repair
+// passes): the client's own resilient parser handles recoverable formatting
+// issues, this only needs to catch a model dropping a whole required section.
+const extractOpenRouterContent = (bodyText: string): string | undefined => {
+  try {
+    const payload = JSON.parse(bodyText) as { choices?: Array<{ message?: { content?: string } }> }
+    return payload.choices?.[0]?.message?.content
+  } catch {
+    return undefined
+  }
+}
+
+const isCompleteReviewContent = (content: string): boolean => {
+  try {
+    const parsed = JSON.parse(content) as Record<string, unknown>
+    if (parsed.exists === false && parsed.summary) return true
+    return Boolean(parsed.summary && Array.isArray(parsed.marketRows) && parsed.infrastructure && parsed.crime && parsed.climate)
+  } catch {
+    return false
+  }
+}
+
 // Soft daily counters in the REVIEWS KV store. Not atomic (KV reads/writes can
 // race under concurrent requests), which is fine here - this is abuse
 // mitigation for a shared free key, not a precise billing enforcement.
@@ -465,32 +489,51 @@ export default {
       // covered here so any upstream failure returns a clean 502 instead of an
       // uncaught exception.
       try {
-        const openRouterRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
-            'HTTP-Referer': 'https://scouter.mrated.dev',
-            'X-Title': 'Scouter',
-          },
-          body: JSON.stringify({
-            model: FREE_TIER_MODEL,
-            temperature: 0.2,
-            reasoning: { effort: 'low' },
-            messages: [
-              { role: 'system', content: FREE_TIER_SYSTEM_PROMPT },
-              { role: 'user', content: buildFreeTierUserMessage(`${suburb}, ${state}`, homelyContext, osmContext) },
-            ],
-            response_format: { type: 'json_object' },
-            max_tokens: 9000,
-          }),
-          signal: AbortSignal.timeout(55_000),
-        })
-        const bodyText = await openRouterRes.text()
+        let bodyText = ''
+        let upstreamStatus = 502
+        let upstreamContentType = 'application/json'
+
+        // Free-tier models occasionally drop a whole required section (e.g.
+        // crime) under instruction-following limits. One retry happens here,
+        // inside the single rate-limited request, rather than making the
+        // client re-POST (which would burn a second charge against the daily
+        // cap for what's really one logical review). 25s per attempt keeps
+        // the worst case (two slow attempts) under the original 55s ceiling.
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const openRouterRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
+              'HTTP-Referer': 'https://scouter.mrated.dev',
+              'X-Title': 'Scouter',
+            },
+            body: JSON.stringify({
+              model: FREE_TIER_MODEL,
+              temperature: 0.2,
+              reasoning: { effort: 'low' },
+              messages: [
+                { role: 'system', content: FREE_TIER_SYSTEM_PROMPT },
+                { role: 'user', content: buildFreeTierUserMessage(`${suburb}, ${state}`, homelyContext, osmContext) },
+              ],
+              response_format: { type: 'json_object' },
+              max_tokens: 9000,
+            }),
+            signal: AbortSignal.timeout(25_000),
+          })
+          bodyText = await openRouterRes.text()
+          upstreamStatus = openRouterRes.status
+          upstreamContentType = openRouterRes.headers.get('Content-Type') ?? 'application/json'
+
+          if (!openRouterRes.ok) break  // upstream error - retrying won't fix it
+          const content = extractOpenRouterContent(bodyText)
+          if (content && isCompleteReviewContent(content)) break
+        }
+
         return new Response(bodyText, {
-          status: openRouterRes.status,
+          status: upstreamStatus,
           headers: {
-            'Content-Type': openRouterRes.headers.get('Content-Type') ?? 'application/json',
+            'Content-Type': upstreamContentType,
             ...corsHeaders(allowedOrigin),
           },
         })
