@@ -3,7 +3,10 @@ import { parseReview } from './reviewParser'
 import { WORKER_BASE_URL } from './share'
 import { splitLocation } from './location'
 
-const REQUEST_TIMEOUT_MS = 60_000
+// 90s gives the free tier's worst case (two 35s upstream attempts, see
+// worker/index.ts's /llm/free retry) real headroom before the client gives
+// up first; paid providers normally respond in a few seconds regardless.
+const REQUEST_TIMEOUT_MS = 90_000
 const MAX_RETRIES = 3
 const RETRY_BASE_MS = 1_200
 

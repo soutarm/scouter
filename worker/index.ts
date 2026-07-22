@@ -484,22 +484,20 @@ export default {
         incrementRateLimit(env, ipKey, ipCount),
       ])
 
-      // Both the request and reading the response body can fail independently
-      // (e.g. the connection drops mid-stream after headers arrive) - both are
-      // covered here so any upstream failure returns a clean 502 instead of an
-      // uncaught exception.
-      try {
-        let bodyText = ''
-        let upstreamStatus = 502
-        let upstreamContentType = 'application/json'
+      let bodyText = ''
+      let upstreamStatus = 502
+      let upstreamContentType = 'application/json'
+      let lastError: unknown
 
-        // Free-tier models occasionally drop a whole required section (e.g.
-        // crime) under instruction-following limits. One retry happens here,
-        // inside the single rate-limited request, rather than making the
-        // client re-POST (which would burn a second charge against the daily
-        // cap for what's really one logical review). 25s per attempt keeps
-        // the worst case (two slow attempts) under the original 55s ceiling.
-        for (let attempt = 0; attempt < 2; attempt++) {
+      // Free-tier models occasionally drop a whole required section (e.g.
+      // crime) under instruction-following limits. One retry happens here,
+      // inside the single rate-limited request, rather than making the
+      // client re-POST (which would burn a second charge against the daily
+      // cap for what's really one logical review). Each attempt is wrapped
+      // individually - a timeout/network failure on attempt 1 must not skip
+      // attempt 2, only a genuine upstream error status does.
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
           const openRouterRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -519,28 +517,33 @@ export default {
               response_format: { type: 'json_object' },
               max_tokens: 9000,
             }),
-            signal: AbortSignal.timeout(25_000),
+            signal: AbortSignal.timeout(35_000),
           })
           bodyText = await openRouterRes.text()
           upstreamStatus = openRouterRes.status
           upstreamContentType = openRouterRes.headers.get('Content-Type') ?? 'application/json'
+          lastError = undefined
 
-          if (!openRouterRes.ok) break  // upstream error - retrying won't fix it
+          if (!openRouterRes.ok) break  // upstream error status - retrying won't fix it
           const content = extractOpenRouterContent(bodyText)
           if (content && isCompleteReviewContent(content)) break
+        } catch (err) {
+          lastError = err  // timeout or network failure - let the loop try again if attempts remain
         }
+      }
 
-        return new Response(bodyText, {
-          status: upstreamStatus,
-          headers: {
-            'Content-Type': upstreamContentType,
-            ...corsHeaders(allowedOrigin),
-          },
-        })
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unknown upstream request error'
+      if (lastError) {
+        const message = lastError instanceof Error ? lastError.message : 'Unknown upstream request error'
         return json({ error: `OpenRouter upstream request failed: ${message}` }, 502, allowedOrigin)
       }
+
+      return new Response(bodyText, {
+        status: upstreamStatus,
+        headers: {
+          'Content-Type': upstreamContentType,
+          ...corsHeaders(allowedOrigin),
+        },
+      })
     }
 
     // POST /reviews — store a new review, return { id }
