@@ -226,7 +226,7 @@ export const SettingsPanel = ({
     )}
     <div className="settings-header">
       <div>
-        <h2>Provider settings</h2>
+        <h2>AI Settings</h2>
       </div>
     </div>
     <select

@@ -13,8 +13,12 @@ const BENCHMARKS_TTL_SECONDS = 60 * 60 * 24 * 8  // 8 days (longer than weekly c
 
 const FREE_TIER_MAX_PAYLOAD_BYTES = 20_000
 const FREE_TIER_MODEL = 'openai/gpt-oss-20b:free'
-const FREE_TIER_PER_IP_DAILY_LIMIT = 5
-const FREE_TIER_GLOBAL_DAILY_LIMIT = 300
+// OpenRouter caps free models at 1000 req/day account-wide once $10+ credit has
+// ever been added (50/day with zero credit). Global limit is kept a little
+// under that ceiling so we return our own message instead of a generic
+// upstream error; lower both again if the account ever drops back to zero credit.
+const FREE_TIER_PER_IP_DAILY_LIMIT = 15
+const FREE_TIER_GLOBAL_DAILY_LIMIT = 500
 const RATE_LIMIT_TTL_SECONDS = 60 * 60 * 25  // 25h, covers a full UTC day plus buffer
 const AU_STATE_CODES = ['ACT', 'NSW', 'NT', 'QLD', 'SA', 'TAS', 'VIC', 'WA']
 
@@ -449,7 +453,7 @@ export default {
         return json({ error: "Scouter's free tier has reached its daily limit. Add your own API key in Settings to keep going." }, 429, allowedOrigin)
       }
       if (ipCount >= FREE_TIER_PER_IP_DAILY_LIMIT) {
-        return json({ error: "You've reached today's free tier limit for this browser. Add your own API key in Settings for unlimited use." }, 429, allowedOrigin)
+        return json({ error: "You've reached today's free tier limit for this network. Add your own API key in Settings for unlimited use." }, 429, allowedOrigin)
       }
       await Promise.all([
         incrementRateLimit(env, globalKey, globalCount),
