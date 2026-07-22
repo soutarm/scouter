@@ -36,7 +36,8 @@ const FALLBACK_DEEPSEEK: ModelOption[] = [
   { value: 'deepseek-reasoner', label: 'DeepSeek Reasoner' },
 ]
 
-const apiKeyLinks: Record<ProviderKind, { label: string; href: string }> = {
+// No entry for 'free' - it needs no external API key, so the link row is hidden for it.
+const apiKeyLinks: Partial<Record<ProviderKind, { label: string; href: string }>> = {
   gemini:    { label: 'Get Google Gemini API Key', href: 'https://aistudio.google.com/app/apikey' },
   openai:    { label: 'Get OpenAI GPT API Key',    href: 'https://platform.openai.com/api-keys' },
   anthropic: { label: 'Get Anthropic Claude API Key', href: 'https://console.anthropic.com/settings/keys' },
@@ -235,6 +236,7 @@ export const SettingsPanel = ({
       value={settings.provider}
       onChange={(e) => onUpdate({ ...settings, provider: e.target.value as ProviderKind })}
     >
+      <option value="free">Free (no setup)</option>
       <option value="gemini">Google Gemini</option>
       <option value="openai">OpenAI GPT</option>
       <option value="anthropic">Anthropic Claude</option>
@@ -242,7 +244,15 @@ export const SettingsPanel = ({
       <option value="azure">Azure AI</option>
     </select>
 
-    {settings.provider === 'azure' ? (
+    {settings.provider === 'free' ? (
+      <div className="settings-grid">
+        <p className="settings-note settings-note--full">
+          Uses Scouter&apos;s shared free-tier model (Nemotron 3 Super 120B via OpenRouter), no API key
+          needed. Limited to a few reviews per day per visitor. Switch to another provider above
+          and add your own API key for unlimited use, faster responses, and higher-quality output.
+        </p>
+      </div>
+    ) : settings.provider === 'azure' ? (
       <div className="settings-grid">
         <label>
           Endpoint
@@ -416,10 +426,13 @@ export const SettingsPanel = ({
       </div>
     )}
 
+    {settings.provider !== 'free' && (
     <div className="settings-api-links" aria-label="API key and test actions">
-      <a href={selectedApiKeyLink.href} target="_blank" rel="noreferrer" className="settings-link-action">
-        {selectedApiKeyLink.label}
-      </a>
+      {selectedApiKeyLink && (
+        <a href={selectedApiKeyLink.href} target="_blank" rel="noreferrer" className="settings-link-action">
+          {selectedApiKeyLink.label}
+        </a>
+      )}
       <button
         type="button"
         className="settings-link-action"
@@ -438,11 +451,14 @@ export const SettingsPanel = ({
         </span>
       )}
     </div>
+    )}
 
-    <p className="settings-storage-note">
-      <span className="settings-storage-icon" aria-hidden="true">i</span>
-      Stored locally in this browser. Do not use public/shared API keys.
-    </p>
+    {settings.provider !== 'free' && (
+      <p className="settings-storage-note">
+        <span className="settings-storage-icon" aria-hidden="true">i</span>
+        Stored locally in this browser. Do not use public/shared API keys.
+      </p>
+    )}
 
     <div className="settings-footer">
       <div className="settings-footer-buttons">

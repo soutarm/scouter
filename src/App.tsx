@@ -40,7 +40,7 @@ import { extractTemperatureProfile } from './components/review/ThermometerRange'
 // ---------------------------------------------------------------------------
 
 const defaultSettings: LlmSettings = {
-  provider: 'gemini',
+  provider: 'free',
   azureEndpoint: '',
   azureDeployment: '',
   azureApiKey: '',
@@ -116,6 +116,7 @@ const tabs: Array<{ key: ReviewSectionKey; label: string }> = [
 ]
 
 const providerLabelByKind: Record<LlmSettings['provider'], string> = {
+  free: 'Scouter Free',
   azure: 'Azure AI',
   openai: 'OpenAI GPT',
   gemini: 'Google Gemini',
@@ -123,7 +124,9 @@ const providerLabelByKind: Record<LlmSettings['provider'], string> = {
   deepseek: 'DeepSeek',
 }
 
+// 'free' model name is fixed server-side (worker/index.ts FREE_TIER_MODEL) - keep in sync.
 const getConfiguredModelName = (settings: LlmSettings): string => {
+  if (settings.provider === 'free') return 'Nemotron 3 Super 120B (free)'
   if (settings.provider === 'azure') return settings.azureDeployment.trim()
   if (settings.provider === 'gemini') return settings.geminiModel.trim()
   if (settings.provider === 'anthropic') return settings.anthropicModel.trim()
@@ -220,7 +223,7 @@ const CacheIcon = ({ status }: { status: CacheStatus }) => {
   )
 }
 
-const APP_VERSION = 'v1.2.22'
+const APP_VERSION = 'v1.2.23'
 
 const StatusPill = ({ providerReady, saveStatus, cacheCount, cacheStatus }: {
   providerReady: boolean
@@ -285,6 +288,7 @@ function App() {
   const [isTabsStuck, setIsTabsStuck] = useState(false)
 
   const providerReady = useMemo(() => {
+    if (settings.provider === 'free') return true
     if (settings.provider === 'azure') return Boolean(settings.azureEndpoint && settings.azureDeployment && settings.azureApiKey)
     if (settings.provider === 'gemini') return Boolean(settings.geminiApiKey && settings.geminiModel)
     if (settings.provider === 'anthropic') return Boolean(settings.anthropicApiKey && settings.anthropicModel)

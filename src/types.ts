@@ -1,4 +1,4 @@
-export type ProviderKind = 'azure' | 'openai' | 'gemini' | 'anthropic' | 'deepseek'
+export type ProviderKind = 'free' | 'azure' | 'openai' | 'gemini' | 'anthropic' | 'deepseek'
 
 export type StateBenchmark = {
   /** 12-month annual dwelling price growth % */

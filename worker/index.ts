@@ -2,6 +2,7 @@ export interface Env {
   REVIEWS: KVNamespace
   ALLOWED_ORIGIN: string
   GEMINI_API_KEY: string
+  OPENROUTER_API_KEY: string
 }
 
 const MAX_PAYLOAD_BYTES = 100_000   // 100 KB hard limit
@@ -9,6 +10,13 @@ const MAX_ANTHROPIC_PAYLOAD_BYTES = 150_000
 const TTL_SECONDS = 60 * 60 * 24 * 365  // 1 year
 const BENCHMARKS_KV_KEY = 'benchmarks:au'
 const BENCHMARKS_TTL_SECONDS = 60 * 60 * 24 * 8  // 8 days (longer than weekly cron)
+
+const FREE_TIER_MAX_PAYLOAD_BYTES = 20_000
+const FREE_TIER_MODEL = 'nvidia/nemotron-3-super-120b-a12b:free'
+const FREE_TIER_PER_IP_DAILY_LIMIT = 5
+const FREE_TIER_GLOBAL_DAILY_LIMIT = 300
+const RATE_LIMIT_TTL_SECONDS = 60 * 60 * 25  // 25h, covers a full UTC day plus buffer
+const AU_STATE_CODES = ['ACT', 'NSW', 'NT', 'QLD', 'SA', 'TAS', 'VIC', 'WA']
 
 // Inline nanoid-style ID generator (no npm dependency needed)
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
@@ -89,6 +97,160 @@ type AnthropicProxyPayload = {
   maxTokens?: number
   // Legacy: older client sends full prompt as single field
   prompt?: string
+}
+
+type FreeTierPayload = {
+  suburb?: string
+  state?: string
+  homelyContext?: string
+  osmContext?: string
+}
+
+// ── Free-tier review prompt ────────────────────────────────────────────────────
+// Mirrors buildSystemPrompt/buildUserMessage in src/services/llm.ts. Duplicated
+// (not imported) because this worker is a separate deploy target from the SPA.
+// The /llm/free handler below builds the prompt itself from structured fields
+// only - it never accepts client-supplied system/user text - so the shared
+// OpenRouter key can only ever produce a Scouter suburb review, not an arbitrary
+// chat completion.
+
+const FREE_TIER_SYSTEM_PROMPT = `You are an Australian suburb research analyst.
+
+Return JSON only. No markdown fences. Use 2026 context. Use AUD. No em dashes or en dashes - use a plain hyphen instead.
+
+LEVEL values throughout: one of Low, Medium, High, Very High. Low = best for air/noise/risk fields.
+
+For flight path (climate.noise.flightPath + flightPathLevel): use Airservices Australia as primary source. If status is uncertain or inconclusive, use Low and note the uncertainty in caveats. Do not declare no flight path impact unless explicitly supported.
+
+NATURAL HAZARD RATING RUBRIC - apply objectively, not by impression:
+- Bushfire:    Low = urban/minimal vegetation, BAL-LOW. Medium = leafy interface, BAL-12.5 to BAL-19. High = bushfire-prone area, BAL-29+. Very High = BAL-40 or Flame Zone.
+- Flood:       Low = no flood zone, well-drained. Medium = near 1-in-100-year overlay or documented drainage issues. High = significant flood zone. Very High = high-risk floodplain.
+- Storm/Hail:  Low = sheltered/inland. Medium = standard SE Australian exposure (Melbourne/Sydney/SE QLD baseline). High = known hail corridor. Very High = NT cyclone fringe or SE QLD hail belt core.
+- Earthquake:  Low = standard eastern Australia (default for most VIC/NSW/QLD/SA/TAS). Medium = near known fault. High = active fault. Very High = high-risk seismic zone.
+- Coastal Erosion: Omit unless coastal/tidal. Low = stable. Medium = some erosion history. High = active documented erosion.
+- Landslide:   Omit unless notable topographic relief. Low = minor slopes. Medium = steep terrain, some slippage. High = known landslide history.
+
+JSON shape:
+{
+  "exists": true,
+  "suburb": string,
+  "state": string,
+  "postcode": string,
+  "generatedAt": string,
+  "summary": "Top-level practical assessment in 2-4 sentences.",
+  "briefs": {
+    "market": "One-sentence summary of market conditions (max ~120 chars).",
+    "environment": "One-sentence summary of climate/air/noise (max ~120 chars).",
+    "crime": "One-sentence summary of safety/insurance risk (max ~120 chars).",
+    "infrastructure": "One-sentence summary of transit/amenity access (max ~120 chars)."
+  },
+  "notFoundReason": "Only present when exists is false.",
+  "suggestedSuburb": "Only present when exists is false and a correction exists.",
+  "suggestedState": "Only present when exists is false and a correction exists.",
+  "marketNarrative": "Short market conditions paragraph.",
+  "marketRows": [
+    { "propertyType": "Houses", "medianPrice": string, "twelveMonthGrowth": "SUBURB-SPECIFIC estimate - not the state average. Use a range if uncertain, e.g. '+1% to +4%'.", "fiveYearGrowth": "SUBURB-SPECIFIC 5-year cumulative - not the state average.", "medianWeeklyRent": string, "grossYield": string },
+    { "propertyType": "Units / Townhouses", "medianPrice": string, "twelveMonthGrowth": "SUBURB-SPECIFIC estimate.", "fiveYearGrowth": "SUBURB-SPECIFIC 5-year cumulative.", "medianWeeklyRent": string, "grossYield": string }
+  ],
+  "infrastructure": {
+    "transit": "Train, bus, road and commute context.",
+    "education": "Primary, secondary, tertiary and catchment notes.",
+    "lifestyle": "Retail, dining, parks, health, culture, religious facilities and daily amenity.",
+    "demographic": "Dominant resident profiles and census-style context.",
+    "trainStations": [{ "name": string, "lines": string, "distanceKm": number }],
+    "tramStops": "Tram stop availability description, or null.",
+    "busAvailability": "One of: Excellent, Good, Limited, None",
+    "majorRoads": [string],
+    "cbdDistanceKm": number,
+    "cbdCommuteMinutes": number,
+    "suburbLat": number,
+    "suburbLng": number,
+    "primarySchools": number,
+    "primarySchoolNames": ["Proper name only, e.g. 'Croydon Hills Primary School'. Up to 8."],
+    "secondarySchools": number,
+    "secondarySchoolNames": ["Proper name only, e.g. 'Oxley College'. Up to 8."],
+    "shoppingPrecincts": number,
+    "shoppingPrecinctNames": ["Proper name only, e.g. 'Eastland Shopping Centre'. Up to 8. Never use descriptions."],
+    "parks": number,
+    "parkNames": ["Proper name only, e.g. 'Warranwood Reserve'. Up to 8. No descriptions."],
+    "medicalCentres": number,
+    "medicalCentreNames": ["Proper name only, e.g. 'Croydon Medical Centre'. Up to 8. No descriptions."],
+    "restaurants": number,
+    "restaurantNames": ["Up to 8 well-known or notable restaurant or cafe names in the suburb. Proper name only, e.g. 'The Pines Restaurant'. Omit if none known."],
+    "pointsOfInterest": [{ "icon": "single emoji character, e.g. 🏛️ 🎭 ⚽ 🏊", "label": string }]
+  },
+  "climate": {
+    "summerAverages": "Average high and low temperatures plus seasonal behaviour.",
+    "winterAverages": "Average high and low temperatures plus rainfall/cloud/frost behaviour.",
+    "airQuality": {
+      "overallRating": LEVEL,
+      "overallSummary": "1-2 sentences on typical air quality and seasonal variation.",
+      "particulateMatter": "PM2.5/PM10 levels, sources, health context.",
+      "particulateMatterLevel": LEVEL,
+      "ozone": "Ground-level ozone risk, seasonal peaks, health advisories.",
+      "ozoneLevel": LEVEL,
+      "pollen": "Pollen season severity, dominant species, allergy impact.",
+      "pollenLevel": LEVEL,
+      "industrialPollution": "Nearby pollution sources and air quality impact.",
+      "industrialPollutionLevel": LEVEL
+    },
+    "noise": {
+      "flightPath": "Airport, runway approach, overflight frequency and noise level.",
+      "flightPathLevel": LEVEL,
+      "railNoise": "Proximity to train/tram lines and noise impact.",
+      "railNoiseLevel": LEVEL,
+      "roadNoise": "Proximity to major roads/freeways and traffic noise.",
+      "roadNoiseLevel": LEVEL,
+      "industrialZones": "Nearby industrial/port zones and noise impact.",
+      "industrialZonesLevel": LEVEL,
+      "overallRating": LEVEL,
+      "overallSummary": "1-2 sentences on overall noise and environmental amenity."
+    },
+    "wind": {
+      "overallRating": LEVEL,
+      "overallSummary": "1-2 sentences on wind exposure and seasonal patterns.",
+      "predominantDirection": string,
+      "averageSpeedKmh": number,
+      "seasonalVariation": "How wind varies by season.",
+      "directions": [{ "direction": string, "frequency": number, "avgSpeedKmh": number }]
+    }
+  },
+  "crime": {
+    "narrative": "Crime and safety analysis with LGA, incident types, and practical interpretation.",
+    "insuranceImpact": "How crime and risk affect home, contents and car insurance. Mention theft rates, flood/fire risk, postcode loading.",
+    "estimatedAnnualPremiums": { "homeBuilding": string, "homeContents": string, "carComprehensive": string },
+    "crimeTypes": [{ "label": string, "level": LEVEL }],
+    "naturalRisks": [{ "label": string, "level": LEVEL, "note": "1-sentence factual note." }]
+  },
+  "demographics": {
+    "summary": "Census-style population and resident profile summary.",
+    "population": string,
+    "medianAge": string
+  },
+  "caveats": [string],
+  "briefCaveats": [string],
+  "references": ["Named source with URL where available. For ABS Census always include the year, e.g. 'ABS Census of Population and Housing 2021'."]
+}
+
+Notes:
+- trainStations: list ALL stations within 4km of suburb centre. distanceKm = straight-line distance from suburb centre.
+- pointsOfInterest: only include genuinely distinct landmarks not already captured by other named lists (e.g. sporting grounds, community centres, galleries, libraries, major attractions). Do NOT duplicate parks, schools, or shopping centres here. The "icon" field MUST be a single emoji character - never a word or text string.
+- crimeTypes labels: Theft, Assault, Break & Enter, Vandalism, Drug offences, Vehicle theft.
+`
+
+const buildFreeTierUserMessage = (query: string, homelyContext?: string, osmContext?: string) => `Create a concise but useful suburb review for: ${query}.
+
+If you cannot confidently identify the Australian location, return "exists": false, use the requested place/state in "suburb" and "state", explain the issue in "summary" and "notFoundReason", and return empty or brief placeholder values for the remaining fields. If there is a likely intended Australian suburb or town, include it in "suggestedSuburb" and its state abbreviation in "suggestedState". For example, if the request is "Warragul, TAS", set "suggestedSuburb": "Warragul" and "suggestedState": "VIC".
+${osmContext ? `\nThe following infrastructure data was fetched live from OpenStreetMap for this suburb. Treat it as the authoritative ground truth for named infrastructure (roads, schools, parks, shops, medical centres). Use these exact names in the relevant fields (majorRoads, trainStations, primarySchoolNames, secondarySchoolNames, parkNames, shoppingPrecinctNames, medicalCentreNames). Do not invent names not present here:\n<osm_context>\n${osmContext}\n</osm_context>\n` : ''}${homelyContext ? `\nThe following is community-sourced context from Homely.com.au for this suburb. Use it to enrich the demographics and lifestyle sections where relevant, but treat it as anecdotal and supplement with your own knowledge:\n<homely_context>\n${homelyContext}\n</homely_context>\n` : ''}`
+
+// Soft daily counters in the REVIEWS KV store. Not atomic (KV reads/writes can
+// race under concurrent requests), which is fine here - this is abuse
+// mitigation for a shared free key, not a precise billing enforcement.
+const getRateLimitCount = async (env: Env, key: string): Promise<number> =>
+  Number((await env.REVIEWS.get(key)) ?? '0')
+
+const incrementRateLimit = async (env: Env, key: string, current: number): Promise<void> => {
+  await env.REVIEWS.put(key, String(current + 1), { expirationTtl: RATE_LIMIT_TTL_SECONDS })
 }
 
 const refreshBenchmarks = async (env: Env): Promise<BenchmarkPayload | null> => {
@@ -240,6 +402,91 @@ export default {
         status: anthropicRes.status,
         headers: {
           'Content-Type': anthropicRes.headers.get('Content-Type') ?? 'application/json',
+          ...corsHeaders(allowedOrigin),
+        },
+      })
+    }
+
+    // POST /llm/free - zero-config review generation using Scouter's own OpenRouter key.
+    // Unlike /llm/anthropic, no api key or prompt text comes from the client: only
+    // structured suburb/state/context fields are accepted, and the fixed prompt above
+    // is what actually gets sent, so this endpoint can never be used as a general
+    // free-form LLM proxy. Rate-limited per IP and globally to bound shared-key spend.
+    if (request.method === 'POST' && url.pathname === '/llm/free') {
+      if (!env.OPENROUTER_API_KEY) {
+        return json({ error: 'Free tier is not configured' }, 503, allowedOrigin)
+      }
+
+      const contentLength = Number(request.headers.get('Content-Length') ?? 0)
+      if (contentLength > FREE_TIER_MAX_PAYLOAD_BYTES) {
+        return json({ error: 'Payload too large' }, 413, allowedOrigin)
+      }
+
+      let payload: FreeTierPayload
+      try {
+        payload = await request.json() as FreeTierPayload
+      } catch {
+        return json({ error: 'Invalid JSON' }, 400, allowedOrigin)
+      }
+
+      const suburb = (payload.suburb ?? '').trim().slice(0, 100)
+      const state = (payload.state ?? '').trim().toUpperCase()
+      if (!suburb || !AU_STATE_CODES.includes(state)) {
+        return json({ error: 'suburb and a valid Australian state are required' }, 400, allowedOrigin)
+      }
+      const homelyContext = typeof payload.homelyContext === 'string' ? payload.homelyContext.slice(0, 2_500) : undefined
+      const osmContext = typeof payload.osmContext === 'string' ? payload.osmContext.slice(0, 4_000) : undefined
+
+      const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown'
+      const today = new Date().toISOString().slice(0, 10)
+      const globalKey = `ratelimit:free:global:${today}`
+      const ipKey = `ratelimit:free:ip:${ip}:${today}`
+      const [globalCount, ipCount] = await Promise.all([
+        getRateLimitCount(env, globalKey),
+        getRateLimitCount(env, ipKey),
+      ])
+      if (globalCount >= FREE_TIER_GLOBAL_DAILY_LIMIT) {
+        return json({ error: "Scouter's free tier has reached its daily limit. Add your own API key in Settings to keep going." }, 429, allowedOrigin)
+      }
+      if (ipCount >= FREE_TIER_PER_IP_DAILY_LIMIT) {
+        return json({ error: "You've reached today's free tier limit for this browser. Add your own API key in Settings for unlimited use." }, 429, allowedOrigin)
+      }
+      await Promise.all([
+        incrementRateLimit(env, globalKey, globalCount),
+        incrementRateLimit(env, ipKey, ipCount),
+      ])
+
+      let openRouterRes: Response
+      try {
+        openRouterRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
+            'HTTP-Referer': 'https://scouter.mrated.dev',
+            'X-Title': 'Scouter',
+          },
+          body: JSON.stringify({
+            model: FREE_TIER_MODEL,
+            temperature: 0.2,
+            messages: [
+              { role: 'system', content: FREE_TIER_SYSTEM_PROMPT },
+              { role: 'user', content: buildFreeTierUserMessage(`${suburb}, ${state}`, homelyContext, osmContext) },
+            ],
+            response_format: { type: 'json_object' },
+            max_tokens: 9000,
+          }),
+          signal: AbortSignal.timeout(55_000),
+        })
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown upstream request error'
+        return json({ error: `OpenRouter upstream request failed: ${message}` }, 502, allowedOrigin)
+      }
+
+      return new Response(await openRouterRes.text(), {
+        status: openRouterRes.status,
+        headers: {
+          'Content-Type': openRouterRes.headers.get('Content-Type') ?? 'application/json',
           ...corsHeaders(allowedOrigin),
         },
       })

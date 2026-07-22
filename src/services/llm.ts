@@ -1,6 +1,7 @@
 import type { LlmSettings, Review, StateBenchmarks } from '../types'
 import { parseReview } from './reviewParser'
 import { WORKER_BASE_URL } from './share'
+import { splitLocation } from './location'
 
 const REQUEST_TIMEOUT_MS = 60_000
 const MAX_RETRIES = 3
@@ -216,6 +217,36 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
   const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
   try {
+    if (settings.provider === 'free') {
+      const { place, state } = splitLocation(query)
+      const response = await fetchWithRetry(
+        `${WORKER_BASE_URL}/llm/free`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ suburb: place || query, state: state ?? '', homelyContext, osmContext }),
+        },
+        controller.signal,
+      )
+      const rawPayload = await response.text()
+      if (!response.ok) {
+        // The worker returns { error } for validation/rate-limit failures; fall
+        // back to the raw body if it's not JSON (e.g. an upstream 5xx).
+        let message = `Free tier request failed: ${response.status} ${rawPayload.slice(0, 260)}`
+        try {
+          const errorPayload = JSON.parse(rawPayload) as { error?: string }
+          if (errorPayload.error) message = errorPayload.error
+        } catch {
+          // rawPayload wasn't JSON - keep the generic message above
+        }
+        throw new Error(message)
+      }
+      const payload = JSON.parse(rawPayload) as { choices?: Array<{ message?: { content?: string } }> }
+      const content = payload.choices?.[0]?.message?.content
+      if (!content) throw new Error('Free tier provider returned no review content.')
+      return parseReview(content, liveBenchmarks)
+    }
+
     if (settings.provider === 'azure') {
       if (!settings.azureEndpoint || !settings.azureDeployment || !settings.azureApiKey) {
         throw new Error('Azure endpoint, deployment and API key are required.')
@@ -398,6 +429,10 @@ const testLlmConnectionInner = async (
   const timeoutId = window.setTimeout(() => controller.abort(), TEST_TIMEOUT_MS)
 
   try {
+    if (settings.provider === 'free') {
+      return { ok: true, reply: 'No setup needed - the free tier is ready to use.' }
+    }
+
     if (settings.provider === 'azure') {
       if (!settings.azureEndpoint || !settings.azureDeployment || !settings.azureApiKey) {
         return { ok: false, error: 'Azure endpoint, deployment and API key are required.' }
