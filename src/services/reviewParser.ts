@@ -109,11 +109,13 @@ export const parseReview = (content: string, liveBenchmarks?: StateBenchmarks): 
   if (parsed.exists === false && parsed.summary) {
     return parsed
   }
-  if (!parsed.summary || !Array.isArray(parsed.marketRows) || !parsed.infrastructure) {
+  if (!parsed.summary || !Array.isArray(parsed.marketRows) || !parsed.infrastructure || !parsed.crime || !parsed.climate) {
     const missing = [
       !parsed.summary && 'summary',
       !Array.isArray(parsed.marketRows) && 'marketRows',
       !parsed.infrastructure && 'infrastructure',
+      !parsed.crime && 'crime',
+      !parsed.climate && 'climate',
     ].filter(Boolean).join(', ')
     throw new Error(`The model returned JSON missing required fields: ${missing}. Try running again.`)
   }
