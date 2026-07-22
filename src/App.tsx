@@ -52,8 +52,6 @@ const defaultSettings: LlmSettings = {
   geminiApiKey: '',
   anthropicModel: 'claude-sonnet-4-6',
   anthropicApiKey: '',
-  deepseekModel: 'deepseek-v4-flash',
-  deepseekApiKey: '',
 }
 
 const LEVEL_STEPS: Record<'Low' | 'Medium' | 'High' | 'Very High', number> = {
@@ -70,18 +68,34 @@ const LEVEL_COLORS: Record<'Low' | 'Medium' | 'High' | 'Very High', [number, num
   'Very High': [176, 48, 32],
 }
 
+// Settings saved before DeepSeek was folded into the OpenAI-compatible provider
+// as a preset (see SettingsPanel's OPENAI_PRESETS) - only relevant for migration.
+type LegacyLlmSettings = Omit<Partial<LlmSettings>, 'provider'> & {
+  provider?: string
+  deepseekModel?: string
+  deepseekApiKey?: string
+}
+
 const loadSettings = (): LlmSettings => {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) return defaultSettings
-    const parsed = JSON.parse(raw) as Partial<LlmSettings>
-    const merged = { ...defaultSettings, ...parsed }
+    const parsed = JSON.parse(raw) as LegacyLlmSettings
+
+    // Migrate rather than drop - preserves the user's existing DeepSeek key/model.
+    if (parsed.provider === 'deepseek') {
+      parsed.provider = 'openai'
+      parsed.openAiApiKey = parsed.deepseekApiKey || parsed.openAiApiKey
+      parsed.openAiModel = parsed.deepseekModel || 'deepseek-chat'
+      parsed.openAiBaseUrl = 'https://api.deepseek.com'
+    }
+
+    const merged = { ...defaultSettings, ...(parsed as Partial<LlmSettings>) }
     return {
       ...merged,
       openAiModel: merged.openAiModel?.trim() || defaultSettings.openAiModel,
       geminiModel: merged.geminiModel?.trim() || defaultSettings.geminiModel,
       anthropicModel: merged.anthropicModel?.trim() || defaultSettings.anthropicModel,
-      deepseekModel: merged.deepseekModel?.trim() || defaultSettings.deepseekModel,
     }
   } catch {
     return defaultSettings
@@ -118,10 +132,9 @@ const tabs: Array<{ key: ReviewSectionKey; label: string }> = [
 const providerLabelByKind: Record<LlmSettings['provider'], string> = {
   free: 'Scouter Free',
   azure: 'Azure AI',
-  openai: 'OpenAI GPT',
+  openai: 'OpenAI',
   gemini: 'Google Gemini',
   anthropic: 'Anthropic Claude',
-  deepseek: 'DeepSeek',
 }
 
 // 'free' model name is fixed server-side (worker/index.ts FREE_TIER_MODEL) - keep in sync.
@@ -130,7 +143,6 @@ const getConfiguredModelName = (settings: LlmSettings): string => {
   if (settings.provider === 'azure') return settings.azureDeployment.trim()
   if (settings.provider === 'gemini') return settings.geminiModel.trim()
   if (settings.provider === 'anthropic') return settings.anthropicModel.trim()
-  if (settings.provider === 'deepseek') return settings.deepseekModel.trim()
   return settings.openAiModel.trim()
 }
 
@@ -269,7 +281,7 @@ const CacheIcon = ({ status }: { status: CacheStatus }) => {
   )
 }
 
-const APP_VERSION = 'v1.3.0'
+const APP_VERSION = 'v1.3.1'
 
 const StatusPill = ({ providerReady, saveStatus, cacheCount, cacheStatus }: {
   providerReady: boolean
@@ -338,7 +350,6 @@ function App() {
     if (settings.provider === 'azure') return Boolean(settings.azureEndpoint && settings.azureDeployment && settings.azureApiKey)
     if (settings.provider === 'gemini') return Boolean(settings.geminiApiKey && settings.geminiModel)
     if (settings.provider === 'anthropic') return Boolean(settings.anthropicApiKey && settings.anthropicModel)
-    if (settings.provider === 'deepseek') return Boolean(settings.deepseekApiKey && settings.deepseekModel)
     return Boolean(settings.openAiApiKey && settings.openAiModel)
   }, [settings])
 

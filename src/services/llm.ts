@@ -210,9 +210,15 @@ export const buildUserMessage = (query: string, homelyContext?: string, osmConte
 If you cannot confidently identify the Australian location, return "exists": false, use the requested place/state in "suburb" and "state", explain the issue in "summary" and "notFoundReason", and return empty or brief placeholder values for the remaining fields. If there is a likely intended Australian suburb or town, include it in "suggestedSuburb" and its state abbreviation in "suggestedState". For example, if the request is "Warragul, TAS", set "suggestedSuburb": "Warragul" and "suggestedState": "VIC".
 ${osmContext ? `\nThe following infrastructure data was fetched live from OpenStreetMap for this suburb. Treat it as the authoritative ground truth for named infrastructure (roads, schools, parks, shops, medical centres). Use these exact names in the relevant fields (majorRoads, trainStations, primarySchoolNames, secondarySchoolNames, parkNames, shoppingPrecinctNames, medicalCentreNames). Do not invent names not present here:\n<osm_context>\n${osmContext}\n</osm_context>\n` : ''}${homelyContext ? `\nThe following is community-sourced context from Homely.com.au for this suburb. Use it to enrich the demographics and lifestyle sections where relevant, but treat it as anecdotal and supplement with your own knowledge:\n<homely_context>\n${homelyContext}\n</homely_context>\n` : ''}`
 
-// Combined prompt for providers that don't support a separate system field (OpenAI-compat, DeepSeek).
+// Combined prompt for providers that don't support a separate system field (OpenAI-compatible).
 export const buildPrompt = (query: string, homelyContext?: string, osmContext?: string) =>
   `${buildSystemPrompt()}\n\n${buildUserMessage(query, homelyContext, osmContext)}`
+
+// OpenAI's own API expects max_completion_tokens (max_tokens is deprecated there);
+// third-party OpenAI-compatible providers (DeepSeek, Kimi, OpenRouter, etc.)
+// generally only support the older max_tokens field.
+const openAiMaxTokensKey = (baseUrl: string): 'max_tokens' | 'max_completion_tokens' =>
+  baseUrl.includes('api.openai.com') ? 'max_completion_tokens' : 'max_tokens'
 
 export const callLlm = async (settings: LlmSettings, query: string, homelyContext?: string, liveBenchmarks?: StateBenchmarks, osmContext?: string): Promise<Review> => {
   const prompt = buildPrompt(query, homelyContext, osmContext)
@@ -350,33 +356,6 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
       return parseReview(content, liveBenchmarks)
     }
 
-    if (settings.provider === 'deepseek') {
-      if (!settings.deepseekApiKey || !settings.deepseekModel) {
-        throw new Error('DeepSeek API key and model are required.')
-      }
-      const response = await fetchWithRetry(
-        'https://api.deepseek.com/chat/completions',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.deepseekApiKey}` },
-          body: JSON.stringify({
-            model: settings.deepseekModel,
-            temperature: 0.2,
-            messages: [{ role: 'user', content: prompt }],
-            response_format: { type: 'json_object' },
-            max_tokens: 9000,
-          }),
-        },
-        controller.signal,
-      )
-      const rawPayload = await response.text()
-      if (!response.ok) throw new Error(`DeepSeek request failed: ${response.status} ${rawPayload.slice(0, 260)}`)
-      const payload = JSON.parse(rawPayload) as { choices?: Array<{ message?: { content?: string } }> }
-      const content = payload.choices?.[0]?.message?.content
-      if (!content) throw new Error('DeepSeek returned no review content.')
-      return parseReview(content, liveBenchmarks)
-    }
-
     if (!settings.openAiApiKey || !settings.openAiModel) {
       throw new Error('OpenAI-compatible API key and model are required.')
     }
@@ -390,7 +369,7 @@ export const callLlm = async (settings: LlmSettings, query: string, homelyContex
           temperature: 0.2,
           messages: [{ role: 'user', content: prompt }],
           response_format: { type: 'json_object' },
-          max_completion_tokens: 9000,
+          [openAiMaxTokensKey(settings.openAiBaseUrl)]: 9000,
         }),
       },
       controller.signal,
@@ -512,28 +491,6 @@ const testLlmConnectionInner = async (
       return content ? { ok: true, reply: content.trim() } : { ok: false, error: 'Anthropic returned no content.' }
     }
 
-    if (settings.provider === 'deepseek') {
-      if (!settings.deepseekApiKey || !settings.deepseekModel) {
-        return { ok: false, error: 'DeepSeek API key and model are required.' }
-      }
-      const response = await fetch('https://api.deepseek.com/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.deepseekApiKey}` },
-        body: JSON.stringify({
-          model: settings.deepseekModel,
-          temperature: 0,
-          messages: [{ role: 'user', content: TEST_PROMPT }],
-          max_tokens: 20,
-        }),
-        signal: controller.signal,
-      })
-      const rawPayload = await response.text()
-      if (!response.ok) return { ok: false, error: `${response.status} ${rawPayload.slice(0, 200)}` }
-      const payload = JSON.parse(rawPayload) as { choices?: Array<{ message?: { content?: string } }> }
-      const content = payload.choices?.[0]?.message?.content
-      return content ? { ok: true, reply: content.trim() } : { ok: false, error: 'DeepSeek returned no content.' }
-    }
-
     if (!settings.openAiApiKey || !settings.openAiModel) {
       return { ok: false, error: 'OpenAI-compatible API key and model are required.' }
     }
@@ -544,7 +501,7 @@ const testLlmConnectionInner = async (
         model: settings.openAiModel,
         temperature: 0,
         messages: [{ role: 'user', content: TEST_PROMPT }],
-        max_completion_tokens: 20,
+        [openAiMaxTokensKey(settings.openAiBaseUrl)]: 20,
       }),
       signal: controller.signal,
     })

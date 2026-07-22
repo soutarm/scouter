@@ -13,12 +13,6 @@ type Props = {
 type ModelOption = { value: string; label: string }
 
 // Fallback lists used before a key is entered or if the fetch fails
-const FALLBACK_OPENAI: ModelOption[] = [
-  { value: 'gpt-4.1', label: 'GPT-4.1' },
-  { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
-  { value: 'gpt-4o', label: 'GPT-4o' },
-]
-
 const FALLBACK_GEMINI: ModelOption[] = [
   { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
   { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
@@ -31,19 +25,82 @@ const FALLBACK_ANTHROPIC: ModelOption[] = [
   { value: 'claude-opus-4-5', label: 'Claude Opus 4.5' },
 ]
 
-const FALLBACK_DEEPSEEK: ModelOption[] = [
-  { value: 'deepseek-chat', label: 'DeepSeek Chat' },
-  { value: 'deepseek-reasoner', label: 'DeepSeek Reasoner' },
-]
-
 // No entry for 'free' - it needs no external API key, so the link row is hidden for it.
+// No entry for 'openai' either - its link comes from the active OPENAI_PRESETS entry instead.
 const apiKeyLinks: Partial<Record<ProviderKind, { label: string; href: string }>> = {
   gemini:    { label: 'Get Google Gemini API Key', href: 'https://aistudio.google.com/app/apikey' },
-  openai:    { label: 'Get OpenAI GPT API Key',    href: 'https://platform.openai.com/api-keys' },
   anthropic: { label: 'Get Anthropic Claude API Key', href: 'https://console.anthropic.com/settings/keys' },
-  deepseek:  { label: 'Get DeepSeek API Key',      href: 'https://platform.deepseek.com/api_keys' },
   azure:     { label: 'Get Azure AI API Key',       href: 'https://learn.microsoft.com/en-us/azure/ai-foundry/openai/how-to/create-resource' },
 }
+
+// Known OpenAI-compatible services, selectable from the Service dropdown under the
+// "OpenAI" provider. Selecting one auto-fills the base URL and swaps the model list -
+// this is what lets Kimi/DeepSeek/OpenRouter/etc. reuse the single generic request
+// path in llm.ts instead of each needing their own dedicated branch. "Custom" is
+// always last and matches anything that isn't one of the known base URLs.
+type OpenAiPreset = {
+  id: string
+  label: string
+  baseUrl: string
+  apiKeyLink?: { label: string; href: string }
+  fallbackModels: ModelOption[]
+  note: string
+}
+
+const OPENAI_PRESETS: OpenAiPreset[] = [
+  {
+    id: 'openai',
+    label: 'OpenAI',
+    baseUrl: 'https://api.openai.com/v1',
+    apiKeyLink: { label: 'Get OpenAI API Key', href: 'https://platform.openai.com/api-keys' },
+    fallbackModels: [
+      { value: 'gpt-4.1', label: 'GPT-4.1' },
+      { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
+      { value: 'gpt-4o', label: 'GPT-4o' },
+    ],
+    note: "Uses OpenAI's Chat Completions API directly from this browser. Keep keys restricted where possible.",
+  },
+  {
+    id: 'deepseek',
+    label: 'DeepSeek',
+    baseUrl: 'https://api.deepseek.com',
+    apiKeyLink: { label: 'Get DeepSeek API Key', href: 'https://platform.deepseek.com/api_keys' },
+    fallbackModels: [
+      { value: 'deepseek-chat', label: 'DeepSeek Chat' },
+      { value: 'deepseek-reasoner', label: 'DeepSeek Reasoner' },
+    ],
+    note: "Uses DeepSeek's OpenAI-compatible Chat Completions API directly from this browser.",
+  },
+  {
+    id: 'kimi',
+    label: 'Kimi (Moonshot AI)',
+    baseUrl: 'https://api.moonshot.ai/v1',
+    apiKeyLink: { label: 'Get Moonshot API Key', href: 'https://platform.moonshot.ai/console/api-keys' },
+    fallbackModels: [
+      { value: 'kimi-k2-turbo-preview', label: 'Kimi K2 Turbo' },
+      { value: 'kimi-k2-0711-preview', label: 'Kimi K2' },
+    ],
+    note: "Uses Moonshot AI's OpenAI-compatible API directly from this browser. Check moonshot.ai's docs if a model name below has moved on.",
+  },
+  {
+    id: 'openrouter',
+    label: 'OpenRouter',
+    baseUrl: 'https://openrouter.ai/api/v1',
+    apiKeyLink: { label: 'Get OpenRouter API Key', href: 'https://openrouter.ai/keys' },
+    fallbackModels: [],
+    note: 'Routes to hundreds of models from one key. Browse openrouter.ai/models and paste a model slug below - append :free for no-cost open-weight models.',
+  },
+  {
+    id: 'custom',
+    label: 'Custom',
+    baseUrl: '',
+    fallbackModels: [],
+    note: 'Works with any OpenAI-compatible endpoint - point Base URL at its API root.',
+  },
+]
+
+const findOpenAiPreset = (baseUrl: string): OpenAiPreset =>
+  OPENAI_PRESETS.find(p => p.id !== 'custom' && p.baseUrl === baseUrl) ?? OPENAI_PRESETS[OPENAI_PRESETS.length - 1]
 
 // Fetch live model lists from provider APIs. Every path returns [] rather than
 // throwing - a thrown error here would otherwise leave the "fetching" state (and
@@ -125,7 +182,9 @@ export const SettingsPanel = ({
   onClearCurrentLocation,
   onClose,
 }: Props) => {
-  const [openAiModels, setOpenAiModels] = useState<ModelOption[]>(FALLBACK_OPENAI)
+  const activePreset = findOpenAiPreset(settings.openAiBaseUrl)
+
+  const [openAiModels, setOpenAiModels] = useState<ModelOption[]>(activePreset.fallbackModels)
   const [geminiModels, setGeminiModels] = useState<ModelOption[]>(FALLBACK_GEMINI)
   const [anthropicModels, setAnthropicModels] = useState<ModelOption[]>(FALLBACK_ANTHROPIC)
   const [fetchingModels, setFetchingModels] = useState(false)
@@ -141,15 +200,18 @@ export const SettingsPanel = ({
   // lastFetchKey is only updated on a successful (non-empty) result, so a failed attempt
   // (bad key, transient network error, a bug since fixed, etc.) doesn't permanently block
   // retrying - the next time doFetch runs for the same inputs, it tries again instead of
-  // silently no-op'ing forever.
+  // silently no-op'ing forever. Live model-fetching only applies to the real OpenAI API -
+  // its filter (gpt-*/o[1-9]) and /models response shape aren't guaranteed for other
+  // OpenAI-compatible services, which use their preset's static fallback list instead.
   const doFetch = useCallback(async (provider: ProviderKind) => {
     const fetchKey = `${provider}:${debouncedOpenAiKey}:${debouncedGeminiKey}:${debouncedAnthropicKey}:${settings.openAiBaseUrl}`
     if (fetchKey === lastFetchKey.current) return
+    const preset = findOpenAiPreset(settings.openAiBaseUrl)
 
     // try/finally is a safety net: fetchOpenAiModels et al. already catch their own
     // errors and resolve to [], but this guarantees the loading state can never get
     // stuck even if something unexpected throws.
-    if (provider === 'openai' && debouncedOpenAiKey) {
+    if (provider === 'openai' && preset.id === 'openai' && debouncedOpenAiKey) {
       setFetchingModels(true)
       try {
         const models = await fetchOpenAiModels(debouncedOpenAiKey, settings.openAiBaseUrl)
@@ -197,11 +259,11 @@ export const SettingsPanel = ({
   // naturally stops matching (and hides itself) the moment anything changes.
   const showTestResult = testResult !== null && testResult.settings === settings
 
-  const isCustomOpenAiModel    = !openAiModels.some(o => o.value === settings.openAiModel)
+  const openAiModelOptions     = activePreset.id === 'openai' ? openAiModels : activePreset.fallbackModels
+  const isCustomOpenAiModel    = !openAiModelOptions.some(o => o.value === settings.openAiModel)
   const isCustomGeminiModel    = !geminiModels.some(o => o.value === settings.geminiModel)
   const isCustomAnthropicModel = !anthropicModels.some(o => o.value === settings.anthropicModel)
-  const isCustomDeepseekModel  = !FALLBACK_DEEPSEEK.some(o => o.value === settings.deepseekModel)
-  const selectedApiKeyLink     = apiKeyLinks[settings.provider]
+  const selectedApiKeyLink     = settings.provider === 'openai' ? activePreset.apiKeyLink : apiKeyLinks[settings.provider]
 
   return (
   <section
@@ -238,9 +300,8 @@ export const SettingsPanel = ({
     >
       <option value="free">Free (no setup)</option>
       <option value="gemini">Google Gemini</option>
-      <option value="openai">OpenAI GPT</option>
+      <option value="openai">OpenAI</option>
       <option value="anthropic">Anthropic Claude</option>
-      <option value="deepseek">DeepSeek</option>
       <option value="azure">Azure AI</option>
     </select>
 
@@ -347,48 +408,30 @@ export const SettingsPanel = ({
           Uses Anthropic&apos;s Messages API directly from this browser. Keep keys restricted where possible.
         </p>
       </div>
-    ) : settings.provider === 'deepseek' ? (
-      <div className="settings-grid">
-        <label>
-          API key
-          <input id="llm-deepseek-api-key" name="llm-deepseek-api-key" type="password" value={settings.deepseekApiKey}
-            onChange={(e) => onUpdate({ ...settings, deepseekApiKey: e.target.value })} />
-        </label>
-        <label>
-          Model
-          <select
-            id="llm-deepseek-model"
-            name="llm-deepseek-model"
-            className="settings-provider-select"
-            value={isCustomDeepseekModel ? '__custom__' : settings.deepseekModel}
-            onChange={(e) => {
-              const v = e.target.value
-              onUpdate({ ...settings, deepseekModel: v === '__custom__' ? '' : v })
-            }}
-          >
-            {FALLBACK_DEEPSEEK.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            <option value="__custom__">Custom model</option>
-          </select>
-        </label>
-        {isCustomDeepseekModel && (
-          <label>
-            Custom model
-            <input id="llm-deepseek-model-custom" name="llm-deepseek-model-custom"
-              placeholder="deepseek-model-name" value={settings.deepseekModel}
-              onChange={(e) => onUpdate({ ...settings, deepseekModel: e.target.value })} />
-          </label>
-        )}
-        <p className="settings-note settings-note--full">
-          Uses DeepSeek&apos;s Chat Completions API directly from this browser. Keep keys restricted where possible.
-        </p>
-      </div>
     ) : (
       <div className="settings-grid">
         <label>
-          Base URL
-          <input id="llm-openai-base-url" name="llm-openai-base-url" autoComplete="url" value={settings.openAiBaseUrl}
-            onChange={(e) => onUpdate({ ...settings, openAiBaseUrl: e.target.value })} />
+          Service
+          <select
+            id="llm-openai-service"
+            name="llm-openai-service"
+            className="settings-provider-select"
+            value={activePreset.id}
+            onChange={(e) => {
+              const preset = OPENAI_PRESETS.find(p => p.id === e.target.value) ?? OPENAI_PRESETS[OPENAI_PRESETS.length - 1]
+              onUpdate({ ...settings, openAiBaseUrl: preset.baseUrl, openAiModel: preset.fallbackModels[0]?.value ?? '' })
+            }}
+          >
+            {OPENAI_PRESETS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+          </select>
         </label>
+        {activePreset.id === 'custom' && (
+          <label>
+            Base URL
+            <input id="llm-openai-base-url" name="llm-openai-base-url" autoComplete="url" value={settings.openAiBaseUrl}
+              onChange={(e) => onUpdate({ ...settings, openAiBaseUrl: e.target.value })} />
+          </label>
+        )}
         <label>
           API key
           <input id="llm-openai-api-key" name="llm-openai-api-key" type="password" value={settings.openAiApiKey}
@@ -406,7 +449,7 @@ export const SettingsPanel = ({
               onUpdate({ ...settings, openAiModel: v === '__custom__' ? '' : v })
             }}
           >
-            {openAiModels.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {openAiModelOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             <option value="__custom__">Custom model</option>
           </select>
         </label>
@@ -419,9 +462,7 @@ export const SettingsPanel = ({
           </label>
         )}
         <p className="settings-note settings-note--full">
-          Works with any OpenAI-compatible endpoint. For a free option with open-weight models
-          (Llama, Gemma, DeepSeek, etc.), set Base URL to <code>https://openrouter.ai/api/v1</code> and
-          pick one of OpenRouter&apos;s <code>:free</code> models.
+          {activePreset.note}
         </p>
       </div>
     )}

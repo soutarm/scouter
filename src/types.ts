@@ -1,4 +1,4 @@
-export type ProviderKind = 'free' | 'azure' | 'openai' | 'gemini' | 'anthropic' | 'deepseek'
+export type ProviderKind = 'free' | 'azure' | 'openai' | 'gemini' | 'anthropic'
 
 export type StateBenchmark = {
   /** 12-month annual dwelling price growth % */
@@ -28,8 +28,6 @@ export type LlmSettings = {
   geminiApiKey: string
   anthropicModel: string
   anthropicApiKey: string
-  deepseekModel: string
-  deepseekApiKey: string
 }
 
 export type ReviewSectionKey = 'property' | 'environment' | 'crime' | 'infrastructure' | 'demographics' | 'map'
