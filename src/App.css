@@ -555,10 +555,15 @@ input:disabled {
 }
 
 .settings-provider-select {
-  background: #eff8ec;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: #eff8ec url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="%233d5e44" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>') no-repeat right 14px center;
+  background-size: 14px 14px;
   border: 1px solid rgba(92, 125, 98, 0.24);
   border-radius: 16px;
   color: #1f3f2a;
+  font-weight: 400;
   padding: 10px 42px 10px 12px;
   width: 100%;
 }

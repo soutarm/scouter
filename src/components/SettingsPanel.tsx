@@ -341,11 +341,6 @@ export const SettingsPanel = ({
     ) : settings.provider === 'gemini' ? (
       <div className="settings-grid">
         <label>
-          API key
-          <input id="llm-gemini-api-key" name="llm-gemini-api-key" type="password" value={settings.geminiApiKey}
-            onChange={(e) => onUpdate({ ...settings, geminiApiKey: e.target.value })} />
-        </label>
-        <label>
           Model{fetchingModels ? ' (loading…)' : ''}
           <select
             id="llm-gemini-model"
@@ -369,17 +364,17 @@ export const SettingsPanel = ({
               onChange={(e) => onUpdate({ ...settings, geminiModel: e.target.value })} />
           </label>
         )}
+        <label>
+          API key
+          <input id="llm-gemini-api-key" name="llm-gemini-api-key" type="password" value={settings.geminiApiKey}
+            onChange={(e) => onUpdate({ ...settings, geminiApiKey: e.target.value })} />
+        </label>
         <p className="settings-note settings-note--full">
           Uses Google AI Studio&apos;s Gemini API directly from this browser. Keep keys restricted where possible.
         </p>
       </div>
     ) : settings.provider === 'anthropic' ? (
       <div className="settings-grid">
-        <label>
-          API key
-          <input id="llm-anthropic-api-key" name="llm-anthropic-api-key" type="password" value={settings.anthropicApiKey}
-            onChange={(e) => onUpdate({ ...settings, anthropicApiKey: e.target.value })} />
-        </label>
         <label>
           Model{fetchingModels ? ' (loading…)' : ''}
           <select
@@ -404,6 +399,11 @@ export const SettingsPanel = ({
               onChange={(e) => onUpdate({ ...settings, anthropicModel: e.target.value })} />
           </label>
         )}
+        <label>
+          API key
+          <input id="llm-anthropic-api-key" name="llm-anthropic-api-key" type="password" value={settings.anthropicApiKey}
+            onChange={(e) => onUpdate({ ...settings, anthropicApiKey: e.target.value })} />
+        </label>
         <p className="settings-note settings-note--full">
           Uses Anthropic&apos;s Messages API directly from this browser. Keep keys restricted where possible.
         </p>
@@ -433,11 +433,6 @@ export const SettingsPanel = ({
           </label>
         )}
         <label>
-          API key
-          <input id="llm-openai-api-key" name="llm-openai-api-key" type="password" value={settings.openAiApiKey}
-            onChange={(e) => onUpdate({ ...settings, openAiApiKey: e.target.value })} />
-        </label>
-        <label>
           Model{fetchingModels ? ' (loading…)' : ''}
           <select
             id="llm-openai-model"
@@ -461,6 +456,11 @@ export const SettingsPanel = ({
               onChange={(e) => onUpdate({ ...settings, openAiModel: e.target.value })} />
           </label>
         )}
+        <label>
+          API key
+          <input id="llm-openai-api-key" name="llm-openai-api-key" type="password" value={settings.openAiApiKey}
+            onChange={(e) => onUpdate({ ...settings, openAiApiKey: e.target.value })} />
+        </label>
         <p className="settings-note settings-note--full">
           {activePreset.note}
         </p>
