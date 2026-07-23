@@ -61,9 +61,13 @@ export const friendlyRequestError = (caught: unknown) => {
   return caught instanceof Error ? caught.message : 'Review generation failed.'
 }
 
-export const fetchHomelyContext = async (suburb: string, state: string): Promise<string> => {
+export const fetchHomelyContext = async (suburb: string, state: string, postcode?: string): Promise<string> => {
+  // Homely's suburb-profile URLs require the postcode - without one the
+  // request just 404s, so skip it rather than firing a request we know
+  // will fail.
+  if (!postcode) return ''
   try {
-    const slug = `${suburb.toLowerCase().replace(/\s+/g, '-')}-${state.toLowerCase()}`
+    const slug = `${suburb.toLowerCase().replace(/\s+/g, '-')}-${state.toLowerCase()}-${postcode}`
     const url = `https://www.homely.com.au/suburb-profile/${slug}`
     const res = await fetch(url, { signal: AbortSignal.timeout(10_000) })
     if (!res.ok) return ''

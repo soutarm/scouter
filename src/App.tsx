@@ -286,7 +286,7 @@ const CacheIcon = ({ status }: { status: CacheStatus }) => {
   )
 }
 
-const APP_VERSION = 'v1.3.6'
+const APP_VERSION = 'v1.3.7'
 
 const StatusPill = ({ providerReady, saveStatus, cacheCount, cacheStatus }: {
   providerReady: boolean
@@ -572,7 +572,7 @@ function App() {
   }, [])
 
   const runSearch = useCallback(
-    async (place: string, state: AustralianState, options: { updateQueryString?: boolean; tab?: string } = {}) => {
+    async (place: string, state: AustralianState, options: { updateQueryString?: boolean; tab?: string; postcode?: string } = {}) => {
       const trimmedPlace = place.trim()
       const trimmedQuery = trimmedPlace ? `${trimmedPlace}, ${state}` : ''
       if (!trimmedQuery) return
@@ -617,7 +617,7 @@ function App() {
       setIsSearchOpen(false)
       try {
         const [homelyContext, liveBenchmarks, osmResult, absResult] = await Promise.all([
-          fetchHomelyContext(trimmedPlace, state),
+          fetchHomelyContext(trimmedPlace, state, options.postcode),
           fetchBenchmarks(),
           fetchOsmContext(trimmedPlace, state),
           fetchAbsDemographics(trimmedPlace, state),
@@ -1491,7 +1491,7 @@ function App() {
               setSuggestions([])
               setShowSuggestions(false)
               setCanonicalPlace(s.name)
-              void runSearch(s.name, s.state)
+              void runSearch(s.name, s.state, { postcode: s.postcode })
             }}
             onQuickLocationSelect={(search) => {
               if (viewOnlyMode) {
@@ -1541,10 +1541,10 @@ function App() {
             onDetails={(r) => {
               setCompareMode(false)
               setCompareKeys([])
-              void runSearch(r.suburb, r.state as import('./types').AustralianState, { updateQueryString: true })
+              void runSearch(r.suburb, r.state as import('./types').AustralianState, { updateQueryString: true, postcode: r.postcode })
             }}
             onCategoryClick={(r, tabKey) => {
-              void runSearch(r.suburb, r.state as import('./types').AustralianState, { updateQueryString: true, tab: tabKey })
+              void runSearch(r.suburb, r.state as import('./types').AustralianState, { updateQueryString: true, tab: tabKey, postcode: r.postcode })
             }}
             onRemove={(key) => setCompareKeys((prev) => prev.filter((k) => k !== key))}
           />

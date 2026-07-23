@@ -51,6 +51,12 @@
     border-radius: 100px;
   }
 
+  .busy-card h2 {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
   .app-shell:has(.busy-card) {
     display: flex;
     flex-direction: column;
@@ -1295,9 +1301,7 @@ button:focus-visible {
   line-height: 1.25;
   margin-bottom: 0;
   max-width: 100%;
-  overflow: hidden;
   text-shadow: 0 2px 12px rgba(31, 77, 54, 0.25), 0 1px 2px rgba(31, 77, 54, 0.15);
-  white-space: nowrap;
 }
 
 .busy-copy-fadeout {
@@ -3500,6 +3504,8 @@ td {
 
   .busy-copy {
     flex: initial;
+    justify-content: center;
+    width: 100%;
   }
 
   .busy-illustration {
