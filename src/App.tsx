@@ -205,7 +205,7 @@ const ErrorNotice = ({ message, details, reportText, onRetry }: { message: strin
     <section className="error-card" role="alert" aria-live="polite">
       <div className="error-card-header">
         <div>
-          <p className="eyebrow">Something needs attention</p>
+          <p className="eyebrow">We hit a snag</p>
           <h2>{message}</h2>
         </div>
         <button
@@ -286,7 +286,7 @@ const CacheIcon = ({ status }: { status: CacheStatus }) => {
   )
 }
 
-const APP_VERSION = 'v1.3.5'
+const APP_VERSION = 'v1.3.6'
 
 const StatusPill = ({ providerReady, saveStatus, cacheCount, cacheStatus }: {
   providerReady: boolean
