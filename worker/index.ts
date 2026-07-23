@@ -496,40 +496,59 @@ export default {
       // cap for what's really one logical review). Each attempt is wrapped
       // individually - a timeout/network failure on attempt 1 must not skip
       // attempt 2, only a genuine upstream error status does.
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          const openRouterRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
-              'HTTP-Referer': 'https://scouter.mrated.dev',
-              'X-Title': 'Scouter',
-            },
-            body: JSON.stringify({
-              model: FREE_TIER_MODEL,
-              temperature: 0.2,
-              reasoning: { effort: 'low' },
-              messages: [
-                { role: 'system', content: FREE_TIER_SYSTEM_PROMPT },
-                { role: 'user', content: buildFreeTierUserMessage(`${suburb}, ${state}`, homelyContext, osmContext) },
-              ],
-              response_format: { type: 'json_object' },
-              max_tokens: 9000,
-            }),
-            signal: AbortSignal.timeout(35_000),
-          })
-          bodyText = await openRouterRes.text()
-          upstreamStatus = openRouterRes.status
-          upstreamContentType = openRouterRes.headers.get('Content-Type') ?? 'application/json'
-          lastError = undefined
+      const runAttempts = async () => {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const openRouterRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
+                'HTTP-Referer': 'https://scouter.mrated.dev',
+                'X-Title': 'Scouter',
+              },
+              body: JSON.stringify({
+                model: FREE_TIER_MODEL,
+                temperature: 0.2,
+                reasoning: { effort: 'low' },
+                messages: [
+                  { role: 'system', content: FREE_TIER_SYSTEM_PROMPT },
+                  { role: 'user', content: buildFreeTierUserMessage(`${suburb}, ${state}`, homelyContext, osmContext) },
+                ],
+                response_format: { type: 'json_object' },
+                max_tokens: 9000,
+              }),
+              signal: AbortSignal.timeout(35_000),
+            })
+            bodyText = await openRouterRes.text()
+            upstreamStatus = openRouterRes.status
+            upstreamContentType = openRouterRes.headers.get('Content-Type') ?? 'application/json'
+            lastError = undefined
 
-          if (!openRouterRes.ok) break  // upstream error status - retrying won't fix it
-          const content = extractOpenRouterContent(bodyText)
-          if (content && isCompleteReviewContent(content)) break
-        } catch (err) {
-          lastError = err  // timeout or network failure - let the loop try again if attempts remain
+            if (!openRouterRes.ok) break  // upstream error status - retrying won't fix it
+            const content = extractOpenRouterContent(bodyText)
+            if (content && isCompleteReviewContent(content)) break
+          } catch (err) {
+            lastError = err  // timeout or network failure - let the loop try again if attempts remain
+          }
         }
+      }
+
+      // Hard outer ceiling: the two attempts above are individually capped at
+      // 35s each (~70s worst case), but this races them against a slightly
+      // higher bound so a client waiting on REQUEST_TIMEOUT_MS never sees a
+      // silent hang all the way to its own timeout with no server-side
+      // response - if this ever fires, the per-attempt timeouts aren't the
+      // bottleneck and something upstream needs investigating directly.
+      try {
+        await Promise.race([
+          runAttempts(),
+          new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('Free tier request exceeded 80s internal budget')), 80_000)
+          }),
+        ])
+      } catch (err) {
+        lastError = err
       }
 
       if (lastError) {
