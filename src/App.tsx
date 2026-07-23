@@ -188,7 +188,7 @@ const buildErrorReport = (
   return lines.join('\n')
 }
 
-const ErrorNotice = ({ message, details, reportText }: { message: string; details?: string; reportText: string }) => {
+const ErrorNotice = ({ message, details, reportText, onRetry }: { message: string; details?: string; reportText: string; onRetry?: () => void }) => {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = async () => {
@@ -226,6 +226,11 @@ const ErrorNotice = ({ message, details, reportText }: { message: string; detail
           ? 'You can try again, check your provider settings, or open the details below if you need the technical error.'
           : 'You can try again or check your provider settings before continuing.'}
       </p>
+      {onRetry && (
+        <button type="button" className="error-retry-btn" onClick={onRetry}>
+          Try again
+        </button>
+      )}
       {details && (
         <details className="error-details">
           <summary>View full error details</summary>
@@ -281,7 +286,7 @@ const CacheIcon = ({ status }: { status: CacheStatus }) => {
   )
 }
 
-const APP_VERSION = 'v1.3.1'
+const APP_VERSION = 'v1.3.2'
 
 const StatusPill = ({ providerReady, saveStatus, cacheCount, cacheStatus }: {
   providerReady: boolean
@@ -792,6 +797,14 @@ function App() {
     await runSearch(place, state)
   }
 
+  const handleRetry = useCallback(() => {
+    const parsedQuery = splitLocation(query)
+    const place = parsedQuery.place
+    const state = parsedQuery.state ?? selectedState
+    if (!place) return
+    void runSearch(place, state)
+  }, [query, runSearch, selectedState])
+
   const handleSharedSearchIntent = useCallback(() => {
     if (!viewOnlyMode) return
     setShowSettings(true)
@@ -1271,10 +1284,10 @@ function App() {
               className="settings-button"
               type="button"
               onClick={() => { setShowSettings((open) => !open); setSettingsFromMobile(false) }}
-              aria-label="LLM settings"
+              aria-label="AI Settings"
               aria-expanded={showSettings}
               aria-haspopup="true"
-              title="LLM settings"
+              title="AI Settings"
             >
               <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
@@ -1331,7 +1344,7 @@ function App() {
               <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
               <circle cx="12" cy="12" r="3" />
             </svg>
-            LLM settings
+            AI Settings
           </button>
         </div>
       )}
@@ -1493,6 +1506,7 @@ function App() {
             provider: `${providerLabelByKind[settings.provider]} — ${getConfiguredModelName(settings)}`,
             query: composedQuery,
           })}
+          onRetry={handleRetry}
         />
       )}
 

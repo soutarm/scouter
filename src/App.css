@@ -51,6 +51,17 @@
     border-radius: 100px;
   }
 
+  .app-shell:has(.busy-card) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .app-shell:has(.busy-card) .busy-card {
+    margin-bottom: auto;
+    margin-top: auto;
+    transform: translateY(-8vh);
+  }
+
   .topbar.is-sticky {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(280px, 540px) minmax(0, 1fr);
@@ -1411,8 +1422,9 @@ button:focus-visible {
   color: #f7fff2;
   font-size: clamp(1.35rem, 3vw, 1.9rem);
   letter-spacing: -0.02em;
-  line-height: 1.05;
+  line-height: 1.3;
   margin: 4px 0 0;
+  overflow-wrap: anywhere;
 }
 
 .error-card .eyebrow {
@@ -1426,6 +1438,31 @@ button:focus-visible {
   margin: 12px 0 0;
   max-width: none;
   width: 100%;
+}
+
+.error-retry-btn {
+  background: #fbfff7;
+  border: 0;
+  border-radius: 999px;
+  color: #1f4d36;
+  cursor: pointer;
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 800;
+  margin: 18px 0 0;
+  padding: 10px 20px;
+  transition: box-shadow 150ms ease, transform 150ms ease;
+  width: 100%;
+}
+
+.error-retry-btn:hover {
+  box-shadow: 0 10px 24px rgba(12, 35, 20, 0.25);
+  transform: translateY(-1px);
+}
+
+.error-retry-btn:focus-visible {
+  outline: 3px solid rgba(247, 255, 242, 0.5);
+  outline-offset: 2px;
 }
 
 .error-details {
@@ -1471,6 +1508,24 @@ button:focus-visible {
   .error-card-copy,
   .error-details {
     margin-left: 0;
+  }
+
+  .error-card-header {
+    display: block;
+    position: relative;
+  }
+
+  .error-card-header .eyebrow {
+    font-size: 1.15rem;
+    line-height: 1.3;
+    margin-bottom: 10px;
+    padding-right: 92px;
+  }
+
+  .error-copy-btn {
+    position: absolute;
+    right: 0;
+    top: 0;
   }
 }
 
@@ -3407,9 +3462,23 @@ td {
     grid-template-columns: 1fr;
   }
 
+  .app-shell:has(.busy-card) {
+    display: flex;
+    flex-direction: column;
+  }
+
   .busy-card {
+    flex: 1;
+    flex-direction: column;
+    justify-content: space-evenly;
     min-height: 0;
-    padding: 20px;
+    padding: 24px 20px;
+    text-align: center;
+    width: 100%;
+  }
+
+  .busy-copy {
+    flex: initial;
   }
 
   .busy-illustration {

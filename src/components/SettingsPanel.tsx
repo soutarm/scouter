@@ -72,6 +72,18 @@ const OPENAI_PRESETS: OpenAiPreset[] = [
     note: "Uses DeepSeek's OpenAI-compatible Chat Completions API directly from this browser.",
   },
   {
+    id: 'qwen',
+    label: 'Qwen (Alibaba Cloud)',
+    baseUrl: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+    apiKeyLink: { label: 'Get Qwen (DashScope) API Key', href: 'https://dashscope.console.aliyun.com/apiKey' },
+    fallbackModels: [
+      { value: 'qwen-max', label: 'Qwen Max' },
+      { value: 'qwen-plus', label: 'Qwen Plus' },
+      { value: 'qwen-turbo', label: 'Qwen Turbo' },
+    ],
+    note: "Uses Alibaba Cloud's OpenAI-compatible DashScope API directly from this browser.",
+  },
+  {
     id: 'kimi',
     label: 'Kimi (Moonshot AI)',
     baseUrl: 'https://api.moonshot.ai/v1',
@@ -268,7 +280,7 @@ export const SettingsPanel = ({
   return (
   <section
     className="settings-card"
-    aria-label="LLM settings"
+    aria-label="AI Settings"
     role="dialog"
     aria-modal="true"
     onClick={(event) => event.stopPropagation()}
