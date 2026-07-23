@@ -286,7 +286,7 @@ const CacheIcon = ({ status }: { status: CacheStatus }) => {
   )
 }
 
-const APP_VERSION = 'v1.3.4'
+const APP_VERSION = 'v1.3.5'
 
 const StatusPill = ({ providerReady, saveStatus, cacheCount, cacheStatus }: {
   providerReady: boolean

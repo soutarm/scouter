@@ -233,9 +233,7 @@ p {
   display: inline-block;
   letter-spacing: -0.055em;
   line-height: 0.72;
-  paint-order: stroke fill;
   transform: scaleX(0.98);
-  -webkit-text-stroke: 0.012em #1f4d36;
 }
 
 .brand-letter-s {
