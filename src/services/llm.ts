@@ -3,10 +3,11 @@ import { parseReview } from './reviewParser'
 import { WORKER_BASE_URL } from './share'
 import { splitLocation } from './location'
 
-// 90s gives the free tier's worst case (two 35s upstream attempts, see
-// worker/index.ts's /llm/free retry) real headroom before the client gives
-// up first; paid providers normally respond in a few seconds regardless.
-const REQUEST_TIMEOUT_MS = 90_000
+// 2min gives the free tier's worst case (two 35s upstream attempts, see
+// worker/index.ts's /llm/free retry, plus Worker/KV overhead) real headroom
+// before the client gives up first; paid providers normally respond in a
+// few seconds regardless.
+const REQUEST_TIMEOUT_MS = 120_000
 const MAX_RETRIES = 3
 const RETRY_BASE_MS = 1_200
 
@@ -52,7 +53,7 @@ const extractAnthropicResponseText = (payload: {
 
 export const friendlyRequestError = (caught: unknown) => {
   if (caught instanceof DOMException && caught.name === 'AbortError') {
-    return 'The LLM request timed out after 60 seconds. Try a smaller/faster model or run the query again.'
+    return `The LLM request timed out after ${Math.round(REQUEST_TIMEOUT_MS / 1000)} seconds. Try a smaller/faster model or run the query again.`
   }
   if (caught instanceof TypeError && /fetch|network|failed/i.test(caught.message)) {
     return 'The browser could not reach the LLM provider. This is usually CORS or network blocking.'

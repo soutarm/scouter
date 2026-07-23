@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { jsPDF } from 'jspdf'
 import './App.css'
 
@@ -286,7 +286,7 @@ const CacheIcon = ({ status }: { status: CacheStatus }) => {
   )
 }
 
-const APP_VERSION = 'v1.3.2'
+const APP_VERSION = 'v1.3.3'
 
 const StatusPill = ({ providerReady, saveStatus, cacheCount, cacheStatus }: {
   providerReady: boolean
@@ -417,16 +417,98 @@ function App() {
   const busyMessages = useMemo(() => {
     const locationLabel = composedQuery || 'this location'
     return [
-      `Scouting ${locationLabel}...`,
-      `Mapping ${placePossessive} infrastructure...`,
-      `Checking transport links around ${placeLabel}...`,
-      `Reviewing ${placePossessive} climate and noise profile...`,
-      `Sizing up ${placePossessive} market momentum...`,
-      `Investigating crime trends in ${placeLabel}...`,
-      `Cross-checking safety signals for ${placeLabel}...`,
+      `Scouting ${locationLabel}`,
+      `Mapping ${placePossessive} infrastructure`,
+      `Checking transport links around ${placeLabel}`,
+      `Reviewing ${placePossessive} climate and noise profile`,
+      `Sizing up ${placePossessive} market momentum`,
+      `Investigating crime trends in ${placeLabel}`,
+      `Cross-checking safety signals for ${placeLabel}`,
     ]
   }, [composedQuery, placeLabel, placePossessive])
   const [busyMessageIndex, setBusyMessageIndex] = useState(0)
+  const [busyFadeOutText, setBusyFadeOutText] = useState<string | null>(null)
+  const busyCardRef = useRef<HTMLElement>(null)
+  const busyTextRef = useRef<HTMLHeadingElement>(null)
+  const busyFadeOutRef = useRef<HTMLHeadingElement>(null)
+  const busyCardSizeRef = useRef<{ width: number; height: number } | null>(null)
+  const busyPrevTextRef = useRef<string | null>(null)
+
+  // Reset the remembered size/text whenever a new busy session starts. This
+  // must be declared (and thus run) before the layout effect below - both
+  // are layout effects, which fire in declaration order, so this is
+  // guaranteed to clear the refs before the FLIP effect records a fresh
+  // baseline for the first message of the new session.
+  useLayoutEffect(() => {
+    busyCardSizeRef.current = null
+    busyPrevTextRef.current = null
+  }, [isLoading])
+
+  // Resize the busy card to fit the incoming message first, then crossfade
+  // the text - the new text stays hidden (and the outgoing text lingers as
+  // a faded-out overlay) while the container animates to its new size, so
+  // text never has to wrap awkwardly mid-resize. CSS alone can't transition
+  // height/width to/from auto-derived sizes reliably, so sizes are measured
+  // and animated explicitly.
+  useLayoutEffect(() => {
+    const el = busyCardRef.current
+    const currentText = busyMessages[busyMessageIndex] ?? ''
+    const prevSize = busyCardSizeRef.current
+    const prevText = busyPrevTextRef.current
+    busyPrevTextRef.current = currentText
+    if (!el) return
+
+    const nextSize = { width: el.offsetWidth, height: el.offsetHeight }
+    busyCardSizeRef.current = nextSize
+
+    const sizeChanged = !!prevSize &&
+      (Math.abs(prevSize.width - nextSize.width) >= 1 || Math.abs(prevSize.height - nextSize.height) >= 1)
+    if (!prevSize || !sizeChanged) return
+
+    setBusyFadeOutText(prevText)
+    if (busyTextRef.current) {
+      busyTextRef.current.style.transition = 'none'
+      busyTextRef.current.style.opacity = '0'
+    }
+
+    el.classList.remove('is-resizing')
+    el.style.width = `${prevSize.width}px`
+    el.style.height = `${prevSize.height}px`
+    void el.offsetHeight // force reflow so the browser registers the reverted size before animating
+    el.classList.add('is-resizing')
+    el.style.width = `${nextSize.width}px`
+    el.style.height = `${nextSize.height}px`
+
+    const handleEnd = (event: TransitionEvent) => {
+      if (event.target !== el) return
+      el.classList.remove('is-resizing')
+      el.style.width = ''
+      el.style.height = ''
+      if (busyTextRef.current) {
+        busyTextRef.current.style.transition = 'opacity 350ms ease'
+        busyTextRef.current.style.opacity = '1'
+      }
+      setBusyFadeOutText(null)
+    }
+    el.addEventListener('transitionend', handleEnd)
+    return () => el.removeEventListener('transitionend', handleEnd)
+    // isLoading is included so this always re-runs when the busy card first
+    // mounts, even if busyMessageIndex's value happens to already be 0 (e.g.
+    // the very first search in a session) - otherwise React skips the effect
+    // since busyMessageIndex itself didn't change, and no baseline size ever
+    // gets recorded for the first real transition to animate from.
+  }, [busyMessageIndex, isLoading, busyMessages])
+
+  // Kick off the outgoing text's fade-out once it mounts as an overlay.
+  useLayoutEffect(() => {
+    const node = busyFadeOutRef.current
+    if (!busyFadeOutText || !node) return
+    node.style.transition = 'none'
+    node.style.opacity = '1'
+    void node.offsetHeight // force reflow so the transition below actually animates
+    node.style.transition = 'opacity 350ms ease'
+    node.style.opacity = '0'
+  }, [busyFadeOutText])
 
   const updateSettings = (next: LlmSettings) => {
     setSettings(next)
@@ -1470,7 +1552,7 @@ function App() {
       )}
 
       {isLoading && (
-        <section className="busy-card" aria-live="polite">
+        <section className="busy-card" aria-live="polite" ref={busyCardRef}>
           <svg className="compass-spinner" viewBox="0 0 80 80" aria-hidden="true" fill="none">
             {/* Outer ring */}
             <circle cx="40" cy="40" r="36" stroke="#b8d9c4" strokeWidth="1.5" />
@@ -1492,7 +1574,12 @@ function App() {
             {/* Centre dot */}
             <circle cx="40" cy="40" r="3.5" fill="#1f4d36" />
           </svg>
-          <div className="busy-copy"><h2>{busyMessages[busyMessageIndex]}</h2></div>
+          <div className="busy-copy">
+            <h2 ref={busyTextRef}>{busyMessages[busyMessageIndex]}</h2>
+            {busyFadeOutText && (
+              <h2 className="busy-copy-fadeout" aria-hidden="true" ref={busyFadeOutRef}>{busyFadeOutText}</h2>
+            )}
+          </div>
           <BusyIconMorph activeIndex={busyMessageIndex} />
         </section>
       )}
